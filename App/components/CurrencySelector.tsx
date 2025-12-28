@@ -40,13 +40,15 @@ interface CurrencySelectorProps {
   onChange: (value: string) => void;
   showCrypto?: boolean;
   className?: string;
+  disabled?: boolean;
 }
 
 export function CurrencySelector({ 
   value, 
   onChange, 
   showCrypto = true,
-  className 
+  className,
+  disabled = false
 }: CurrencySelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -90,38 +92,54 @@ export function CurrencySelector({
       <div className="relative">
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-full h-[52px] px-4 bg-[rgba(15,17,20,0.55)] border border-[rgba(255,255,255,0.10)] rounded-ec-md text-ec-text focus:outline-none focus:border-[rgba(28,140,130,0.55)] focus:shadow-[0_0_0_4px_rgba(28,140,130,0.18)] transition-all flex items-center justify-between"
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          disabled={disabled}
+          className={cn(
+            "w-full h-[52px] px-4 bg-[rgba(21,24,29,0.75)] border-2 border-[rgba(28,140,130,0.35)] rounded-ec-md text-ec-text focus:outline-none focus:border-[rgba(28,140,130,0.65)] focus:shadow-[0_0_0_4px_rgba(28,140,130,0.25)] transition-all flex items-center justify-between group",
+            isOpen && !disabled && "border-[rgba(28,140,130,0.65)] shadow-[0_0_0_4px_rgba(28,140,130,0.25)] bg-[rgba(21,24,29,0.85)]",
+            disabled && "opacity-50 cursor-not-allowed"
+          )}
         >
           <span className="flex items-center gap-2">
             <span className="font-medium">{selectedCurrency.code}</span>
             <span className="text-sm text-ec-muted">— {selectedCurrency.name}</span>
           </span>
-          <ChevronDown size={18} className="text-ec-muted" />
+          <ChevronDown 
+            size={18} 
+            className={cn(
+              "transition-all duration-300",
+              isOpen
+                ? "text-ec-text drop-shadow-[0_0_18px_rgba(28,140,130,0.55)] drop-shadow-[0_0_10px_rgba(200,162,77,0.25)]"
+                : "text-[rgba(237,237,237,0.75)] drop-shadow-[0_0_10px_var(--ec-teal-glow)] opacity-90 group-hover:text-ec-text group-hover:drop-shadow-[0_0_18px_rgba(28,140,130,0.55)] group-hover:drop-shadow-[0_0_10px_rgba(200,162,77,0.25)]"
+            )}
+          />
         </button>
 
-        {isOpen && (
-          <div className="absolute z-50 w-full mt-2 bg-[rgba(15,17,20,0.95)] border border-[rgba(28,140,130,0.30)] rounded-ec-md shadow-[0_18px_60px_rgba(0,0,0,0.55)] backdrop-blur-sm max-h-[400px] overflow-hidden flex flex-col">
+        {isOpen && !disabled && (
+          <div className="ec-dropdown absolute z-50 w-full mt-2 bg-[linear-gradient(180deg,rgba(21,24,29,0.95),rgba(15,17,20,0.95))] border border-[rgba(28,140,130,0.30)] rounded-[20px] shadow-[0_18px_60px_rgba(0,0,0,0.55)] backdrop-blur-[16px] max-h-[400px] overflow-hidden flex flex-col">
             {/* Search Input */}
-            <div className="p-3 border-b border-[rgba(255,255,255,0.08)]">
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ec-muted" />
+            <div className="p-3 border-b border-[rgba(255,255,255,0.06)]">
+              <div className="relative group">
+                <Search 
+                  size={18} 
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgba(237,237,237,0.75)] drop-shadow-[0_0_8px_var(--ec-teal-glow)] opacity-90 transition-all duration-300 group-focus-within:text-ec-text group-focus-within:drop-shadow-[0_0_12px_rgba(28,140,130,0.55)] group-focus-within:drop-shadow-[0_0_6px_rgba(200,162,77,0.25)]" 
+                />
                 <input
                   type="text"
                   placeholder="Search currency..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-10 pl-10 pr-3 bg-[rgba(15,17,20,0.8)] border border-[rgba(255,255,255,0.10)] rounded-ec-sm text-ec-text text-sm focus:outline-none focus:border-[rgba(28,140,130,0.55)]"
+                  className="w-full h-[52px] pl-10 pr-4 bg-[rgba(15,17,20,0.55)] border border-[rgba(28,140,130,0.22)] rounded-ec-md text-ec-text text-sm placeholder-[rgba(237,237,237,0.45)] focus:outline-none focus:border-[rgba(28,140,130,0.55)] focus:shadow-[0_0_0_4px_rgba(28,140,130,0.18)] transition-all"
                   autoFocus
                 />
               </div>
             </div>
 
             {/* Currency List */}
-            <div className="overflow-y-auto flex-1">
+            <div className="overflow-y-auto flex-1 ec-currency-scrollbar">
               {fiatFiltered.length > 0 && (
-                <div className="p-2">
-                  <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-2 px-2">
+                <div className="p-3">
+                  <div className="muted text-xs font-medium uppercase tracking-[0.14em] mb-3 px-2">
                     Fiat Currencies
                   </div>
                   {fiatFiltered.map((currency) => (
@@ -134,14 +152,15 @@ export function CurrencySelector({
                         setSearchQuery('');
                       }}
                       className={cn(
-                        "w-full text-left px-3 py-2 text-sm rounded-ec-sm transition-colors mb-1",
+                        "row w-full text-left px-4 py-3 h-[48px] rounded-ec-sm transition-all mb-1 flex items-center",
                         value === currency.code
-                          ? "bg-ec-teal/20 text-ec-text border border-ec-teal/40"
-                          : "text-ec-muted hover:text-ec-text hover:bg-ec-card/50"
+                          ? "selected bg-gradient-to-r from-[rgba(28,140,130,0.25)] to-[rgba(28,140,130,0.15)] text-ec-text border-2 border-[rgba(200,162,77,0.50)] shadow-[0_0_0_2px_rgba(28,140,130,0.20)]"
+                          : "text-ec-muted hover:text-ec-text hover:bg-[rgba(28,140,130,0.08)] border border-transparent"
                       )}
+                      aria-selected={value === currency.code}
                     >
                       <span className="flex items-center gap-2">
-                        <span className="font-medium">{currency.code}</span>
+                        <span className="font-semibold text-base">{currency.code}</span>
                         <span className="text-xs text-ec-dim">— {currency.name}</span>
                       </span>
                     </button>
@@ -150,8 +169,8 @@ export function CurrencySelector({
               )}
 
               {showCrypto && cryptoFiltered.length > 0 && (
-                <div className="p-2 border-t border-[rgba(255,255,255,0.08)]">
-                  <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-2 px-2">
+                <div className="p-3 border-t border-[rgba(255,255,255,0.06)]">
+                  <div className="muted text-xs font-medium uppercase tracking-[0.14em] mb-3 px-2">
                     Cryptocurrencies
                   </div>
                   {cryptoFiltered.map((currency) => (
@@ -164,14 +183,15 @@ export function CurrencySelector({
                         setSearchQuery('');
                       }}
                       className={cn(
-                        "w-full text-left px-3 py-2 text-sm rounded-ec-sm transition-colors mb-1",
+                        "row w-full text-left px-4 py-3 h-[48px] rounded-ec-sm transition-all mb-1 flex items-center",
                         value === currency.code
-                          ? "bg-ec-gold/20 text-ec-text border border-ec-gold/40"
-                          : "text-ec-muted hover:text-ec-text hover:bg-ec-card/50"
+                          ? "selected bg-gradient-to-r from-[rgba(200,162,77,0.25)] to-[rgba(200,162,77,0.15)] text-ec-text border-2 border-[rgba(200,162,77,0.50)] shadow-[0_0_0_2px_rgba(200,162,77,0.20)]"
+                          : "text-ec-muted hover:text-ec-text hover:bg-[rgba(200,162,77,0.08)] border border-transparent"
                       )}
+                      aria-selected={value === currency.code}
                     >
                       <span className="flex items-center gap-2">
-                        <span className="font-medium">{currency.code}</span>
+                        <span className="font-semibold text-base">{currency.code}</span>
                         <span className="text-xs text-ec-dim">— {currency.name}</span>
                       </span>
                     </button>
@@ -180,7 +200,7 @@ export function CurrencySelector({
               )}
 
               {filteredCurrencies.length === 0 && (
-                <div className="p-4 text-center text-sm text-ec-muted">
+                <div className="p-6 text-center text-sm text-ec-muted">
                   No currencies found
                 </div>
               )}

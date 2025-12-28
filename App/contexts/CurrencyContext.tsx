@@ -1,43 +1,57 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 
-interface CurrencyContextType {
+type CurrencyState = {
   currency: string;
-  setCurrency: (currency: string) => void;
-}
+  crypto: string | null;
+  setCurrency: (v: string) => void;
+  setCrypto: (v: string | null) => void;
+};
 
-const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
+const CurrencyContext = createContext<CurrencyState | null>(null);
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
-  const [currency, setCurrencyState] = useState<string>('AUD');
+  const [currency, setCurrencyState] = useState("AUD");
+  const [crypto, setCryptoState] = useState<string | null>(null);
 
-  // Load from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('ecovira-currency');
-    if (saved) {
-      setCurrencyState(saved);
-    }
+    try {
+      const saved = localStorage.getItem("ecovira.currency");
+      const savedCrypto = localStorage.getItem("ecovira.crypto");
+      if (saved) setCurrencyState(saved);
+      if (savedCrypto) setCryptoState(savedCrypto);
+    } catch {}
   }, []);
 
-  // Save to localStorage on change
-  const setCurrency = (newCurrency: string) => {
-    setCurrencyState(newCurrency);
-    localStorage.setItem('ecovira-currency', newCurrency);
+  const setCurrency = (v: string) => {
+    setCurrencyState(v);
+    try { localStorage.setItem("ecovira.currency", v); } catch {}
   };
 
+  const setCrypto = (v: string | null) => {
+    setCryptoState(v);
+    try {
+      if (v) localStorage.setItem("ecovira.crypto", v);
+      else localStorage.removeItem("ecovira.crypto");
+    } catch {}
+  };
+
+  const value = useMemo(
+    () => ({ currency, crypto, setCurrency, setCrypto }),
+    [currency, crypto]
+  );
+
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency }}>
+    <CurrencyContext.Provider value={value}>
       {children}
     </CurrencyContext.Provider>
   );
 }
 
 export function useCurrency() {
-  const context = useContext(CurrencyContext);
-  if (context === undefined) {
-    throw new Error('useCurrency must be used within a CurrencyProvider');
-  }
-  return context;
+  const ctx = useContext(CurrencyContext);
+  if (!ctx) throw new Error("useCurrency must be used inside <CurrencyProvider>");
+  return ctx;
 }
 

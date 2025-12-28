@@ -71,11 +71,11 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
           {/* Duration and Stops - Bottom Left */}
           <div className="flex items-center gap-6 pt-2">
             <div className="flex items-center gap-2 text-sm text-ec-muted">
-              <span className="text-ec-teal">⏱️</span>
-              <span>Duration: {duration}</span>
+              <span className="text-ec-teal font-medium">Duration:</span>
+              <span>{duration}</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-ec-muted">
-              <span className="text-ec-teal">🛑</span>
+              <span className="text-ec-teal font-medium">Stops:</span>
               <span>{stops}</span>
             </div>
           </div>

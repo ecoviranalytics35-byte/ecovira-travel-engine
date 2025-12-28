@@ -67,7 +67,7 @@ export function DatePicker({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={cn(
-          "w-full h-[52px] px-4 bg-[rgba(15,17,20,0.55)] border border-[rgba(255,255,255,0.10)] rounded-ec-md text-left text-ec-text placeholder-[rgba(237,237,237,0.45)] focus:outline-none focus:border-[rgba(28,140,130,0.55)] focus:shadow-[0_0_0_4px_rgba(28,140,130,0.18)] transition-all flex items-center justify-between",
+          "w-full h-[52px] px-4 bg-[rgba(15,17,20,0.55)] border border-[rgba(255,255,255,0.10)] rounded-ec-md text-left text-ec-text placeholder-[rgba(237,237,237,0.45)] focus:outline-none focus:border-[rgba(28,140,130,0.55)] focus:shadow-[0_0_0_4px_rgba(28,140,130,0.18)] transition-all flex items-center justify-between group",
           disabled && "opacity-50 cursor-not-allowed",
           !disabled && "cursor-pointer hover:border-[rgba(28,140,130,0.30)]"
         )}
@@ -75,7 +75,15 @@ export function DatePicker({
         <span className={cn(value ? "text-[#EDEDED]" : "text-[rgba(237,237,237,0.45)]")}>
           {value ? formatDisplay(value) : placeholder}
         </span>
-        <Calendar size={18} className="text-ec-muted" />
+        <Calendar 
+          size={20} 
+          className={cn(
+            "transition-all duration-300",
+            isOpen 
+              ? "text-ec-text drop-shadow-[0_0_18px_rgba(28,140,130,0.55)] drop-shadow-[0_0_10px_rgba(200,162,77,0.25)] opacity-100"
+              : "text-[rgba(237,237,237,0.75)] drop-shadow-[0_0_10px_var(--ec-teal-glow)] opacity-90 group-hover:text-ec-text group-hover:drop-shadow-[0_0_18px_rgba(28,140,130,0.55)] group-hover:drop-shadow-[0_0_10px_rgba(200,162,77,0.25)]"
+          )}
+        />
       </button>
 
       {isOpen && !disabled && (

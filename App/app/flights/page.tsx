@@ -10,6 +10,8 @@ import { FlightResultCard } from "../../components/FlightResultCard";
 import { DatePicker } from "../../components/DatePicker";
 import { CurrencySelector } from "../../components/CurrencySelector";
 import { useCurrency } from "../../contexts/CurrencyContext";
+import { SearchPanelShell } from "../../components/search/SearchPanelShell";
+import { ResultsList } from "../../components/results/ResultsList";
 
 function SkeletonLoader() {
   return (
@@ -67,12 +69,18 @@ export default function Flights() {
         </p>
       </div>
 
-      {/* Engine Search Card - Horizontal Layout */}
-      <div className="ec-card mb-20">
-        {/* Single Row: All Fields Horizontally */}
-        <div className="ec-grid-6 mb-8">
+      {/* Engine Search Card - Structured Layout */}
+      <SearchPanelShell
+        ctaLabel="Search Flights →"
+        onSearch={handleSearch}
+        loading={loading}
+      >
+        {/* Row 1: From | To */}
+        <div className="ec-grid-2 mb-6">
           <div>
-            <label>From</label>
+            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+              From
+            </label>
             <Input 
               value={from} 
               onChange={e => setFrom(e.target.value)} 
@@ -80,43 +88,54 @@ export default function Flights() {
             />
           </div>
           <div>
-            <label>To</label>
+            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+              To
+            </label>
             <Input 
               value={to} 
               onChange={e => setTo(e.target.value)} 
               placeholder="SYD" 
             />
           </div>
+        </div>
+
+        {/* Row 2: Departure | Return */}
+        <div className="ec-grid-2 mb-6">
+          <DatePicker
+            value={departDate}
+            onChange={setDepartDate}
+            placeholder="Select departure date"
+            label="Departure"
+          />
+          <DatePicker
+            value=""
+            onChange={() => {}}
+            placeholder="Select return date"
+            label="Return"
+          />
+        </div>
+
+        {/* Row 3: Passengers | Cabin | Currency */}
+        <div className="ec-grid-3 mb-6">
           <div>
-            <DatePicker
-              value={departDate}
-              onChange={setDepartDate}
-              placeholder="Select departure date"
-              label="Departure"
-            />
-          </div>
-          <div>
-            <DatePicker
-              value=""
-              onChange={() => {}}
-              placeholder="Select return date"
-              label="Return"
-            />
-          </div>
-          <div>
-            <label>Passengers</label>
+            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+              Passengers
+            </label>
             <Input 
               type="number" 
               value={adults} 
-              onChange={e => setAdults(parseInt(e.target.value))} 
+              onChange={e => setAdults(parseInt(e.target.value) || 1)} 
               min="1" 
             />
           </div>
           <div>
-            <label>Cabin Class</label>
+            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+              Cabin Class
+            </label>
             <select
               value={cabinClass}
               onChange={e => setCabinClass(e.target.value)}
+              className="w-full h-[52px] px-4 bg-[rgba(15,17,20,0.55)] border border-[rgba(28,140,130,0.22)] rounded-ec-md text-ec-text focus:outline-none focus:border-[rgba(28,140,130,0.55)] focus:shadow-[0_0_0_4px_rgba(28,140,130,0.18)] transition-all"
             >
               <option value="economy">Economy</option>
               <option value="premium_economy">Premium Economy</option>
@@ -124,29 +143,13 @@ export default function Flights() {
               <option value="first">First</option>
             </select>
           </div>
+          <CurrencySelector
+            value={currency}
+            onChange={setCurrency}
+            showCrypto={true}
+          />
         </div>
-
-        {/* Row 2: Currency + CTA */}
-        <div className="flex items-end justify-between gap-6">
-          <div className="flex-1 max-w-[300px]">
-            <CurrencySelector
-              value={currency}
-              onChange={setCurrency}
-              showCrypto={true}
-            />
-          </div>
-          <div className="flex-shrink-0">
-            <EcoviraButton 
-              onClick={handleSearch} 
-              disabled={loading} 
-              size="lg"
-              className="min-w-[320px] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Searching...' : 'Search Flights →'}
-            </EcoviraButton>
-          </div>
-        </div>
-      </div>
+      </SearchPanelShell>
 
           {loading && (
             <div className="space-y-6 mt-12">
@@ -161,7 +164,6 @@ export default function Flights() {
           {error && (
             <EcoviraCard variant="glass" className="mt-12">
               <div className="text-center py-12 md:py-16 px-6">
-                <div className="text-4xl mb-6 text-ec-gold">⚠</div>
                 <h3 className="text-2xl md:text-3xl font-serif font-semibold text-ec-text mb-4">
                   Concierge Notice
                 </h3>
@@ -198,8 +200,7 @@ export default function Flights() {
 
           {!loading && !error && results.length === 0 && (
             <EcoviraCard variant="glass" className="mt-12">
-              <div className="text-center py-16 md:py-20 px-6">
-                <div className="text-6xl mb-8 text-ec-muted font-light">Ready</div>
+              <div className="text-center py-12 md:py-16 px-6">
                 <h3 className="text-2xl md:text-3xl font-serif font-semibold text-ec-text mb-4">
                   No flights found
                 </h3>
@@ -210,7 +211,7 @@ export default function Flights() {
                   variant="secondary" 
                   onClick={() => setResults([])}
                   size="lg"
-                  className="px-8"
+                  className="px-8 h-[52px]"
                 >
                   Search Again
                 </EcoviraButton>
@@ -219,28 +220,24 @@ export default function Flights() {
           )}
 
           {results.length > 0 && (
-            <div className="mt-20">
-              <div className="flex items-center justify-between mb-12">
-                <div>
-                  <h2 className="text-4xl md:text-5xl font-serif font-semibold text-ec-text mb-3">
-                    Results
-                  </h2>
-                  <p className="text-ec-muted text-lg">
-                    {results.length} {results.length === 1 ? 'flight' : 'flights'} found
-                  </p>
-                </div>
-                <select className="h-11 px-4 bg-ec-card border border-[rgba(255,255,255,0.10)] rounded-ec-md text-ec-text text-sm focus:outline-none focus:border-[rgba(28,140,130,0.55)] cursor-pointer">
-                  <option value="price" className="bg-ec-bg-2">Sort by Price</option>
-                  <option value="duration" className="bg-ec-bg-2">Sort by Duration</option>
-                  <option value="departure" className="bg-ec-bg-2">Sort by Departure</option>
-                </select>
-              </div>
-              <div className="space-y-6">
-                {results.map((flight, i) => (
-                  <FlightResultCard key={i} flight={flight} />
-                ))}
-              </div>
-            </div>
+            <ResultsList
+              title="Results"
+              count={results.length}
+              countLabel={results.length === 1 ? 'flight' : 'flights'}
+              sortOptions={[
+                { value: 'price', label: 'Sort by Price' },
+                { value: 'duration', label: 'Sort by Duration' },
+                { value: 'departure', label: 'Sort by Departure' },
+              ]}
+              onSortChange={(value) => {
+                // TODO: Implement sorting
+                console.log('Sort by:', value);
+              }}
+            >
+              {results.map((flight, i) => (
+                <FlightResultCard key={i} flight={flight} />
+              ))}
+            </ResultsList>
           )}
 
     </>

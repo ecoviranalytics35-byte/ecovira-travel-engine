@@ -306,6 +306,51 @@ html, body { padding: 0; margin: 0; }
     font-size: 13px;
     color: rgba(237,237,237,0.55);
   }
+
+  /* Custom scrollbar for currency dropdown */
+  .ec-currency-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(28, 140, 130, 0.4) rgba(15, 17, 20, 0.8);
+  }
+  .ec-currency-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .ec-currency-scrollbar::-webkit-scrollbar-track {
+    background: rgba(15, 17, 20, 0.8);
+    border-radius: 4px;
+  }
+  .ec-currency-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(28, 140, 130, 0.4);
+    border-radius: 4px;
+    border: 1px solid rgba(28, 140, 130, 0.2);
+  }
+  .ec-currency-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(28, 140, 130, 0.6);
+  }
+
+  /* --- Ecovira: Force dropdown/popup text to stay light --- */
+  .ec-dropdown,
+  .ec-dropdown * {
+    color: var(--ec-text) !important;
+  }
+
+  .ec-dropdown input::placeholder {
+    color: rgba(237, 237, 237, 0.45) !important;
+  }
+
+  .ec-dropdown .muted {
+    color: var(--ec-muted) !important;
+  }
+
+  .ec-dropdown .row:hover {
+    background: rgba(28, 140, 130, 0.12) !important;
+  }
+
+  .ec-dropdown .row[aria-selected="true"],
+  .ec-dropdown .row.selected {
+    background: rgba(28, 140, 130, 0.18) !important;
+    box-shadow: 0 0 0 1px rgba(200, 162, 77, 0.25) inset !important;
+  }
 }
 
 /* ============================

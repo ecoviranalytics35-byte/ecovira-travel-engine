@@ -9,6 +9,9 @@ import { EcoviraCard } from "../../components/EcoviraCard";
 import { DatePicker } from "../../components/DatePicker";
 import { CurrencySelector } from "../../components/CurrencySelector";
 import { useCurrency } from "../../contexts/CurrencyContext";
+import { SearchPanelShell } from "../../components/search/SearchPanelShell";
+import { ResultsList } from "../../components/results/ResultsList";
+import { StayResultCard } from "../../components/results/StayResultCard";
 
 function SkeletonLoader() {
   return (
@@ -76,100 +79,106 @@ export default function Stays() {
         </p>
       </div>
 
-      {/* Engine Search Card - Horizontal Layout */}
-      <div className="ec-card mb-20">
-        {/* Single Row: All Fields Horizontally */}
-        <div className="ec-grid-6 mb-8">
+      {/* Engine Search Card - Structured Layout */}
+      <SearchPanelShell
+        ctaLabel="Search Stays →"
+        onSearch={handleSearch}
+        loading={loading}
+      >
+        {/* Row 1: City | Check-in */}
+        <div className="ec-grid-2 mb-6">
           <div>
-            <label>City</label>
+            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+              City
+            </label>
             <Input 
               value={city} 
               onChange={e => setCity(e.target.value)} 
               placeholder="Melbourne" 
             />
           </div>
+          <DatePicker
+            value={checkIn}
+            onChange={setCheckIn}
+            placeholder="Select check-in date"
+            label="Check-in"
+          />
+        </div>
+
+        {/* Row 2: Nights | Adults | Children */}
+        <div className="ec-grid-3 mb-6">
           <div>
-            <DatePicker
-              value={checkIn}
-              onChange={setCheckIn}
-              placeholder="Select check-in date"
-              label="Check-in"
-            />
-          </div>
-          <div>
-            <label>Nights</label>
+            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+              Nights
+            </label>
             <Input 
               type="number" 
               value={nights} 
-              onChange={e => setNights(parseInt(e.target.value))} 
+              onChange={e => setNights(parseInt(e.target.value) || 1)} 
               min="1" 
             />
           </div>
           <div>
-            <label>Adults</label>
+            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+              Adults
+            </label>
             <Input 
               type="number" 
               value={adults} 
-              onChange={e => setAdults(parseInt(e.target.value))} 
+              onChange={e => setAdults(parseInt(e.target.value) || 1)} 
               min="1" 
             />
           </div>
           <div>
-            <label>Children</label>
+            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+              Children
+            </label>
             <Input 
               type="number" 
               value={children} 
-              onChange={e => setChildren(parseInt(e.target.value))} 
+              onChange={e => setChildren(parseInt(e.target.value) || 0)} 
               min="0" 
             />
           </div>
+        </div>
+
+        {/* Row 3: Room Type | Class | Currency */}
+        <div className="ec-grid-3 mb-6">
           <div>
-            <label>Room Type</label>
+            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+              Room Type
+            </label>
             <select
               value={roomType}
               onChange={e => setRoomType(e.target.value)}
+              className="w-full h-[52px] px-4 bg-[rgba(15,17,20,0.55)] border border-[rgba(28,140,130,0.22)] rounded-ec-md text-ec-text focus:outline-none focus:border-[rgba(28,140,130,0.55)] focus:shadow-[0_0_0_4px_rgba(28,140,130,0.18)] transition-all"
             >
               <option value="single">Single</option>
               <option value="double">Double</option>
               <option value="suite">Suite</option>
             </select>
           </div>
-        </div>
-
-        {/* Row 2: Class + Currency + CTA */}
-        <div className="flex items-end justify-between gap-6">
-          <div className="flex gap-6 flex-1">
-            <div className="flex-1 max-w-[200px]">
-              <label>Class</label>
-              <select
-                value={classType}
-                onChange={e => setClassType(e.target.value)}
-              >
-                <option value="standard">Standard</option>
-                <option value="deluxe">Deluxe</option>
-                <option value="luxury">Luxury</option>
-              </select>
-            </div>
-            <div className="flex-1 max-w-[300px]">
-              <CurrencySelector
-                value={currency}
-                onChange={setCurrency}
-                showCrypto={true}
-              />
-            </div>
-          </div>
-          <div className="flex-shrink-0">
-            <EcoviraButton 
-              onClick={handleSearch} 
-              disabled={loading} 
-              size="lg"
-              className="min-w-[320px] disabled:opacity-50 disabled:cursor-not-allowed"
+          <div>
+            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+              Class
+            </label>
+            <select
+              value={classType}
+              onChange={e => setClassType(e.target.value)}
+              className="w-full h-[52px] px-4 bg-[rgba(15,17,20,0.55)] border border-[rgba(28,140,130,0.22)] rounded-ec-md text-ec-text focus:outline-none focus:border-[rgba(28,140,130,0.55)] focus:shadow-[0_0_0_4px_rgba(28,140,130,0.18)] transition-all"
             >
-              {loading ? 'Searching...' : 'Search Stays →'}
-            </EcoviraButton>
+              <option value="standard">Standard</option>
+              <option value="deluxe">Deluxe</option>
+              <option value="luxury">Luxury</option>
+            </select>
           </div>
+          <CurrencySelector
+            value={currency}
+            onChange={setCurrency}
+            showCrypto={true}
+          />
         </div>
-      </div>
+      </SearchPanelShell>
 
       {loading && (
         <div className="space-y-6">
@@ -184,7 +193,6 @@ export default function Stays() {
       {error && (
         <EcoviraCard variant="glass" className="mb-8">
           <div className="text-center py-12 md:py-16 px-6">
-            <div className="text-4xl mb-6 text-ec-gold">⚠</div>
             <h3 className="text-2xl md:text-3xl font-serif font-semibold text-ec-text mb-4">
               Concierge Notice
             </h3>
@@ -220,8 +228,7 @@ export default function Stays() {
       )}
 
       {!loading && !error && results.length === 0 && (
-        <EcoviraCard variant="glass" className="text-center py-16 md:py-20 px-6">
-          <div className="text-6xl mb-8 text-ec-muted font-light">Ready</div>
+        <EcoviraCard variant="glass" className="text-center py-12 md:py-16 px-6">
           <h3 className="text-2xl md:text-3xl font-serif font-semibold text-ec-text mb-4">
             No stays found
           </h3>
@@ -232,7 +239,7 @@ export default function Stays() {
             variant="secondary" 
             onClick={() => setResults([])}
             size="lg"
-            className="px-8"
+            className="px-8 h-[52px]"
           >
             Search Again
           </EcoviraButton>
@@ -240,43 +247,23 @@ export default function Stays() {
       )}
 
       {results.length > 0 && (
-        <div className="mt-20">
-          <div className="flex items-center justify-between mb-12">
-            <div>
-              <h2 className="text-4xl md:text-5xl font-serif font-semibold text-ec-text mb-3">
-                Results
-              </h2>
-              <p className="text-ec-muted text-lg">
-                {results.length} {results.length === 1 ? 'stay' : 'stays'} found
-              </p>
-            </div>
-            <select className="h-11 px-4 bg-ec-card border border-[rgba(255,255,255,0.10)] rounded-ec-md text-ec-text text-sm focus:outline-none focus:border-[rgba(28,140,130,0.55)] cursor-pointer">
-              <option value="price" className="bg-ec-bg-2">Sort by Price</option>
-              <option value="rating" className="bg-ec-bg-2">Sort by Rating</option>
-            </select>
-          </div>
-          <div className="space-y-6">
-            {results.map((stay, i) => (
-              <EcoviraCard key={i} variant="glass" className="p-6">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="text-lg font-semibold text-ec-text mb-1">{stay.name}</h3>
-                    <p className="text-ec-muted mb-2">{stay.city}</p>
-                    <p className="text-sm text-ec-muted">
-                      {stay.checkIn} • {stay.nights} nights • {stay.roomType} • {stay.classType}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-serif font-semibold text-ec-gold mb-1">
-                      {stay.currency} {stay.total}
-                    </div>
-                    <p className="text-sm text-ec-muted">total</p>
-                  </div>
-                </div>
-              </EcoviraCard>
-            ))}
-          </div>
-        </div>
+        <ResultsList
+          title="Results"
+          count={results.length}
+          countLabel={results.length === 1 ? 'stay' : 'stays'}
+          sortOptions={[
+            { value: 'price', label: 'Sort by Price' },
+            { value: 'rating', label: 'Sort by Rating' },
+          ]}
+          onSortChange={(value) => {
+            // TODO: Implement sorting
+            console.log('Sort by:', value);
+          }}
+        >
+          {results.map((stay, i) => (
+            <StayResultCard key={i} stay={stay} />
+          ))}
+        </ResultsList>
       )}
     </>
   );
