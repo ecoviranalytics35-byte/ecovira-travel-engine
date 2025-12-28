@@ -28,11 +28,6 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
             </div>
             <div>
               <div className="text-lg font-semibold text-ec-text">{airline}</div>
-              <div className="text-xs text-ec-muted mt-1">
-                <span className="px-2 py-0.5 bg-[rgba(28,140,130,0.15)] rounded-full border border-[rgba(28,140,130,0.25)]">
-                  Source: {airline}
-                </span>
-              </div>
             </div>
           </div>
           <div className="text-right">
@@ -46,21 +41,21 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
         {/* Middle: Route + Times */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 pb-6 border-b border-[rgba(28,140,130,0.15)]">
           <div>
-            <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-2">
+            <div className="inline-block px-3 py-1.5 mb-3 bg-gradient-to-br from-[rgba(28,140,130,0.25)] to-[rgba(28,140,130,0.15)] border border-[rgba(28,140,130,0.4)] rounded-full text-xs font-semibold uppercase tracking-[0.12em] text-ec-text shadow-[0_0_8px_rgba(28,140,130,0.3)]">
               Departure
             </div>
             <div className="text-lg font-bold text-ec-text mb-1">{departureDate}</div>
             <div className="text-sm text-ec-muted">{flight.from}</div>
           </div>
           <div className="text-center">
-            <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-2">
+            <div className="inline-block px-3 py-1.5 mb-3 bg-gradient-to-br from-[rgba(28,140,130,0.25)] to-[rgba(28,140,130,0.15)] border border-[rgba(28,140,130,0.4)] rounded-full text-xs font-semibold uppercase tracking-[0.12em] text-ec-text shadow-[0_0_8px_rgba(28,140,130,0.3)]">
               Duration
             </div>
             <div className="text-lg font-bold text-ec-teal mb-1">{duration}</div>
             <div className="text-sm text-ec-muted">{stops}</div>
           </div>
           <div>
-            <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-2">
+            <div className="inline-block px-3 py-1.5 mb-3 bg-gradient-to-br from-[rgba(28,140,130,0.25)] to-[rgba(28,140,130,0.15)] border border-[rgba(28,140,130,0.4)] rounded-full text-xs font-semibold uppercase tracking-[0.12em] text-ec-text shadow-[0_0_8px_rgba(28,140,130,0.3)]">
               Arrival
             </div>
             <div className="text-lg font-bold text-ec-text mb-1">{arrivalDate}</div>

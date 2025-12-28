@@ -14,6 +14,17 @@ export async function GET(request: Request) {
   const hasEnv = process.env.AMADEUS_API_KEY && process.env.AMADEUS_API_SECRET;
   const hasParams = !isNaN(startLat) && !isNaN(startLng) && !isNaN(endLat) && !isNaN(endLng) && dateTime;
 
+  // #region agent log
+  console.log('[API] transfers/search called', { hasEnv, hasParams, startLat, startLng, endLat, endLng, dateTime, adults });
+  // #endregion
+
+  if (!hasParams) {
+    // #region agent log
+    console.log('[API] transfers/search missing params');
+    // #endregion
+    return Response.json({ results: [], meta: {}, errors: ['Missing required parameters: startLat, startLng, endLat, endLng, dateTime'] }, { status: 400 });
+  }
+
   const params = {
     startLat,
     startLng,
@@ -23,6 +34,16 @@ export async function GET(request: Request) {
     adults,
   };
 
-  const { results, meta, errors } = await searchTransfers(params);
-  return Response.json({ results, meta, errors });
+  try {
+    const { results, meta, errors } = await searchTransfers(params);
+    // #region agent log
+    console.log('[API] transfers/search result', { resultsCount: results?.length || 0, errorsCount: errors?.length || 0, hasErrors: !!errors });
+    // #endregion
+    return Response.json({ results, meta, errors });
+  } catch (error) {
+    // #region agent log
+    console.error('[API] transfers/search error', error);
+    // #endregion
+    return Response.json({ results: [], meta: {}, errors: [error instanceof Error ? error.message : 'Unknown error'] }, { status: 500 });
+  }
 }

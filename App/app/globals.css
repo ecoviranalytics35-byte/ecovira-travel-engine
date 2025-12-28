@@ -401,6 +401,63 @@ html, body { padding: 0; margin: 0; }
   .ec-currency-trigger * {
     color: var(--ec-text) !important;
   }
+
+  /* Ensure secondary variant buttons have white text - HIGH SPECIFICITY */
+  button.ec-button-secondary,
+  button[data-variant="secondary"] {
+    color: #FFFFFF !important;
+  }
+  
+  button.ec-button-secondary:hover,
+  button[data-variant="secondary"]:hover {
+    color: #FFFFFF !important;
+  }
+  
+  /* Also target any element with secondary variant class or data attribute */
+  .ec-button-secondary,
+  [data-variant="secondary"] {
+    color: #FFFFFF !important;
+  }
+}
+
+/* Global rule for secondary buttons - outside the main container for maximum specificity */
+button[data-variant="secondary"],
+button.ec-button-secondary,
+.ec-button-secondary {
+  color: #FFFFFF !important;
+}
+
+button[data-variant="secondary"]:hover,
+button.ec-button-secondary:hover,
+.ec-button-secondary:hover {
+  color: #FFFFFF !important;
+}
+
+/* Chat widget quick question chips - ensure white text and glow */
+.ec-chat-quick-chip {
+  color: #FFFFFF !important;
+  text-shadow: 0 0 8px rgba(28, 140, 130, 0.5) !important;
+}
+
+.ec-chat-quick-chip:hover {
+  color: #FFFFFF !important;
+  text-shadow: 0 0 12px rgba(28, 140, 130, 0.7), 0 0 20px rgba(28, 140, 130, 0.4) !important;
+}
+
+/* Chat launcher button - ensure it's always clickable */
+.ec-chat-launcher {
+  pointer-events: auto !important;
+  z-index: 99999 !important;
+  position: relative !important;
+  cursor: pointer !important;
+}
+
+.ec-chat-launcher:hover {
+  pointer-events: auto !important;
+}
+
+.ec-chat-launcher:active {
+  pointer-events: auto !important;
 }
 
 /* ============================

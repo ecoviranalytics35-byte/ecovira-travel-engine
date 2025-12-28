@@ -9,6 +9,9 @@ interface FloatingAiAssistProps {
   type: 'flights' | 'stays' | 'cars' | 'transfers';
   results: any[];
   selectedFlight?: any;
+  selectedCar?: any;
+  selectedTransfer?: any;
+  selectedStay?: any;
   tripData?: {
     from?: string;
     to?: string;
@@ -18,6 +21,7 @@ interface FloatingAiAssistProps {
     nights?: number;
     days?: number;
   };
+  chatContext?: any;
   onOpenChat?: () => void;
 }
 
@@ -103,22 +107,23 @@ function generateTips(flight: any, allFlights: any[], score: any): string[] {
   return tips.length > 0 ? tips : ["This option offers good value for your criteria"];
 }
 
-export function FloatingAiAssist({ type, results, selectedFlight, tripData, onOpenChat }: FloatingAiAssistProps) {
+export function FloatingAiAssist({ type, results, selectedFlight, selectedCar, selectedTransfer, selectedStay, tripData, chatContext, onOpenChat }: FloatingAiAssistProps) {
   const [isOpen, setIsOpen] = useState(false);
   // No need for activeTab state - we only show one tab per page
   const [analyzingFlight, setAnalyzingFlight] = useState<any>(null);
 
   useEffect(() => {
-    if (selectedFlight) {
-      setAnalyzingFlight(selectedFlight);
+    const selected = selectedFlight || selectedCar || selectedTransfer || selectedStay;
+    if (selected) {
+      setAnalyzingFlight(selected);
     } else if (results.length > 0) {
       // Default to cheapest
       const cheapest = results.reduce((min, f) => 
-        parseFloat(f.price || 0) < parseFloat(min.price || 0) ? f : min, results[0]
+        parseFloat(f.price || f.total || 0) < parseFloat(min.price || min.total || 0) ? f : min, results[0]
       );
       setAnalyzingFlight(cheapest);
     }
-  }, [selectedFlight, results]);
+  }, [selectedFlight, selectedCar, selectedTransfer, selectedStay, results]);
 
   if (!results || !Array.isArray(results) || results.length === 0) {
     return null;

@@ -30,6 +30,20 @@ export async function GET(request: Request) {
     classType,
   };
 
-  const { results, meta, errors } = await searchStays(params);
-  return Response.json({ results, meta, errors });
+  // #region agent log
+  console.log('[API] stays/search called', { params, hasCity: !!city, hasCheckIn: !!checkIn });
+  // #endregion
+  
+  try {
+    const { results, meta, errors } = await searchStays(params);
+    // #region agent log
+    console.log('[API] stays/search result', { resultsCount: results?.length || 0, errorsCount: errors?.length || 0, hasErrors: !!errors });
+    // #endregion
+    return Response.json({ results, meta, errors });
+  } catch (error) {
+    // #region agent log
+    console.error('[API] stays/search error', error);
+    // #endregion
+    return Response.json({ results: [], meta: {}, errors: [error instanceof Error ? error.message : 'Unknown error'] }, { status: 500 });
+  }
 }

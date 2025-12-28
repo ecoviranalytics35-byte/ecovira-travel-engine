@@ -15,9 +15,9 @@ export function TransferResultCard({ transfer, onSelect }: TransferResultCardPro
         <div className="md:col-span-8 space-y-4">
           <div>
             <h3 className="text-2xl md:text-3xl font-serif font-semibold text-ec-text mb-2">
-              {transfer.name}
+              {transfer.name || transfer.transferType || 'Private Transfer'}
             </h3>
-            <p className="text-lg text-ec-muted">{transfer.type}</p>
+            <p className="text-lg text-ec-muted">{transfer.transferType || transfer.type || 'Transfer'}</p>
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
@@ -25,19 +25,19 @@ export function TransferResultCard({ transfer, onSelect }: TransferResultCardPro
               <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-1">
                 From
               </div>
-              <div className="text-ec-text font-medium">{transfer.from}</div>
+              <div className="text-ec-text font-medium">{transfer.from || 'N/A'}</div>
             </div>
             <div>
               <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-1">
                 To
               </div>
-              <div className="text-ec-text font-medium">{transfer.to}</div>
+              <div className="text-ec-text font-medium">{transfer.to || 'N/A'}</div>
             </div>
             <div>
               <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-1">
                 Passengers
               </div>
-              <div className="text-ec-text font-medium">{transfer.passengers}</div>
+              <div className="text-ec-text font-medium">{transfer.passengers || 'N/A'}</div>
             </div>
           </div>
         </div>

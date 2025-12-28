@@ -16,6 +16,17 @@ export async function GET(request: Request) {
   const hasEnv = process.env.AMADEUS_API_KEY && process.env.AMADEUS_API_SECRET;
   const hasParams = !isNaN(pickupLat) && !isNaN(pickupLng) && pickupDate && pickupTime && dropoffDate && dropoffTime;
 
+  // #region agent log
+  console.log('[API] cars/search called', { hasEnv, hasParams, pickupLat, pickupLng, pickupDate, dropoffDate, driverAge });
+  // #endregion
+
+  if (!hasParams) {
+    // #region agent log
+    console.log('[API] cars/search missing params');
+    // #endregion
+    return Response.json({ results: [], meta: {}, errors: ['Missing required parameters: pickupLat, pickupLng, pickupDate, pickupTime, dropoffDate, dropoffTime'] }, { status: 400 });
+  }
+
   const params = {
     pickupLat,
     pickupLng,
@@ -27,6 +38,16 @@ export async function GET(request: Request) {
     currency: currency || undefined,
   };
 
-  const { results, meta, errors } = await searchCars(params);
-  return Response.json({ results, meta, errors });
+  try {
+    const { results, meta, errors } = await searchCars(params);
+    // #region agent log
+    console.log('[API] cars/search result', { resultsCount: results?.length || 0, errorsCount: errors?.length || 0, hasErrors: !!errors });
+    // #endregion
+    return Response.json({ results, meta, errors });
+  } catch (error) {
+    // #region agent log
+    console.error('[API] cars/search error', error);
+    // #endregion
+    return Response.json({ results: [], meta: {}, errors: [error instanceof Error ? error.message : 'Unknown error'] }, { status: 500 });
+  }
 }

@@ -15,9 +15,9 @@ export function CarResultCard({ car, onSelect }: CarResultCardProps) {
         <div className="md:col-span-8 space-y-4">
           <div>
             <h3 className="text-2xl md:text-3xl font-serif font-semibold text-ec-text mb-2">
-              {car.name}
+              {car.name || car.vehicle || 'Car Rental'}
             </h3>
-            <p className="text-lg text-ec-muted">{car.category}</p>
+            <p className="text-lg text-ec-muted">{car.category || car.vendor || 'Standard'}</p>
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -25,25 +25,25 @@ export function CarResultCard({ car, onSelect }: CarResultCardProps) {
               <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-1">
                 Pickup
               </div>
-              <div className="text-ec-text font-medium">{car.pickupLocation}</div>
+              <div className="text-ec-text font-medium">{car.pickupLocation || car.pickup || 'N/A'}</div>
             </div>
             <div>
               <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-1">
                 Return
               </div>
-              <div className="text-ec-text font-medium">{car.returnLocation}</div>
+              <div className="text-ec-text font-medium">{car.returnLocation || car.dropoff || 'N/A'}</div>
             </div>
             <div>
               <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-1">
                 Duration
               </div>
-              <div className="text-ec-text font-medium">{car.duration} days</div>
+              <div className="text-ec-text font-medium">{car.duration ? `${car.duration} days` : 'N/A'}</div>
             </div>
             <div>
               <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-1">
                 Seats
               </div>
-              <div className="text-ec-text font-medium">{car.seats}</div>
+              <div className="text-ec-text font-medium">{car.seats || 'N/A'}</div>
             </div>
           </div>
         </div>

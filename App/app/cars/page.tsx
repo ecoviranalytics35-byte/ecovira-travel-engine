@@ -1,16 +1,97 @@
 "use client";
 
-import { EcoviraCard } from '../../components/EcoviraCard';
-import { EcoviraButton } from '../../components/Button';
+import { useState } from "react";
+import type { CarResult } from "@/lib/core/types";
 import { Input } from '../../components/Input';
 import { DatePicker } from '../../components/DatePicker';
 import { CurrencySelector } from '../../components/CurrencySelector';
 import { SearchPanelShell } from '../../components/search/SearchPanelShell';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import { ResultsList } from '../../components/results/ResultsList';
+import { CarResultCard } from '../../components/results/CarResultCard';
+import { FloatingAiAssist } from '../../components/ai/FloatingAiAssist';
+import { TestModeBanner } from '../../components/ui/TestModeBanner';
+import { getCoordinates } from '@/lib/utils/geocoding';
+
+function SkeletonLoader() {
+  return (
+    <div className="animate-pulse space-y-3">
+      <div className="h-5 bg-[rgba(28,140,130,0.1)] rounded-lg w-3/4"></div>
+      <div className="h-4 bg-[rgba(28,140,130,0.05)] rounded-lg w-1/2"></div>
+    </div>
+  );
+}
 
 export default function Cars() {
-  const { currency } = useCurrency();
-  
+  const { currency, setCurrency } = useCurrency();
+  const [pickupLocation, setPickupLocation] = useState("Melbourne");
+  const [pickupDate, setPickupDate] = useState("");
+  const [pickupTime, setPickupTime] = useState("10:00");
+  const [returnDate, setReturnDate] = useState("");
+  const [returnTime, setReturnTime] = useState("10:00");
+  const [driverAge, setDriverAge] = useState(30);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [results, setResults] = useState<CarResult[]>([]);
+  const [selectedCar, setSelectedCar] = useState<CarResult | null>(null);
+
+  const handleSearch = async () => {
+    setLoading(true);
+    setError("");
+    setResults([]);
+    try {
+      const coords = getCoordinates(pickupLocation);
+      if (!coords) {
+        setError("Please enter a valid city or airport code");
+        setLoading(false);
+        return;
+      }
+
+      if (!pickupDate || !returnDate) {
+        setError("Please select both pickup and return dates");
+        setLoading(false);
+        return;
+      }
+
+      const params = new URLSearchParams({
+        pickupLat: coords.lat.toString(),
+        pickupLng: coords.lng.toString(),
+        pickupDate,
+        pickupTime,
+        dropoffDate: returnDate,
+        dropoffTime: returnTime,
+        driverAge: driverAge.toString(),
+        currency: currency || 'AUD',
+      });
+      const url = `/api/transport/cars/search?${params.toString()}`;
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cars/page.tsx:handleSearch',message:'Starting cars search',data:{url,pickupLocation,pickupDate,returnDate,driverAge},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      const res = await fetch(url);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cars/page.tsx:handleSearch',message:'Received response',data:{status:res.status,statusText:res.statusText,ok:res.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      const data = await res.json();
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cars/page.tsx:handleSearch',message:'Parsed response data',data:{hasErrors:!!data.errors,errors:data.errors,resultsCount:data.results?.length||0,hasResults:!!data.results},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      if (data.errors && data.errors.length > 0) {
+        setError(data.errors[0]);
+        setResults([]);
+      } else {
+        setResults(data.results || []);
+        setError("");
+      }
+    } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cars/page.tsx:handleSearch',message:'Search failed with error',data:{error:err instanceof Error?err.message:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      setError("We encountered a network issue. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       {/* Page Title */}
@@ -23,11 +104,14 @@ export default function Cars() {
         </p>
       </div>
 
+      {/* Test Mode Banner */}
+      <TestModeBanner />
+
       {/* Engine Search Card - Structured Layout */}
       <SearchPanelShell
         ctaLabel="Search Cars →"
-        onSearch={() => {}}
-        disabled={true}
+        onSearch={handleSearch}
+        loading={loading}
       >
         {/* Row 1: Pickup Location | Pickup Date */}
         <div className="ec-grid-2 mb-6">
@@ -35,58 +119,123 @@ export default function Cars() {
             <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
               Pickup Location
             </label>
-            <Input placeholder="City or Airport" disabled />
+            <Input 
+              value={pickupLocation} 
+              onChange={e => setPickupLocation(e.target.value)} 
+              placeholder="City or Airport (e.g., Melbourne, MEL)" 
+            />
           </div>
           <DatePicker
-            value=""
-            onChange={() => {}}
+            value={pickupDate}
+            onChange={setPickupDate}
             placeholder="Select pickup date"
             label="Pickup Date"
-            disabled
           />
         </div>
 
-        {/* Row 2: Return Date | Driver Age | Currency */}
+        {/* Row 2: Return Date | Pickup Time | Return Time */}
         <div className="ec-grid-3 mb-6">
           <DatePicker
-            value=""
-            onChange={() => {}}
+            value={returnDate}
+            onChange={setReturnDate}
             placeholder="Select return date"
             label="Return Date"
-            disabled
           />
+          <div>
+            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+              Pickup Time
+            </label>
+            <Input 
+              type="time" 
+              value={pickupTime} 
+              onChange={e => setPickupTime(e.target.value)} 
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+              Return Time
+            </label>
+            <Input 
+              type="time" 
+              value={returnTime} 
+              onChange={e => setReturnTime(e.target.value)} 
+            />
+          </div>
+        </div>
+
+        {/* Row 3: Driver Age | Currency */}
+        <div className="ec-grid-2 mb-6">
           <div>
             <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
               Driver Age
             </label>
-            <Input type="number" placeholder="25+" disabled />
+            <Input 
+              type="number" 
+              value={driverAge} 
+              onChange={e => setDriverAge(parseInt(e.target.value) || 30)} 
+              placeholder="25+" 
+            />
           </div>
           <CurrencySelector
             value={currency}
-            onChange={() => {}}
+            onChange={setCurrency}
             showCrypto={true}
-            disabled={true}
           />
         </div>
       </SearchPanelShell>
 
-      {/* Coming Soon Card */}
-      <EcoviraCard variant="glass" className="text-center py-12 md:py-16 px-6">
-        <h2 className="text-2xl md:text-3xl font-serif font-semibold text-ec-text mb-4">
-          Car Rentals Coming Soon
-        </h2>
-        <p className="text-lg text-ec-muted mb-8 max-w-md mx-auto">
-          Our premium car rental service is currently under development. Contact concierge support to be notified when this feature becomes available.
-        </p>
-        <EcoviraButton 
-          variant="secondary" 
-          size="lg"
-          className="px-8 h-[52px]"
-          disabled
-        >
-          Notify Me
-        </EcoviraButton>
-      </EcoviraCard>
+      {/* Error Message */}
+      {error && (
+        <div className="mt-8 p-4 bg-[rgba(220,38,38,0.15)] border border-[rgba(220,38,38,0.3)] rounded-ec-md text-ec-text">
+          {error}
+        </div>
+      )}
+
+      {/* Results */}
+      {loading && (
+        <div className="mt-12 space-y-4">
+          <SkeletonLoader />
+          <SkeletonLoader />
+          <SkeletonLoader />
+        </div>
+      )}
+
+      {!loading && results.length > 0 && (
+        <>
+          <ResultsList
+            title="Car Rental Results"
+            count={results.length}
+          >
+            {results.map((car) => (
+              <CarResultCard
+                key={car.id}
+                car={car}
+                onSelect={(c) => {
+                  setSelectedCar(c);
+                }}
+              />
+            ))}
+          </ResultsList>
+          <FloatingAiAssist
+            type="cars"
+            results={results}
+            selectedCar={selectedCar}
+            chatContext={{
+              page: 'cars',
+              currency,
+              route: { from: pickupLocation, to: pickupLocation },
+            }}
+          />
+        </>
+      )}
+
+      {!loading && results.length === 0 && !error && (
+        <div className="mt-12 text-center py-16">
+          <p className="text-lg text-ec-muted">
+            Enter your search criteria above and click "Search Cars" to find available rentals.
+          </p>
+        </div>
+      )}
     </>
   );
 }

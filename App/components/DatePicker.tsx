@@ -44,8 +44,11 @@ export function DatePicker({
 
   const formatDisplay = (dateStr: string): string => {
     if (!dateStr) return '';
+    // Use consistent formatting to avoid hydration mismatches
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (isNaN(date.getTime())) return '';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
   };
 
   const handleDateSelect = (date: Date | undefined) => {
