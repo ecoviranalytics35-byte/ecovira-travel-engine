@@ -1,6 +1,11 @@
+"use client";
+
+import { useState } from 'react';
 import { FlightResult } from '@/lib/core/types';
 import { EcoviraCard } from './EcoviraCard';
 import { EcoviraButton } from './Button';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 interface FlightResultCardProps {
   flight: FlightResult;
@@ -8,8 +13,10 @@ interface FlightResultCardProps {
 }
 
 export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  
   // Mock additional data for display
-  const airline = flight.provider || 'Mock Airlines';
+  const airline = flight.provider || 'Amadeus';
   const airlineInitial = airline.charAt(0).toUpperCase();
   const duration = '4 Hours 5 Minutes';
   const stops = '1 Stop';
@@ -24,105 +31,92 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
   const basePrice = basePriceNum.toFixed(2);
 
   return (
-    <EcoviraCard variant="glass" className="p-8 md:p-10 lg:p-12">
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-10">
-        {/* Left: Airline / Logo Block */}
-        <div className="md:col-span-2 flex flex-col gap-4">
-          <div className="text-xl md:text-2xl font-bold text-ec-text">
-            {airline}
-          </div>
-          {/* Circular Logo Icon */}
-          <div className="w-12 h-12 rounded-full bg-ec-teal flex items-center justify-center">
-            <span className="text-2xl font-bold text-white">{airlineInitial}</span>
-          </div>
-        </div>
-
-        {/* Center-Left: Route + Times */}
-        <div className="md:col-span-5 space-y-5">
-          {/* Route - Teal, Bold */}
-          <div className="text-ec-teal font-bold text-xl md:text-2xl">
-            {flight.from} → {flight.to}
-          </div>
-          {/* Airport Codes */}
-          <div className="text-sm text-ec-muted">
-            {flight.from} and {flight.to}
-          </div>
-          
-          {/* Departure and Arrival */}
-          <div className="grid grid-cols-2 gap-8">
-            <div>
-              <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-2">
-                DEPARTURE
-              </div>
-              <div className="text-lg md:text-xl font-bold text-ec-text">
-                {departureDate}
-              </div>
+    <EcoviraCard variant="glass" className="p-6">
+      <div className="max-w-[1100px] mx-auto">
+        {/* Top Row: Airline + Price */}
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-ec-teal flex items-center justify-center flex-shrink-0">
+              <span className="text-lg font-bold text-white">{airlineInitial}</span>
             </div>
             <div>
-              <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-2">
-                ARRIVAL
-              </div>
-              <div className="text-lg md:text-xl font-bold text-ec-text">
-                {arrivalDate}
+              <div className="text-lg font-semibold text-ec-text">{airline}</div>
+              <div className="text-xs text-ec-muted mt-1">
+                <span className="px-2 py-0.5 bg-[rgba(28,140,130,0.15)] rounded-full border border-[rgba(28,140,130,0.25)]">
+                  Source: {airline}
+                </span>
               </div>
             </div>
           </div>
-
-          {/* Duration and Stops - Bottom Left */}
-          <div className="flex items-center gap-6 pt-2">
-            <div className="flex items-center gap-2 text-sm text-ec-muted">
-              <span className="text-ec-teal font-medium">Duration:</span>
-              <span>{duration}</span>
+          <div className="text-right">
+            <div className="text-3xl md:text-4xl font-bold text-ec-text">
+              {flight.currency} {flight.price}
             </div>
-            <div className="flex items-center gap-2 text-sm text-ec-muted">
-              <span className="text-ec-teal font-medium">Stops:</span>
-              <span>{stops}</span>
-            </div>
+            <div className="text-sm text-ec-muted mt-1">per person</div>
           </div>
         </div>
 
-        {/* Vertical Divider */}
-        <div className="hidden md:block md:col-span-1 flex justify-center">
-          <div className="w-px h-full bg-[rgba(28,140,130,0.22)]"></div>
+        {/* Middle: Route + Times */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 pb-6 border-b border-[rgba(28,140,130,0.15)]">
+          <div>
+            <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-2">
+              Departure
+            </div>
+            <div className="text-lg font-bold text-ec-text mb-1">{departureDate}</div>
+            <div className="text-sm text-ec-muted">{flight.from}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-2">
+              Duration
+            </div>
+            <div className="text-lg font-bold text-ec-teal mb-1">{duration}</div>
+            <div className="text-sm text-ec-muted">{stops}</div>
+          </div>
+          <div>
+            <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-2">
+              Arrival
+            </div>
+            <div className="text-lg font-bold text-ec-text mb-1">{arrivalDate}</div>
+            <div className="text-sm text-ec-muted">{flight.to}</div>
+          </div>
         </div>
 
-        {/* Right: Price Panel */}
-        <div className="md:col-span-3 flex flex-col items-end justify-between">
-          <div className="text-right w-full mb-6">
-            {/* Total Price - Very Large and Dominant */}
-            <div className="text-5xl md:text-6xl font-bold text-ec-text mb-3">
-              {flight.currency}{flight.price}
-            </div>
-
-            {/* Price Breakdown */}
-            <div className="space-y-2 text-sm border-t border-[rgba(28,140,130,0.15)] pt-4">
-              <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-3">
-                Price Breakdown:
-              </div>
-              <div className="flex justify-between mb-1">
-                <span className="text-ec-muted">Base Fare:</span>
-                <span className="text-ec-text">{flight.currency}{basePrice}</span>
-              </div>
-              <div className="flex justify-between mb-1">
-                <span className="text-ec-muted">Taxes & Fees:</span>
-                <span className="text-ec-text">{flight.currency}{taxesFees}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-ec-gold font-medium">Service Fee (4.0%):</span>
-                <span className="text-ec-gold font-medium">{flight.currency}{serviceFee}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* CTA Button - Large and Prominent */}
+        {/* Bottom: Price Breakdown + CTA */}
+        <div className="flex items-center justify-between gap-4">
+          <button
+            onClick={() => setShowBreakdown(!showBreakdown)}
+            className="flex items-center gap-2 text-sm text-ec-muted hover:text-ec-text transition-colors"
+          >
+            {showBreakdown ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            <span>Price Breakdown</span>
+          </button>
           <EcoviraButton
-            size="lg"
-            className="w-full min-w-[240px] h-[56px] text-lg font-semibold"
+            size="md"
+            variant="primary"
+            className="ec-btn-primary min-w-[180px]"
             onClick={() => onSelect?.(flight)}
           >
             Select Flight →
           </EcoviraButton>
         </div>
+
+        {/* Collapsible Price Breakdown */}
+        {showBreakdown && (
+          <div className="mt-4 pt-4 border-t border-[rgba(28,140,130,0.15)] space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-ec-muted">Base Fare:</span>
+              <span className="text-ec-text">{flight.currency} {basePrice}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-ec-muted">Taxes & Fees:</span>
+              <span className="text-ec-text">{flight.currency} {taxesFees}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-ec-gold font-medium">Service Fee (4.0%):</span>
+              <span className="text-ec-gold font-medium">{flight.currency} {serviceFee}</span>
+            </div>
+          </div>
+        )}
       </div>
     </EcoviraCard>
   );

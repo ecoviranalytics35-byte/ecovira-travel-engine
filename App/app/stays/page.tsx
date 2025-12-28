@@ -11,7 +11,9 @@ import { CurrencySelector } from "../../components/CurrencySelector";
 import { useCurrency } from "../../contexts/CurrencyContext";
 import { SearchPanelShell } from "../../components/search/SearchPanelShell";
 import { ResultsList } from "../../components/results/ResultsList";
+import { ResultsLayout } from "../../components/results/ResultsLayout";
 import { StayResultCard } from "../../components/results/StayResultCard";
+import { StayCalculator } from "../../components/calculators/StayCalculator";
 
 function SkeletonLoader() {
   return (
@@ -247,23 +249,27 @@ export default function Stays() {
       )}
 
       {results.length > 0 && (
-        <ResultsList
-          title="Results"
-          count={results.length}
-          countLabel={results.length === 1 ? 'stay' : 'stays'}
-          sortOptions={[
-            { value: 'price', label: 'Sort by Price' },
-            { value: 'rating', label: 'Sort by Rating' },
-          ]}
-          onSortChange={(value) => {
-            // TODO: Implement sorting
-            console.log('Sort by:', value);
-          }}
+        <ResultsLayout
+          sidebar={<StayCalculator results={results} nights={nights} />}
         >
-          {results.map((stay, i) => (
-            <StayResultCard key={i} stay={stay} />
-          ))}
-        </ResultsList>
+          <ResultsList
+            title="Results"
+            count={results.length}
+            countLabel={results.length === 1 ? 'stay' : 'stays'}
+            sortOptions={[
+              { value: 'price', label: 'Sort by Price' },
+              { value: 'rating', label: 'Sort by Rating' },
+            ]}
+            onSortChange={(value) => {
+              // TODO: Implement sorting
+              console.log('Sort by:', value);
+            }}
+          >
+            {results.map((stay, i) => (
+              <StayResultCard key={i} stay={stay} />
+            ))}
+          </ResultsList>
+        </ResultsLayout>
       )}
     </>
   );

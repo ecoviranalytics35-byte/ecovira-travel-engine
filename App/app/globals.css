@@ -328,28 +328,78 @@ html, body { padding: 0; margin: 0; }
     background: rgba(28, 140, 130, 0.6);
   }
 
-  /* --- Ecovira: Force dropdown/popup text to stay light --- */
-  .ec-dropdown,
+  /* --- Ecovira: Currency dropdown panel --- */
+  .ec-dropdown {
+    background: rgba(10, 12, 15, 0.92) !important;
+    border: 1px solid rgba(28, 140, 130, 0.35) !important;
+    box-shadow: 0 18px 60px rgba(0,0,0,0.65) !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    color: #EDEDED !important;
+  }
+
   .ec-dropdown * {
+    color: #EDEDED !important;
+  }
+
+  /* Section titles like FIAT CURRENCIES / CRYPTO */
+  .ec-dropdown .ec-section-title {
+    color: rgba(237,237,237,0.65) !important;
+    letter-spacing: 0.16em !important;
+    text-transform: uppercase !important;
+    font-size: 12px !important;
+  }
+
+  /* Option row */
+  .ec-dropdown .ec-item {
+    color: #EDEDED !important;
+    background: transparent !important;
+  }
+
+  .ec-dropdown .ec-item * {
+    color: #EDEDED !important;
+  }
+
+  /* Hover */
+  .ec-dropdown .ec-item:hover {
+    background: rgba(28, 140, 130, 0.18) !important;
+    box-shadow: inset 0 0 0 1px rgba(28, 140, 130, 0.35) !important;
+    color: #EDEDED !important;
+  }
+
+  /* Selected */
+  .ec-dropdown .ec-item[data-selected="true"],
+  .ec-dropdown-item--active {
+    background: rgba(28, 140, 130, 0.22) !important;
+    box-shadow: inset 0 0 0 1px rgba(200, 162, 77, 0.35) !important;
+    color: #EDEDED !important;
+  }
+
+  /* Search box inside dropdown */
+  .ec-dropdown input,
+  .ec-dropdown-search {
+    color: #EDEDED !important;
+    background-color: rgba(15, 17, 20, 0.55) !important;
+  }
+
+  .ec-dropdown input::placeholder,
+  .ec-dropdown-search::placeholder {
+    color: rgba(237,237,237,0.5) !important;
+  }
+
+  .ec-dropdown input:focus,
+  .ec-dropdown-search:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 4px rgba(28, 140, 130, 0.18) !important;
+    border-color: rgba(28, 140, 130, 0.55) !important;
+  }
+
+  .ec-currency-trigger {
     color: var(--ec-text) !important;
   }
 
-  .ec-dropdown input::placeholder {
-    color: rgba(237, 237, 237, 0.45) !important;
-  }
-
-  .ec-dropdown .muted {
-    color: var(--ec-muted) !important;
-  }
-
-  .ec-dropdown .row:hover {
-    background: rgba(28, 140, 130, 0.12) !important;
-  }
-
-  .ec-dropdown .row[aria-selected="true"],
-  .ec-dropdown .row.selected {
-    background: rgba(28, 140, 130, 0.18) !important;
-    box-shadow: 0 0 0 1px rgba(200, 162, 77, 0.25) inset !important;
+  .ec-currency-trigger * {
+    color: var(--ec-text) !important;
   }
 }
 
@@ -364,4 +414,15 @@ html, body { padding: 0; margin: 0; }
   .ec-grid-3, .ec-grid-2, .ec-grid-4 { grid-template-columns: 1fr; }
   .ec-card { padding: 22px; }
   .ec-btn-primary { min-width: 100%; }
+}
+
+/* Results layout responsive */
+@media (max-width: 1024px) {
+  .ec-results-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .ec-results-sidebar {
+    position: relative !important;
+    top: auto !important;
+  }
 }

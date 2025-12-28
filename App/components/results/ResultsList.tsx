@@ -20,13 +20,13 @@ export function ResultsList({
   onSortChange,
 }: ResultsListProps) {
   return (
-    <div className="mt-20">
-      <div className="flex items-center justify-between mb-12">
+    <div>
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-4xl md:text-5xl font-serif font-semibold text-ec-text mb-3">
+          <h2 className="text-3xl md:text-4xl font-serif font-semibold text-ec-text mb-2">
             {title}
           </h2>
-          <p className="text-ec-muted text-lg">
+          <p className="text-ec-muted">
             {count} {countLabel}
           </p>
         </div>
@@ -43,9 +43,7 @@ export function ResultsList({
           </select>
         )}
       </div>
-      <div className="space-y-6">
-        {children}
-      </div>
+      {children}
     </div>
   );
 }

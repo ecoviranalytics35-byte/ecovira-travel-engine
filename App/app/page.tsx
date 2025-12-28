@@ -12,6 +12,10 @@ import { CurrencySelector } from '../components/CurrencySelector';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { SearchPanelShell } from '../components/search/SearchPanelShell';
 import { ResultsList } from '../components/results/ResultsList';
+import { ResultsLayout } from '../components/results/ResultsLayout';
+import { SegmentedToggle } from '../components/ui/SegmentedToggle';
+import { FlightCalculator } from '../components/calculators/FlightCalculator';
+import { TripSummary } from '../components/results/TripSummary';
 
 function SkeletonLoader() {
   return (
@@ -25,6 +29,7 @@ function SkeletonLoader() {
 
 export default function Home() {
   const router = useRouter();
+  const [tripType, setTripType] = useState("roundtrip");
   const [from, setFrom] = useState("MEL");
   const [to, setTo] = useState("SYD");
   const [departDate, setDepartDate] = useState("2026-01-15");
@@ -41,7 +46,7 @@ export default function Home() {
     setError("");
     setResults([]);
     try {
-      const url = `/api/flights/search?from=${from}&to=${to}&departDate=${departDate}&adults=${adults}&cabinClass=${cabinClass}&currency=${currency}${returnDate ? `&returnDate=${returnDate}&tripType=roundtrip` : ''}`;
+      const url = `/api/flights/search?from=${from}&to=${to}&departDate=${departDate}&adults=${adults}&cabinClass=${cabinClass}&currency=${currency}&tripType=${tripType}${tripType === "roundtrip" && returnDate ? `&returnDate=${returnDate}` : ''}`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.errors && data.errors.length > 0) {
@@ -76,6 +81,21 @@ export default function Home() {
         onSearch={handleSearch}
         loading={loading}
       >
+        {/* Trip Type Toggle */}
+        <div className="mb-6">
+          <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+            Trip Type
+          </label>
+          <SegmentedToggle
+            options={[
+              { value: "oneway", label: "One-Way" },
+              { value: "roundtrip", label: "Round-Trip" },
+            ]}
+            value={tripType}
+            onChange={setTripType}
+          />
+        </div>
+
         {/* Row 1: From | To */}
         <div className="ec-grid-2 mb-6">
           <div>
@@ -101,19 +121,21 @@ export default function Home() {
         </div>
 
         {/* Row 2: Departure | Return */}
-        <div className="ec-grid-2 mb-6">
+        <div className={tripType === "roundtrip" ? "ec-grid-2 mb-6" : "mb-6"}>
           <DatePicker
             value={departDate}
             onChange={setDepartDate}
             placeholder="Select departure date"
             label="Departure"
           />
-          <DatePicker
-            value={returnDate}
-            onChange={setReturnDate}
-            placeholder="Select return date"
-            label="Return"
-          />
+          {tripType === "roundtrip" && (
+            <DatePicker
+              value={returnDate}
+              onChange={setReturnDate}
+              placeholder="Select return date"
+              label="Return"
+            />
+          )}
         </div>
 
         {/* Row 3: Passengers | Cabin | Currency */}
@@ -201,24 +223,41 @@ export default function Home() {
       )}
 
       {!loading && !error && results.length > 0 && (
-        <ResultsList
-          title="Results"
-          count={results.length}
-          countLabel={results.length === 1 ? 'flight' : 'flights'}
-          sortOptions={[
-            { value: 'price', label: 'Sort by Price' },
-            { value: 'duration', label: 'Sort by Duration' },
-            { value: 'departure', label: 'Sort by Departure' },
-          ]}
-          onSortChange={(value) => {
-            // TODO: Implement sorting
-            console.log('Sort by:', value);
-          }}
+        <ResultsLayout
+          sidebar={
+            <>
+              <TripSummary
+                from={from}
+                to={to}
+                departDate={departDate}
+                returnDate={returnDate}
+                adults={adults}
+                cabinClass={cabinClass}
+                tripType={tripType}
+              />
+              <FlightCalculator results={results} />
+            </>
+          }
         >
-          {results.map((flight, i) => (
-            <FlightResultCard key={i} flight={flight} />
-          ))}
-        </ResultsList>
+          <ResultsList
+            title="Results"
+            count={results.length}
+            countLabel={results.length === 1 ? 'flight' : 'flights'}
+            sortOptions={[
+              { value: 'price', label: 'Sort by Price' },
+              { value: 'duration', label: 'Sort by Duration' },
+              { value: 'departure', label: 'Sort by Departure' },
+            ]}
+            onSortChange={(value) => {
+              // TODO: Implement sorting
+              console.log('Sort by:', value);
+            }}
+          >
+            {results.map((flight, i) => (
+              <FlightResultCard key={i} flight={flight} />
+            ))}
+          </ResultsList>
+        </ResultsLayout>
       )}
 
       {!loading && !error && results.length === 0 && (
