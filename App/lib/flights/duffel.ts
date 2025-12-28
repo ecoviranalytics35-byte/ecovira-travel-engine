@@ -77,7 +77,8 @@ export async function searchDuffelFlights(params: { from: string; to: string; de
     departDate: params.departDate,
     price: offer.total_amount,
     currency: offer.total_currency,
-    provider: "duffel"
+    provider: "duffel",
+    raw: offer
   }));
   return { results, debug: { offerRequestId, offersCount, rawKeys } };
 }

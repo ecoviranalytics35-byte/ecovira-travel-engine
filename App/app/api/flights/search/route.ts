@@ -1,4 +1,4 @@
-import { searchDuffelFlights } from '@/lib/flights/duffel';
+import { searchFlights } from '@/lib/search/orchestrator';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -13,38 +13,18 @@ export async function GET(request: Request) {
   const infants = parseInt(searchParams.get('infants') || '0');
   const debug = searchParams.get('debug') === '1';
 
-  try {
-    if (process.env.DUFFEL_ACCESS_TOKEN && from && to && departDate) {
-      const { results, debug: duffelDebug } = await searchDuffelFlights({ from, to, departDate, adults, cabinClass, tripType, returnDate, children, infants });
-      if (debug) {
-        return Response.json({ ok: true, results, debug: duffelDebug });
-      } else {
-        return Response.json({ ok: true, results });
-      }
-    } else {
-      const results = [
-        {
-          id: "mock-flight-1",
-          from: from || "MEL",
-          to: to || "SYD",
-          departDate: departDate || "2025-12-30",
-          price: 299,
-          currency: "USD",
-          provider: "mock",
-          cabinClass,
-          tripType,
-          children,
-          infants
-        }
-      ];
-      if (debug) {
-        return Response.json({ ok: true, results, debug: { mode: "mock" } });
-      } else {
-        return Response.json({ ok: true, results });
-      }
-    }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return Response.json({ ok: false, error: message }, { status: 500 });
-  }
+  const params = {
+    from,
+    to,
+    departDate,
+    adults: Number.isFinite(adults) ? adults : 1,
+    cabinClass,
+    tripType,
+    returnDate,
+    children: Number.isFinite(children) ? children : 0,
+    infants: Number.isFinite(infants) ? infants : 0,
+  };
+
+  const { results, meta, errors } = await searchFlights(params);
+  return Response.json({ results, meta, errors });
 }

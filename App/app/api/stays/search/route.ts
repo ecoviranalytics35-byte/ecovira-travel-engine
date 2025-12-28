@@ -1,5 +1,4 @@
-import { mockStaysProvider } from "@/lib/stays/provider";
-import { getAmadeusToken, hotelsByCity, hotelOffers } from "@/lib/stays/amadeus";
+import { searchStays } from "@/lib/search/orchestrator";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -18,49 +17,19 @@ export async function GET(request: Request) {
   const classType = searchParams.get("classType") || "standard";
   const debug = searchParams.get("debug") === "1";
 
-  try {
-    // Check if Amadeus is available and required params provided
-    if (process.env.AMADEUS_API_KEY && process.env.AMADEUS_API_SECRET && cityCode && checkInDate) {
-      const token = await getAmadeusToken();
-      const hotelIds = await hotelsByCity(cityCode, token);
-      const results = await hotelOffers(hotelIds, token, adults, checkInDate, nights, rooms);
+  const params = {
+    city,
+    checkIn,
+    nights: Number.isFinite(nights) ? nights : 1,
+    adults: Number.isFinite(adults) ? adults : 1,
+    children: Number.isFinite(children) ? children : 0,
+    rooms: Number.isFinite(rooms) ? rooms : 1,
+    currency,
+    budgetPerNight: budgetPerNight || undefined,
+    roomType,
+    classType,
+  };
 
-      if (debug) {
-        return Response.json({
-          ok: true,
-          results,
-          debug: {
-            cityCode,
-            hotelsFoundCount: hotelIds.length,
-            offersFoundCount: results.length,
-          },
-        });
-      } else {
-        return Response.json({ ok: true, results });
-      }
-    } else {
-      // Fallback to mock
-      const { results, debug: staysDebug } = await mockStaysProvider.search({
-        city,
-        checkIn,
-        nights: Number.isFinite(nights) ? nights : 1,
-        adults: Number.isFinite(adults) ? adults : 1,
-        children: Number.isFinite(children) ? children : 0,
-        rooms: Number.isFinite(rooms) ? rooms : 1,
-        currency,
-        budgetPerNight: budgetPerNight || undefined,
-        roomType,
-        classType,
-      });
-
-      if (debug) {
-        return Response.json({ ok: true, results, debug: staysDebug });
-      } else {
-        return Response.json({ ok: true, results });
-      }
-    }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return Response.json({ ok: false, error: message }, { status: 500 });
-  }
+  const { results, meta, errors } = await searchStays(params);
+  return Response.json({ results, meta, errors });
 }

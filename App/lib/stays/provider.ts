@@ -11,6 +11,7 @@ export type NormalizedStay = {
   total: number;
   currency: string;
   provider: string;
+  raw: any;
 };
 
 export interface StaysProvider {
@@ -33,6 +34,7 @@ export class MockStaysProvider implements StaysProvider {
         total: params.nights * 150,
         currency: params.currency || "AUD",
         provider: "mock",
+        raw: null,
       },
       {
         id: "mock-stay-2",
@@ -45,6 +47,7 @@ export class MockStaysProvider implements StaysProvider {
         total: params.nights * 150,
         currency: params.currency || "AUD",
         provider: "mock",
+        raw: null,
       },
     ];
 

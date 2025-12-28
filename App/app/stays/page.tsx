@@ -33,10 +33,12 @@ export default function Stays() {
       const url = `/api/stays/search?${params.toString()}`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.ok) {
-        setResults(data.results);
+      if (data.errors && data.errors.length > 0) {
+        setError(data.errors[0]);
+        setResults([]);
       } else {
-        setError(data.error);
+        setResults(data.results);
+        setError("");
       }
     } catch (err) {
       setError("Network error");

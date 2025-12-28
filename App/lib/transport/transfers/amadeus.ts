@@ -51,6 +51,8 @@ export async function searchTransfers(params: TransferSearchParams): Promise<any
     total: offer.price.total,
     currency: offer.price.currency,
     provider: "amadeus",
+    type: "transfer",
+    raw: offer,
   }));
 
   return results;

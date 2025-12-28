@@ -47,6 +47,8 @@ export async function searchCars(params: CarSearchParams): Promise<any[]> {
     total: offer.rates?.[0]?.totalAmount || "0.00",
     currency: offer.rates?.[0]?.currency || params.currency || "USD",
     provider: "amadeus",
+    type: "car",
+    raw: offer,
   }));
 
   return results;

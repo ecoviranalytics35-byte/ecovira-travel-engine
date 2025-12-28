@@ -63,6 +63,7 @@ export async function hotelOffers(hotelIds: string[], token: string, adults: num
         total: offer.price.total,
         currency: offer.price.currency,
         provider: "amadeus",
+        raw: offer,
       });
     }
   }

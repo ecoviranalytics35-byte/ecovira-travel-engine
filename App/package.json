@@ -8,15 +8,19 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.89.0",
     "next": "latest",
+    "nodemailer": "^7.0.12",
     "react": "latest",
     "react-dom": "latest",
-    "stripe": "latest"
+    "stripe": "latest",
+    "twilio": "^5.11.1"
   },
   "devDependencies": {
-    "typescript": "latest",
     "@types/node": "latest",
+    "@types/nodemailer": "^7.0.4",
     "@types/react": "latest",
-    "@types/react-dom": "latest"
+    "@types/react-dom": "latest",
+    "typescript": "latest"
   }
 }
