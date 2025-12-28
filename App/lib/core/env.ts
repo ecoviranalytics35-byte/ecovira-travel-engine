@@ -1,0 +1,2 @@
+export function hasEnv(key: string): boolean { return !!process.env[key]; }
+export function requireEnv(key: string): string { const v = process.env[key]; if (!v) throw new Error(`${key} is missing`); return v; }
