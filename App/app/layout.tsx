@@ -1,5 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { PremiumShell } from "../components/layout/PremiumShell";
+import { CurrencyProvider } from "../contexts/CurrencyContext";
 
 export const metadata: Metadata = {
   title: "Ecovira - Luxury Travel Planning",
@@ -17,7 +19,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <CurrencyProvider>
+          <PremiumShell>
+            {children}
+          </PremiumShell>
+        </CurrencyProvider>
+      </body>
     </html>
   );
 }

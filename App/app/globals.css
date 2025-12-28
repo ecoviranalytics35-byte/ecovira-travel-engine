@@ -2,12 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================
+   RESET
+============================ */
 html, body { padding: 0; margin: 0; }
 * { box-sizing: border-box; }
 
+/* ============================
+   THEME TOKENS (KEEP)
+============================ */
 :root {
-  /* Ecovira Premium Theme Tokens - Exact Spec */
-  
   /* Neutrals (dark luxury) */
   --ec-bg: #07080A;
   --ec-bg-2: #0F1114;
@@ -35,7 +39,7 @@ html, body { padding: 0; margin: 0; }
   --ec-shadow-card: 0 18px 60px rgba(0,0,0,0.55);
   --ec-shadow-hairline: 0 0 0 1px rgba(28,140,130,0.18);
 
-  /* Legacy compatibility (mapped to new tokens) */
+  /* Legacy compatibility */
   --ec-bg-primary: var(--ec-bg-2);
   --ec-bg-secondary: linear-gradient(180deg, #0B0D10 0%, #0F1114 40%, #07080A 100%);
   --ec-bg-glass: var(--ec-card);
@@ -56,22 +60,263 @@ html, body { padding: 0; margin: 0; }
   --ec-shadow-glass-hover: var(--ec-shadow-card);
 }
 
-body {
-  background: var(--ec-bg);
-  color: var(--ec-text);
-  font-family: 'Inter', sans-serif;
+/* ============================
+   BASE GLOBAL LOOK (PREMIUM)
+============================ */
+@layer base {
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    background:
+      radial-gradient(900px 600px at 20% 10%, rgba(28,140,130,0.16), transparent 55%),
+      radial-gradient(900px 600px at 80% 0%, rgba(200,162,77,0.12), transparent 55%),
+      var(--ec-bg-secondary);
+    color: var(--ec-text);
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Typography hierarchy (stops “wikipedia” feel) */
+  h1 { font-size: 44px; line-height: 1.05; font-weight: 700; letter-spacing: -0.02em; }
+  h2 { font-size: 30px; line-height: 1.15; font-weight: 650; letter-spacing: -0.01em; }
+  h3 { font-size: 20px; line-height: 1.2; font-weight: 600; }
+  p  { color: var(--ec-muted); line-height: 1.65; }
+
+  /* Links: clean + premium */
+  a { text-decoration: none; color: inherit; }
+  a:visited { color: inherit; }
+  a:hover { text-decoration: none; }
+
+  /* Selection */
+  ::selection { background: rgba(28,140,130,0.35); color: var(--ec-text); }
+
+  /* Focus rings */
+  :focus-visible {
+    outline: 3px solid rgba(28,140,130,0.35);
+    outline-offset: 2px;
+    border-radius: 12px;
+  }
 }
 
-/* Remove default link styles */
-a {
-  text-decoration: none;
-  color: inherit;
+/* ============================
+   FORMS (FIX BLACK TEXT + MAKE PREMIUM)
+============================ */
+@layer base {
+  input, select, textarea {
+    color: var(--ec-text) !important;
+    background-color: rgba(15, 17, 20, 0.62) !important;
+    border: 1px solid rgba(28,140,130,0.22) !important;
+    border-radius: var(--ec-radius-input) !important;
+    min-height: 52px;
+    padding: 0 16px;
+    font-size: 15px;
+    line-height: 1.2;
+    box-shadow: var(--ec-shadow-hairline);
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: rgba(237, 237, 237, 0.42) !important;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: rgba(28,140,130,0.55) !important;
+    box-shadow:
+      0 0 0 3px rgba(28,140,130,0.20),
+      0 18px 60px rgba(0,0,0,0.35);
+    outline: none !important;
+  }
+
+  input:disabled, select:disabled, textarea:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    background-color: rgba(15, 17, 20, 0.40) !important;
+  }
+
+  /* Autofill fix (prevents black text) */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-text-fill-color: var(--ec-text) !important;
+    -webkit-box-shadow: 0 0 0px 1000px rgba(15, 17, 20, 0.62) inset !important;
+    box-shadow: 0 0 0px 1000px rgba(15, 17, 20, 0.62) inset !important;
+    transition: background-color 9999s ease-in-out 0s;
+  }
+
+  select option {
+    background-color: var(--ec-bg-2) !important;
+    color: var(--ec-text) !important;
+  }
+
+  /* Labels (premium, spaced, readable) */
+  label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(237,237,237,0.65);
+  }
 }
 
-a:visited {
-  color: inherit;
+/* ============================
+   PREMIUM COMPONENT CLASSES (USE THESE)
+============================ */
+@layer components {
+  /* Global page container (stops cramped look) */
+  .ec-container {
+    @apply mx-auto w-full;
+    max-width: 1400px;
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+
+  /* Page rhythm */
+  .ec-page {
+    padding-top: 28px;
+    padding-bottom: 72px;
+  }
+  .ec-section {
+    margin-top: 36px;
+    margin-bottom: 36px;
+  }
+
+  /* Premium glass card */
+  .ec-card {
+    background: linear-gradient(180deg, rgba(21,24,29,0.66), rgba(15,17,20,0.56));
+    border: 1px solid rgba(28,140,130,0.22);
+    border-radius: var(--ec-radius-card);
+    box-shadow: var(--ec-shadow-card);
+    padding: 34px;
+  }
+
+  /* Search panel layout helpers - Horizontal grid */
+  .ec-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 24px;
+  }
+  .ec-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 24px;
+  }
+  .ec-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 24px;
+  }
+  .ec-grid-6 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 24px;
+  }
+
+  /* CTA row */
+  .ec-cta-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 14px;
+    margin-top: 24px;
+  }
+
+  /* Premium Tabs (Flights / Stays / Cars / Transfers) */
+  .ec-tabs {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 16px 22px;
+    border-bottom: 1px solid rgba(28,140,130,0.22);
+    background: rgba(10,12,15,0.55);
+    backdrop-filter: blur(10px);
+  }
+  .ec-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    color: rgba(237,237,237,0.70);
+    border: 1px solid transparent;
+    transition: 160ms ease;
+    font-size: 16px;
+    font-weight: 550;
+  }
+  .ec-tab:hover {
+    color: var(--ec-text);
+    border-color: rgba(28,140,130,0.28);
+    background: rgba(28,140,130,0.10);
+  }
+  .ec-tab-active {
+    color: var(--ec-text);
+    border-color: rgba(200,162,77,0.30);
+    background: linear-gradient(135deg, rgba(28,140,130,0.16), rgba(200,162,77,0.10));
+    box-shadow: 0 0 0 1px rgba(200,162,77,0.10), 0 18px 60px rgba(0,0,0,0.35);
+  }
+
+  /* Premium Buttons */
+  .ec-btn {
+    height: 54px;
+    border-radius: var(--ec-radius-button);
+    padding: 0 22px;
+    font-size: 16px;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    transition: 160ms ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px solid rgba(28,140,130,0.25);
+    background: rgba(15,17,20,0.55);
+    color: var(--ec-text);
+    box-shadow: var(--ec-shadow-hairline);
+  }
+  .ec-btn:hover {
+    border-color: rgba(28,140,130,0.55);
+    box-shadow: 0 0 0 3px rgba(28,140,130,0.16), var(--ec-shadow-card);
+    transform: translateY(-1px);
+  }
+
+  /* Primary glowing CTA */
+  .ec-btn-primary {
+    min-width: 320px;
+    background: linear-gradient(135deg, rgba(28,140,130,0.38), rgba(200,162,77,0.18));
+    border-color: rgba(200,162,77,0.34);
+    box-shadow:
+      0 0 0 1px rgba(200,162,77,0.14),
+      0 18px 60px rgba(0,0,0,0.45),
+      0 0 40px rgba(28,140,130,0.20);
+  }
+  .ec-btn-primary:hover {
+    box-shadow:
+      0 0 0 3px rgba(200,162,77,0.16),
+      0 22px 70px rgba(0,0,0,0.55),
+      0 0 55px rgba(28,140,130,0.24);
+  }
+
+  /* Small helper text under inputs */
+  .ec-help {
+    margin-top: 10px;
+    font-size: 13px;
+    color: rgba(237,237,237,0.55);
+  }
 }
 
-a:hover {
-  text-decoration: none;
+/* ============================
+   RESPONSIVE FIXES (PREVENT “CRAMPED” LOOK)
+============================ */
+@media (max-width: 1100px) {
+  .ec-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 680px) {
+  .ec-container { padding-left: 18px; padding-right: 18px; }
+  .ec-grid-3, .ec-grid-2, .ec-grid-4 { grid-template-columns: 1fr; }
+  .ec-card { padding: 22px; }
+  .ec-btn-primary { min-width: 100%; }
 }

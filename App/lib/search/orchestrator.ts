@@ -1,5 +1,4 @@
-import { searchDuffelFlights } from "@/lib/flights/duffel";
-import { mockStaysProvider } from "@/lib/stays/provider";
+import { searchAmadeusFlights } from "@/lib/flights/amadeus";
 import { getAmadeusToken, hotelsByCity, hotelOffers } from "@/lib/stays/amadeus";
 import { searchCars as searchCarsAmadeus } from "@/lib/transport/cars/amadeus";
 import { searchTransfers as searchTransfersAmadeus } from "@/lib/transport/transfers/amadeus";
@@ -20,44 +19,37 @@ export async function searchFlights(params: any): Promise<{ results: FlightResul
 
   const start = Date.now();
   try {
-    const { results: rawResults, debug } = await searchDuffelFlights(params);
+    // Map cabin class to Amadeus travel class
+    const travelClassMap: Record<string, string> = {
+      economy: 'ECONOMY',
+      premium_economy: 'PREMIUM_ECONOMY',
+      business: 'BUSINESS',
+      first: 'FIRST'
+    };
+    
+    const amadeusParams = {
+      originLocationCode: params.from,
+      destinationLocationCode: params.to,
+      departureDate: params.departDate,
+      returnDate: params.returnDate,
+      adults: params.adults,
+      children: params.children,
+      infants: params.infants,
+      travelClass: travelClassMap[params.cabinClass || 'economy'] || 'ECONOMY',
+      currencyCode: params.currency || 'USD',
+    };
+    
+    const { results: rawResults, debug } = await searchAmadeusFlights(amadeusParams);
     const results: FlightResult[] = rawResults.map((r: any) => ({ type: 'flight' as const, ...r }));
     cache.set(key, { results, timestamp: Date.now() });
     const duration = Date.now() - start;
-    console.log(JSON.stringify({ event: 'search', category: 'flights', duration, provider: 'duffel', count: results.length, status: 'success' }));
+    console.log(JSON.stringify({ event: 'search', category: 'flights', duration, provider: 'amadeus', count: results.length, status: 'success' }));
     return { results, meta: { debug }, errors: [] };
   } catch (e) {
     const duration = Date.now() - start;
     const error = e instanceof Error ? e.message : 'Unknown error';
-    console.log(JSON.stringify({ event: 'search', category: 'flights', duration, provider: 'duffel', count: 0, status: 'error', error }));
-
-    // Fallback to mock results
-    const mockResults: FlightResult[] = [
-      {
-        type: 'flight',
-        id: 'mock-1',
-        from: params.from || 'MEL',
-        to: params.to || 'SYD',
-        departDate: params.departDate || '2025-01-15',
-        price: '299',
-        currency: 'USD',
-        provider: 'Mock Airlines',
-        raw: {}
-      },
-      {
-        type: 'flight',
-        id: 'mock-2',
-        from: params.from || 'MEL',
-        to: params.to || 'SYD',
-        departDate: params.departDate || '2025-01-15',
-        price: '349',
-        currency: 'USD',
-        provider: 'Mock Airlines Premium',
-        raw: {}
-      }
-    ];
-    cache.set(key, { results: mockResults, timestamp: Date.now() });
-    return { results: mockResults, meta: { mock: true }, errors: [] };
+    console.log(JSON.stringify({ event: 'search', category: 'flights', duration, provider: 'amadeus', count: 0, status: 'error', error }));
+    return { results: [], meta: {}, errors: [error] };
   }
 }
 
@@ -70,29 +62,20 @@ export async function searchStays(params: StaySearchParams): Promise<{ results: 
 
   const start = Date.now();
   try {
-    let results: StayResult[];
-    let debug: any;
-    if (process.env.AMADEUS_API_KEY && process.env.AMADEUS_API_SECRET && params.city && params.checkIn) {
-      const token = await getAmadeusToken();
-      const hotelIds = await hotelsByCity(params.city, token); // Assuming city is cityCode, but for simplicity
-      const rawResults = await hotelOffers(hotelIds, token, params.adults, params.checkIn, params.nights, params.rooms || 1);
-      results = rawResults.map(r => ({ type: 'stay' as const, city: r.cityCode, ...r })); // Map cityCode to city
-      debug = { hotelsFoundCount: hotelIds.length, offersFoundCount: rawResults.length };
-    } else {
-      const { results: rawResults, debug: d } = await mockStaysProvider.search(params);
-      results = rawResults.map((r: any) => ({ type: 'stay' as const, ...r }));
-      debug = d;
-    }
+    // Always use Amadeus for stays
+    const token = await getAmadeusToken();
+    const hotelIds = await hotelsByCity(params.city, token);
+    const rawResults = await hotelOffers(hotelIds, token, params.adults, params.checkIn, params.nights, params.rooms || 1);
+    const results: StayResult[] = rawResults.map(r => ({ type: 'stay' as const, city: r.cityCode, ...r }));
+    const debug = { hotelsFoundCount: hotelIds.length, offersFoundCount: rawResults.length };
     cache.set(key, { results, timestamp: Date.now() });
     const duration = Date.now() - start;
-    const provider = process.env.AMADEUS_API_KEY ? 'amadeus' : 'mock';
-    console.log(JSON.stringify({ event: 'search', category: 'stays', duration, provider, count: results.length, status: 'success' }));
+    console.log(JSON.stringify({ event: 'search', category: 'stays', duration, provider: 'amadeus', count: results.length, status: 'success' }));
     return { results, meta: { debug }, errors: [] };
   } catch (e) {
     const duration = Date.now() - start;
     const error = e instanceof Error ? e.message : 'Unknown error';
-    const provider = process.env.AMADEUS_API_KEY ? 'amadeus' : 'mock';
-    console.log(JSON.stringify({ event: 'search', category: 'stays', duration, provider, count: 0, status: 'error', error }));
+    console.log(JSON.stringify({ event: 'search', category: 'stays', duration, provider: 'amadeus', count: 0, status: 'error', error }));
     return { results: [], meta: {}, errors: [error] };
   }
 }
