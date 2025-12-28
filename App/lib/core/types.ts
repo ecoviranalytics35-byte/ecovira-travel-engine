@@ -12,6 +12,8 @@ export type CarResult = { type: 'car'; id: string; vendor: string; vehicle: stri
 export type TransferResult = { type: 'transfer'; id: string; from: string; to: string; dateTime: string; total: string; currency: string; provider: string; raw: any };
 
 export type ItineraryItem = {
+  id: string;
+  itineraryId: string;
   type: 'flight' | 'stay' | 'car' | 'transfer';
   item: FlightResult | StayResult | CarResult | TransferResult;
 };
@@ -20,11 +22,11 @@ export type Itinerary = {
   id: string;
   userId?: string;
   status: 'draft' | 'priced' | 'paid' | 'confirmed' | 'cancelled';
-  items: ItineraryItem[];
   total: number;
   currency: string;
   createdAt: string;
   updatedAt: string;
+  items: ItineraryItem[];
 };
 
 export type Booking = {

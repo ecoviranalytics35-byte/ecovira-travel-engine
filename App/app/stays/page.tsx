@@ -47,61 +47,186 @@ export default function Stays() {
     }
   };
 
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import type { StayResult } from "@/lib/core/types";
+import { Button } from "../../components/Button";
+import { Input } from "../../components/Input";
+import { Card } from "../../components/Card";
+import { Badge } from "../../components/Badge";
+
+function SkeletonLoader() {
   return (
-    <main style={{ padding: 24 }}>
-      <h1>Stays</h1>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
-        <input value={city} onChange={e => setCity(e.target.value)} placeholder="City" />
-        <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} />
-        <input type="number" value={nights} onChange={e => setNights(parseInt(e.target.value))} min="1" placeholder="Nights" />
-        <input type="number" value={adults} onChange={e => setAdults(parseInt(e.target.value))} min="1" placeholder="Adults" />
-        <input type="number" value={children} onChange={e => setChildren(parseInt(e.target.value))} min="0" placeholder="Children" />
-        <select value={roomType} onChange={e => setRoomType(e.target.value)}>
-          <option value="single">Single</option>
-          <option value="double">Double</option>
-          <option value="suite">Suite</option>
-        </select>
-        <select value={classType} onChange={e => setClassType(e.target.value)}>
-          <option value="standard">Standard</option>
-          <option value="deluxe">Deluxe</option>
-          <option value="luxury">Luxury</option>
-        </select>
-        <button onClick={handleSearch} disabled={loading}>Search</button>
+    <div className="animate-pulse">
+      <div className="h-4 bg-ec-border rounded w-3/4 mb-2"></div>
+      <div className="h-4 bg-ec-border rounded w-1/2"></div>
+    </div>
+  );
+}
+
+export default function Stays() {
+  const [city, setCity] = useState("Melbourne");
+  const [checkIn, setCheckIn] = useState("2025-12-28");
+  const [nights, setNights] = useState(2);
+  const [adults, setAdults] = useState(2);
+  const [children, setChildren] = useState(0);
+  const [roomType, setRoomType] = useState("double");
+  const [classType, setClassType] = useState("standard");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [results, setResults] = useState<StayResult[]>([]);
+
+  const handleSearch = async () => {
+    setLoading(true);
+    setError("");
+    setResults([]);
+    try {
+      const params = new URLSearchParams({
+        city,
+        checkIn,
+        nights: nights.toString(),
+        adults: adults.toString(),
+        children: children.toString(),
+        roomType,
+        classType,
+      });
+      const url = `/api/stays/search?${params.toString()}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.errors && data.errors.length > 0) {
+        setError(data.errors[0]);
+        setResults([]);
+      } else {
+        setResults(data.results);
+        setError("");
+      }
+    } catch (err) {
+      setError("We encountered a network issue. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main className="min-h-screen bg-ec-bg p-6">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-4xl font-serif font-semibold text-ec-ink mb-8">Find Your Stay</h1>
+
+        <Card className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-ec-ink-2 mb-2">City</label>
+              <Input value={city} onChange={e => setCity(e.target.value)} placeholder="Melbourne" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ec-ink-2 mb-2">Check-in</label>
+              <Input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ec-ink-2 mb-2">Nights</label>
+              <Input type="number" value={nights} onChange={e => setNights(parseInt(e.target.value))} min="1" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ec-ink-2 mb-2">Adults</label>
+              <Input type="number" value={adults} onChange={e => setAdults(parseInt(e.target.value))} min="1" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ec-ink-2 mb-2">Children</label>
+              <Input type="number" value={children} onChange={e => setChildren(parseInt(e.target.value))} min="0" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ec-ink-2 mb-2">Room Type</label>
+              <select
+                value={roomType}
+                onChange={e => setRoomType(e.target.value)}
+                className="w-full px-4 py-3 bg-ec-surface border border-ec-border rounded-ec-md text-ec-ink focus:outline-none focus:ring-2 focus:ring-ec-teal/20"
+              >
+                <option value="single">Single</option>
+                <option value="double">Double</option>
+                <option value="suite">Suite</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ec-ink-2 mb-2">Class</label>
+              <select
+                value={classType}
+                onChange={e => setClassType(e.target.value)}
+                className="w-full px-4 py-3 bg-ec-surface border border-ec-border rounded-ec-md text-ec-ink focus:outline-none focus:ring-2 focus:ring-ec-teal/20"
+              >
+                <option value="standard">Standard</option>
+                <option value="deluxe">Deluxe</option>
+                <option value="luxury">Luxury</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <Button onClick={handleSearch} disabled={loading} className="w-full">
+                {loading ? 'Searching...' : 'Search Stays'}
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {loading && (
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i}>
+                <SkeletonLoader />
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <Card className="border-ec-error/20 bg-ec-error/5">
+            <p className="text-ec-error">{error}</p>
+          </Card>
+        )}
+
+        {!loading && !error && results.length === 0 && (
+          <Card>
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">🏨</div>
+              <h3 className="text-xl font-serif font-medium text-ec-ink mb-2">No stays available</h3>
+              <p className="text-ec-muted mb-4">Try different dates or criteria.</p>
+              <Button variant="secondary" onClick={() => setResults([])}>Search Again</Button>
+            </div>
+          </Card>
+        )}
+
+        {results.length > 0 && (
+          <div className="space-y-4">
+            {results.map((stay, i) => (
+              <Card key={i} className="hover:shadow-ec-2 transition-shadow">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-medium text-ec-ink mb-1">{stay.name}</h3>
+                    <div className="flex items-center gap-4 mb-2">
+                      <span className="text-ec-ink-2">{stay.city}</span>
+                      <Badge>{stay.provider}</Badge>
+                    </div>
+                    <p className="text-sm text-ec-muted">
+                      {stay.checkIn} • {stay.nights} nights • {stay.roomType} • {stay.classType}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-serif font-semibold text-ec-gold">
+                      {stay.currency} {stay.total}
+                    </div>
+                    <p className="text-sm text-ec-muted">total</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-8 text-center">
+          <Link href="/" className="text-ec-teal hover:underline">← Back to home</Link>
+        </div>
       </div>
-      {loading && <p>Searching…</p>}
-      {error && <p>Error: {error}</p>}
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>City</th>
-            <th>Check-in</th>
-            <th>Nights</th>
-            <th>Room Type</th>
-            <th>Class</th>
-            <th>Total</th>
-            <th>Currency</th>
-            <th>Provider</th>
-          </tr>
-        </thead>
-        <tbody>
-          {results.length === 0 && !loading && <tr><td colSpan={9}>No stays returned.</td></tr>}
-          {results.map((stay, i) => (
-            <tr key={i}>
-              <td>{stay.name}</td>
-              <td>{stay.city}</td>
-              <td>{stay.checkIn}</td>
-              <td>{stay.nights}</td>
-              <td>{stay.roomType}</td>
-              <td>{stay.classType}</td>
-              <td>{stay.total}</td>
-              <td>{stay.currency}</td>
-              <td>{stay.provider}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <Link href="/">Back to home</Link>
     </main>
   );
+}
 }

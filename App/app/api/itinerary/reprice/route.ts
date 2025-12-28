@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getItinerary, updateItinerary } from '../../../../lib/itinerary';
+import { getItinerary, updateItinerary, updateItineraryItems } from '../../../../lib/itinerary';
 import { searchFlights } from '../../../../lib/search/orchestrator';
 import { searchStays } from '../../../../lib/search/orchestrator';
 import { searchCars } from '../../../../lib/search/orchestrator';
@@ -76,7 +76,8 @@ export async function POST(request: NextRequest) {
     const total = updatedItems.reduce((sum, item) => sum + Number((item.item as any).price || (item.item as any).total || 0), 0);
 
     // Update in DB
-    await updateItinerary(itineraryId, { items: updatedItems, total, status: 'priced' });
+    await updateItinerary(itineraryId, { total, status: 'priced' });
+    await updateItineraryItems(itineraryId, updatedItems);
 
     // For now, return updated
     return NextResponse.json({ ok: true, data: { ...itinerary, items: updatedItems, total } });

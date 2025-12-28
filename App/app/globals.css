@@ -1,2 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 html, body { padding: 0; margin: 0; }
 * { box-sizing: border-box; }
+
+:root {
+  /* Neutrals */
+  --ec-bg: #F6F1E8;
+  --ec-surface: #FBF8F2;
+  --ec-surface-2: #F1EADF;
+  --ec-ink: #1A1B1E;
+  --ec-ink-2: #3A3B40;
+  --ec-muted: #6E7077;
+  --ec-border: #E4DED3;
+
+  /* Dark mode surfaces */
+  --ec-night: #0F1114;
+  --ec-night-2: #15181D;
+  --ec-night-border: #2A2D33;
+
+  /* Gold accent */
+  --ec-gold: #C8A24D;
+  --ec-gold-2: #E3C77A;
+  --ec-gold-muted: #8A7440;
+
+  /* Teal accent */
+  --ec-teal: #0F6B63;
+  --ec-teal-2: #1C8C82;
+  --ec-teal-muted: #0B4F49;
+
+  /* Status colors */
+  --ec-success: #2D6A4F;
+  --ec-warn: #9A6B2F;
+  --ec-error: #8B2E2E;
+  --ec-info: #2F4A6D;
+
+  /* Layout */
+  --ec-radius-lg: 18px;
+  --ec-radius-md: 14px;
+  --ec-radius-sm: 10px;
+
+  /* Shadow */
+  --ec-shadow-1: 0 4px 12px rgba(26, 27, 30, 0.08);
+  --ec-shadow-2: 0 8px 24px rgba(26, 27, 30, 0.12);
+}
+
+body {
+  background-color: var(--ec-bg);
+  color: var(--ec-ink);
+  font-family: 'Inter', sans-serif;
+}
