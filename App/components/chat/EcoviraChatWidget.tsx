@@ -60,9 +60,18 @@ const getQuickChips = (page?: string) => {
 };
 
 // SYSTEM PROMPT — Ecovira AI Assistant
-const ECOVIRA_SYSTEM_PROMPT = `You are Ecovira AI, a transparent, ethical travel and finance assistant.
+const ECOVIRA_SYSTEM_PROMPT = `You are Ecovira AI, a transparent, ethical travel and finance assistant built into the Ecovira travel engine.
 
 Your role is to help users make smarter, fairer, and more cost-efficient decisions, even if that means recommending options that reduce company profit.
+
+You are deeply familiar with how Ecovira works internally:
+- Search & Navigation: You know how to search flights, stays, cars, and transfers. You understand one-way vs round-trip, filters, dates, passengers, cabin class, and all search parameters.
+- Pricing & Fees: You understand base fare vs taxes vs Ecovira's 4% service fee. You know why prices differ between options, why prices change with time/availability, and what "per person" vs "total" means.
+- Currency Intelligence: You understand why prices can be cheaper in different currencies, how currency conversion & arbitrage works (legally & transparently), when crypto may or may not be cheaper, and that Ecovira shows prices honestly.
+- AI Value & Recommendations: You know what "best value" means, the difference between cheapest/fastest/balanced, why the AI recommends one option over another, and when the AI warns about poor value.
+- Booking Process: You know what happens after clicking "Select Flight" (booking summary → passenger details → payment → confirmation → booking automation). You understand why bookings may take a moment to confirm and what happens if a price changes or fails.
+- After Booking: You know how to access My Trips (booking reference + last name), how flight tracking works (live status from Amadeus API), how check-in works (guidance + airline link), and email notifications (confirmation, check-in opens, departure reminders).
+- Safety & Transparency: You know refunds depend on airline fare rules, Ecovira does not store card or wallet private keys, AI insights are advisory not guarantees, and Ecovira acts ethically and transparently.
 
 You must:
 - Always explain prices, fees, and currencies honestly
@@ -71,6 +80,9 @@ You must:
 - Encourage smarter alternatives (dates, routes, currencies) when appropriate
 - Never hide fees or manipulate choices
 - Never exaggerate savings or guarantee cheaper outcomes
+- Answer engine-related questions immediately and correctly without asking for clarification
+- Guide users through the platform without confusion
+- Sound like Ecovira's built-in expert, not a generic help bot
 
 Ecovira's philosophy:
 - Transparency over profit
@@ -115,14 +127,17 @@ Crypto Currency Intelligence:
 
 Tone: Calm, supportive, clear, professional, non-salesy. If information is uncertain, say so. If data is estimated, label it clearly. You are a trusted advisor, not a salesperson.
 
-Confidence & Proactive Behavior:
-- You are deeply familiar with Ecovira's platform, pricing logic, AI Value Score, currency strategy, and ethical framework
+Confidence & Proactive Behavior (CRITICAL):
+- You are deeply familiar with Ecovira's platform, pricing logic, AI Value Score, currency strategy, booking process, My Trips, flight tracking, check-in, notifications, and ethical framework
 - You should respond confidently and proactively, not defensively or uncertainly
 - Answer first, even if the question is broad - make reasonable assumptions using page context
-- Only ask follow-up questions after giving value
-- If the user asks anything remotely related to price, value, options, or strategy, you must respond with insight, not a clarification request
+- Only ask follow-up questions after giving value (at most ONE follow-up, only if truly needed)
+- If the user asks anything remotely related to price, value, options, strategy, search, booking, tracking, or check-in, you must respond with insight, not a clarification request
 - Avoid asking users to rephrase unless the question is completely unrelated or unsafe
 - If a question is broad, answer it using available context, then offer optional follow-ups
+- When users ask "where can I search" or "how do I search", provide direct, actionable guidance based on the current page context
+- Never say "I don't understand" without helping - always provide value first
+- Stay calm, confident, and clear - you are Ecovira's built-in expert
 
 Hard Refusal & Safety Rules
 
@@ -144,6 +159,19 @@ When refusing:
 
 // Comprehensive FAQ responses covering all topics
 const FAQ_RESPONSES: Record<string, string> = {
+  // Search & Navigation
+  'where search': "You can search directly on this page. For flights: enter departure and destination airports (e.g., MEL, SYD), select dates, choose passengers and cabin class, then tap 'Search Flights'. For stays: enter city, check-in date, nights, and guests. For cars: enter pickup/return location and dates. For transfers: enter from/to locations and date/time. Once results appear, I'll help you compare options, prices, and currency strategies.",
+  'how search': "To search: 1) Enter your travel details in the search panel (from/to, dates, passengers), 2) Select your preferred currency (top-right), 3) Tap the search button. Results appear below. The AI Assist widget (bottom-right) provides Value Scores and recommendations. I can help you understand the results and find the best option.",
+  'one way round trip': "One-way means a single flight from A to B. Round-trip includes both outbound and return flights. Round-trip is often cheaper per flight, but one-way offers flexibility. Use the toggle at the top of the search panel to switch. For round-trip, you'll need to select both departure and return dates.",
+  'search flights': "To search flights: Enter departure airport (e.g., MEL), destination airport (e.g., SYD), departure date, passengers, cabin class (economy/business/first), and optionally return date for round-trip. Select your currency, then tap 'Search Flights'. Results show price, duration, stops, and airline. The AI Assist widget provides Value Scores and recommendations.",
+  'search stays': "To search stays: Enter city name, check-in date, number of nights, adults, children (optional), and room type. Select your currency, then tap 'Search Stays'. Results show hotel name, location, price per night, and total cost. The AI Assist widget shows total trip cost estimates.",
+  'search cars': "To search cars: Enter pickup location, pickup date and time, return date and time, and driver age. Select your currency, then tap 'Search Cars'. Results show vehicle type, vendor, price per day, and total rental cost.",
+  'search transfers': "To search transfers: Enter pickup location, drop-off location, date, time, and number of passengers. Select your currency, then tap 'Search Transfers'. Results show transfer type, price, and duration.",
+  'filters': "Filters help narrow results. For flights: you can filter by stops (direct, 1-stop, 2+ stops), price range, departure time, airline, and duration. For stays: filter by star rating, price range, amenities, and cancellation policy. Use the search panel to adjust dates, passengers, and cabin class before searching.",
+  'dates work': "Dates control when you travel. For flights: select departure date (required) and return date (for round-trip). For stays: select check-in date and number of nights. For cars: select pickup and return dates/times. Prices vary significantly by date—weekends and peak seasons cost more. Consider flexible dates to find better prices.",
+  'passengers': "Passengers determine how many people are traveling. For flights: adults (required), children (2-11), infants (under 2). For stays: adults and children determine room capacity. For cars: driver age affects rental eligibility and fees. For transfers: number of passengers affects vehicle size and price. Prices are usually per person for flights, per night for stays, per day for cars.",
+  'cabin class': "Cabin class determines comfort level. Economy: standard seating, basic amenities. Business: more space, better meals, priority boarding. First: premium experience, most expensive. Prices increase with class. Economy is most common and cost-effective. Business and First offer more comfort but cost significantly more.",
+  
   // Search & Results (Flights)
   'best option': "The best option depends on your priorities. Check the AI Assist widget (bottom-right) for Value Score, Best Options, and actionable tips. Generally: cheapest for budget, fastest for time-sensitive, best value for balance of price, duration, and convenience.",
   'best value': "Best value means the optimal balance of price, duration, stops, and convenience. Our AI Value Score (0-100) calculates this automatically. Higher scores indicate better overall value, not just the cheapest price.",
@@ -171,12 +199,15 @@ const FAQ_RESPONSES: Record<string, string> = {
   'exchange rate': "We use real-time exchange rates from reputable financial data providers. Rates update frequently to reflect current market conditions. The rate is locked when you proceed to payment. Exchange rates fluctuate, so prices in different currencies will vary—the actual value remains the same, but the displayed amount changes based on current rates.",
   
   // Tickets & Booking
-  'after select flight': "After clicking 'Select Flight': 1) You'll see a booking summary, 2) Enter passenger details, 3) Choose payment method, 4) Complete secure payment, 5) Receive instant confirmation email with e-ticket.",
-  'when get ticket': "You'll receive your e-ticket via email immediately after successful payment. The email includes your booking reference, flight details, and instructions for check-in. Save this email for your records.",
-  'e-ticket': "Yes, all bookings receive e-tickets (electronic tickets) sent to your email. You can use the e-ticket for check-in and boarding. No physical tickets are required for most airlines.",
-  'confirmed booking': "Yes, once payment is successful, your booking is confirmed. You'll receive a confirmation email with your booking reference. This is a real, confirmed reservation with the airline/hotel.",
-  'hold fare': "We don't currently offer fare holds. Prices can change, so we recommend booking when you're ready. However, during the booking process, we'll hold the price for a short period while you complete payment.",
-  'details needed': "We need: passenger names (as on passport/ID), date of birth, contact email and phone, payment details. For international flights, passport information may be required. All information is kept secure.",
+  'after select flight': "After clicking 'Select Flight': 1) You'll see a booking summary with flight details and total price, 2) Enter passenger details (name, email, phone, optional SMS opt-in), 3) Choose payment method (card or crypto), 4) Complete secure payment, 5) Receive instant confirmation email with e-ticket and booking reference. The booking is then processed automatically with the airline.",
+  'when get ticket': "You'll receive your e-ticket via email immediately after successful payment. The email includes your booking reference, flight details, and instructions for check-in. Save this email for your records. You can also access your booking anytime via My Trips using your booking reference and last name.",
+  'e-ticket': "Yes, all bookings receive e-tickets (electronic tickets) sent to your email. You can use the e-ticket for check-in and boarding. No physical tickets are required for most airlines. The e-ticket includes your booking reference (PNR) and all flight details.",
+  'confirmed booking': "Yes, once payment is successful, your booking is confirmed. You'll receive a confirmation email with your booking reference. This is a real, confirmed reservation with the airline/hotel. The booking is processed automatically—it may take a moment to confirm with the supplier, but you'll receive updates via email.",
+  'booking takes time': "Bookings are processed automatically after payment. Most confirm within seconds, but some may take a few minutes if the airline's system is busy. You'll receive email updates when the booking is confirmed. If there's an issue, we'll notify you immediately and process a refund if needed.",
+  'price changes booking': "If the price changes during booking, we'll show you the updated price before payment. You can choose to proceed or cancel. Once payment is successful, the price is locked. If the airline's price increases significantly after payment but before confirmation, we'll notify you and offer options (pay difference, cancel with refund, or find alternative).",
+  'booking fails': "If a booking fails after payment, we'll automatically process a full refund to your original payment method. You'll receive email confirmation of the refund. This is rare, but can happen if the airline's system rejects the booking or inventory changes. Contact support if you have concerns.",
+  'hold fare': "We don't currently offer fare holds. Prices can change, so we recommend booking when you're ready. However, during the booking process, we'll hold the price for a short period while you complete payment. Once payment is successful, the price is locked.",
+  'details needed': "We need: passenger names (as on passport/ID), date of birth, contact email and phone, payment details. For international flights, passport information may be required. You can optionally provide phone number and opt-in for SMS updates (booking confirmations, check-in reminders, departure alerts). All information is kept secure and encrypted.",
   
   // Changes, Cancellations & Refunds
   'change flight': "Flight changes depend on the fare type. Flexible fares usually allow changes (fees may apply). Basic fares may not allow changes. Check your booking confirmation for specific policies. Contact us for assistance.",
@@ -238,12 +269,26 @@ const FAQ_RESPONSES: Record<string, string> = {
   'not recommended': "An option may not be recommended if it has: very high price, very long duration, many stops, or very inconvenient times. The AI Assist widget explains why and suggests better alternatives.",
   'improve score': "To improve the score: consider alternative dates (prices vary), choose direct flights if time-sensitive, or accept slightly longer duration for better price. The AI Assist widget provides specific tips.",
   
+  // After Booking - My Trips & Tracking
+  'my trips': "My Trips is where you access your bookings after confirmation. Go to /my-trips and enter your booking reference (from confirmation email) and last name. You'll see all your trips with flight details, status, and links to track flights and check in.",
+  'access booking': "Access your booking via My Trips (/my-trips). Enter your booking reference (e.g., ECV1A2B3C) and last name (as on booking). You'll see trip details, flight tracking, check-in hub, and booking status. No account login required—just booking reference + last name.",
+  'booking reference': "Your booking reference (e.g., ECV1A2B3C) is sent in your confirmation email. Use it with your last name to access My Trips. The reference is unique to your booking and appears on all communications.",
+  'track flight': "Flight tracking shows live status from Amadeus API: on-time/delayed/cancelled, estimated departure/arrival times, gate/terminal info, baggage belt (if available), and last updated timestamp. Access it via My Trips → select your trip → Flight Status section. Status auto-refreshes every 5 minutes, or tap 'Refresh' manually.",
+  'flight status': "Flight status shows: departure/arrival airports, scheduled vs estimated times, gate and terminal (when available), baggage belt (arrival), and current status (on-time, delayed, cancelled, boarding, departed, arrived). Status is best-effort and depends on live data availability from Amadeus. If unavailable, we show scheduled times.",
+  'check in': "Check-in hub is in My Trips. It shows: check-in window countdown (usually opens 24-48 hours before departure), 'Check-in Now' button (deep links to airline's official check-in page), and what you'll need (booking reference/PNR, last name, passport for international). We guide you to the airline's check-in page—we don't complete check-in ourselves.",
+  'check in opens': "Check-in usually opens 24-48 hours before departure (varies by airline). The check-in hub in My Trips shows a countdown when you're within the window. When open, tap 'Check-in Now' to go to the airline's official check-in page. You'll need your booking reference (PNR) and last name.",
+  'check in need': "For check-in, you'll need: booking reference (PNR) or ticket number, last name (as on booking), and passport details (for international travel). The airline's check-in page will guide you through seat selection, baggage options, and boarding pass download.",
+  'notifications': "You'll receive automated emails: 1) Booking confirmed (immediately after payment), 2) Check-in opens soon (24 hours before check-in opens), 3) Check-in open (when check-in becomes available), 4) Departure reminder (3 hours before departure). If you opted in for SMS, you'll also receive text messages for these events. All notifications include links to My Trips.",
+  'email notifications': "Email notifications are sent automatically: booking confirmed (immediately), check-in opens soon (24h before check-in opens), check-in open (when available), departure reminder (3h before). All emails include your booking reference and link to My Trips. Check your spam folder if you don't receive them.",
+  'sms notifications': "SMS notifications are optional and require opt-in at checkout. If you opted in, you'll receive short text messages for: booking confirmed, check-in opens, check-in open, and departure reminder. SMS includes booking reference and link to My Trips. You can opt out anytime by replying STOP or contacting support.",
+  'airline rules': "Ecovira can guide you to check-in, track flights, and send reminders, but we cannot control airline policies. Refunds, changes, baggage rules, and check-in deadlines depend on the airline and fare type. We'll help you understand policies and coordinate with airlines when needed, but final terms come from the airline.",
+  
   // Platform & Trust
   'ecovira legit': "Yes, Ecovira Air is a legitimate travel booking platform. We partner with established providers (Amadeus, airlines, hotels) to offer real, confirmed bookings. We're committed to transparency and customer service.",
   'who runs': "Ecovira Air is operated by a dedicated team focused on providing premium travel booking experiences. We work with industry-leading partners to ensure reliable, secure bookings.",
   'secure': "Yes, we use industry-standard encryption (SSL/TLS) for all data transmission. Payment processing is handled by secure, PCI-compliant payment gateways. Your information is protected.",
   'payments protected': "All payments are processed through secure, encrypted channels. We use PCI-compliant payment processors. Your card details are never stored on our servers—they're handled by secure payment gateways.",
-  'store card details': "No, we don't store your full card details on our servers. Payment information is processed securely through encrypted payment gateways. Only necessary booking information is retained for your account.",
+  'store card details': "No, we don't store your full card details on our servers. Payment information is processed securely through encrypted payment gateways. Only necessary booking information is retained for your account. We also never store wallet private keys—crypto payments are processed securely without storing sensitive wallet information.",
   'data safe': "Yes, we take data security seriously. We use encryption, secure servers, and follow industry best practices. We only collect necessary information for bookings and don't sell your data to third parties.",
   'why book here': "We offer: aggregated search across multiple providers, transparent pricing with AI insights, 24/7 support, multiple payment options (including crypto), and a premium booking experience. Compare and decide what's best for you.",
   
@@ -282,8 +327,8 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
     { 
       role: 'assistant', 
       content: context 
-        ? `Hi, I'm Ecovira AI 👋\n\nI can help you compare options, explain prices and fees, and show how currency or crypto choices may affect the total.\n\nYou can ask anything — or tap one of the quick questions below to get started.`
-        : "Hi, I'm Ecovira AI 👋\n\nI can help you compare options, explain prices and fees, and show how currency or crypto choices may affect the total.\n\nYou can ask anything — or tap one of the quick questions below to get started."
+        ? `Hi, I'm Ecovira AI 👋\n\nI'm your built-in travel expert. I understand how Ecovira works—search, pricing, currency strategies, booking, My Trips, flight tracking, and check-in.\n\nI can help you:\n• Find the best options and value\n• Understand pricing, fees, and currency arbitrage\n• Navigate the booking process\n• Access My Trips and track flights\n• Get check-in guidance\n\nAsk me anything, or tap one of the quick questions below to get started.`
+        : "Hi, I'm Ecovira AI 👋\n\nI'm your built-in travel expert. I understand how Ecovira works—search, pricing, currency strategies, booking, My Trips, flight tracking, and check-in.\n\nI can help you:\n• Find the best options and value\n• Understand pricing, fees, and currency arbitrage\n• Navigate the booking process\n• Access My Trips and track flights\n• Get check-in guidance\n\nAsk me anything, or tap one of the quick questions below to get started."
     }
   ]);
   const [input, setInput] = useState('');
@@ -627,14 +672,40 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
       }
     }
 
+    // Search & Navigation questions - PROACTIVE GUIDANCE
+    if ((lowerInput.includes('where') || lowerInput.includes('how')) && 
+        (lowerInput.includes('search') || lowerInput.includes('find') || lowerInput.includes('book'))) {
+      const page = context?.page || 'flights';
+      if (page === 'flights') {
+        response = "You can search for flights directly on this page. Enter your departure and destination airports (e.g., MEL, SYD), select dates, choose passengers and cabin class, then tap 'Search Flights' at the bottom.\n\n" +
+          "Once results appear, I'll help you compare prices, value, and currency options. The AI Assist widget (bottom-right) shows Value Scores and recommendations.";
+      } else if (page === 'stays') {
+        response = "You can search for stays directly on this page. Enter the city name, check-in date, number of nights, adults, and children (if any), then tap 'Search Stays'.\n\n" +
+          "Once results appear, I'll help you compare prices, total costs, and value. The AI Assist widget shows total trip cost estimates.";
+      } else if (page === 'cars') {
+        response = "You can search for cars directly on this page. Enter pickup location, pickup date and time, return date and time, and driver age, then tap 'Search Cars'.\n\n" +
+          "Once results appear, I'll help you compare vehicles, prices, and rental terms.";
+      } else if (page === 'transfers') {
+        response = "You can search for transfers directly on this page. Enter pickup location, drop-off location, date, time, and passengers, then tap 'Search Transfers'.\n\n" +
+          "Once results appear, I'll help you compare options and prices.";
+      } else {
+        response = "You can search directly on this page. Enter your travel details in the search panel, select your currency, then tap the search button.\n\n" +
+          "Once results appear, I'll help you compare options, prices, and value. The AI Assist widget (bottom-right) provides detailed insights.";
+      }
+      matched = true;
+    }
+
     // Fallback for unmatched queries - PROACTIVE RESPONSES (answer first, don't ask for clarification)
     if (!matched) {
       // Try to provide helpful guidance based on context
       if (lowerInput.includes('help') || lowerInput.includes('support')) {
         response = "I'm here to help! I'm Ecovira AI, your transparent travel and finance assistant. I can help with:\n\n" +
+          "• Search & Navigation: How to search flights, stays, cars, transfers\n" +
           "• Best options and honest value assessments\n" +
           "• Pricing, fees, and currency strategies (including crypto)\n" +
           "• Booking process and tickets\n" +
+          "• My Trips: Access bookings, track flights, check-in\n" +
+          "• Email & SMS notifications\n" +
           "• Changes, cancellations, and refunds\n" +
           "• Baggage, seating, and travel rules\n" +
           "• AI Value Score and insights\n" +
@@ -684,16 +755,26 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
             `What specific aspect would you like me to explain?`;
         }
       } else {
-        // No context but still be proactive
-        response = `I can help you with your travel search. ` +
-          `I understand Ecovira's platform, pricing logic, currency strategies, and AI Value Score system.\n\n` +
-          `I can explain:\n` +
-          `• How to find the best options and value\n` +
-          `• Pricing, fees, and currency arbitrage\n` +
-          `• How crypto payments work\n` +
-          `• The booking process\n` +
-          `• AI Value Score and insights\n\n` +
-          `What would you like to know?`;
+        // No context but still be proactive - DEFAULT RESPONSE PATTERN
+        if (lowerInput.includes('where') || lowerInput.includes('how') || lowerInput.includes('what')) {
+          // Broad question - provide engine-aware guidance
+          response = `I can help you with your travel search. ` +
+            `I understand Ecovira's platform, pricing logic, currency strategies, booking process, My Trips, flight tracking, check-in, and AI Value Score system.\n\n` +
+            `I can explain:\n` +
+            `• How to search flights, stays, cars, or transfers\n` +
+            `• How to find the best options and value\n` +
+            `• Pricing, fees, and currency arbitrage\n` +
+            `• How crypto payments work\n` +
+            `• The booking process (Select → Details → Payment → Confirmation)\n` +
+            `• How to access My Trips and track flights\n` +
+            `• Check-in process and airline links\n` +
+            `• Email and SMS notifications\n` +
+            `• AI Value Score and insights\n\n` +
+            `Are you asking about Flights, Stays, Cars, or Transfers?`;
+        } else {
+          // Fallback Rule: If context is truly missing, use simple response
+          response = `I can help with that. Are you asking about Flights, Stays, Cars, or Transfers?`;
+        }
       }
     }
 

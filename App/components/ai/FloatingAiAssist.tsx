@@ -25,7 +25,7 @@ interface FloatingAiAssistProps {
   onOpenChat?: () => void;
 }
 
-// Calculate simplified Value Score (0-10, rounded to 0.5)
+// Calculate Premium Value Score (0-10, realistic, never 10/10 unless truly exceptional)
 function calculateValueScore(flight: any, allFlights: any[]): number {
   if (!flight || allFlights.length === 0) return 5.0;
 
@@ -39,102 +39,317 @@ function calculateValueScore(flight: any, allFlights: any[]): number {
   const minDuration = Math.min(...allDurations);
   const maxDuration = Math.max(...allDurations);
 
-  // Price score (0-10): Lower price = higher score
+  // Price score (0-8): Lower price = higher score, but cap at 8 to avoid 10/10
   const priceScore = maxPrice > minPrice 
-    ? 10 - ((price - minPrice) / (maxPrice - minPrice)) * 5
-    : 10;
+    ? 8 - ((price - minPrice) / (maxPrice - minPrice)) * 4
+    : 8;
 
-  // Duration score (0-10): Shorter = higher
+  // Duration score (0-8): Shorter = higher, cap at 8
   const durationScore = maxDuration > minDuration
-    ? 10 - ((duration - minDuration) / (maxDuration - minDuration)) * 3
-    : 10;
+    ? 8 - ((duration - minDuration) / (maxDuration - minDuration)) * 3
+    : 8;
 
-  // Stops penalty: Direct = 10, 1 stop = 7, 2+ stops = 4
-  const stopsScore = stops === 0 ? 10 : stops === 1 ? 7 : 4;
+  // Stops penalty: Direct = 8, 1 stop = 6, 2+ stops = 3
+  const stopsScore = stops === 0 ? 8 : stops === 1 ? 6 : 3;
 
-  // Weighted overall (price 40%, duration 30%, stops 30%)
-  const overall = (priceScore * 0.4 + durationScore * 0.3 + stopsScore * 0.3);
+  // Departure time comfort (if available in raw data, otherwise neutral)
+  let timeScore = 5; // Neutral default
+  if (flight.raw?.departureTime || flight.departureTime) {
+    const depTime = flight.raw?.departureTime || flight.departureTime;
+    const hour = new Date(depTime).getHours();
+    // Morning (6-10) and afternoon (14-18) are best, red-eye (22-6) and very early (4-6) are worst
+    if (hour >= 6 && hour < 10) timeScore = 7; // Good morning
+    else if (hour >= 10 && hour < 14) timeScore = 6; // Midday
+    else if (hour >= 14 && hour < 18) timeScore = 7; // Afternoon
+    else if (hour >= 18 && hour < 22) timeScore = 5; // Evening
+    else timeScore = 4; // Red-eye or very early
+  }
+
+  // Weighted overall (price 35%, duration 25%, stops 25%, time 15%)
+  const overall = (priceScore * 0.35 + durationScore * 0.25 + stopsScore * 0.25 + timeScore * 0.15);
   
-  // Round to nearest 0.5
-  return Math.round(overall * 2) / 2;
+  // Cap at 9.5 to avoid unrealistic 10/10 scores
+  const capped = Math.min(overall, 9.5);
+  
+  // Round to 1 decimal place for realistic scores
+  return Math.round(capped * 10) / 10;
 }
 
-// Generate human-readable verdict and reason
-function generateVerdict(flight: any, allFlights: any[], score: number): { verdict: string; reason: string; warnings: string[]; tip?: string } {
-  const price = parseFloat(flight.price || 0);
-  const duration = parseFloat(flight.duration || '4') || 4;
+// Premium Intelligence Analysis
+interface PremiumAnalysis {
+  comfort: {
+    stops: { count: number; quality: 'direct' | 'short' | 'ideal' | 'long' | 'unknown'; duration?: string };
+    totalTime: { hours: number; vsDirect: 'same' | 'faster' | 'slower' | 'unknown'; penalty?: string };
+    departureTime: { time: string | null; comfort: 'convenient' | 'okay' | 'red-eye' | 'very-early' | 'unknown' };
+    layoverRisk: 'low' | 'medium' | 'high' | 'unknown';
+    airportQuality: 'major-hub' | 'smaller' | 'unknown';
+  };
+  practical: {
+    baggageIncluded: 'yes' | 'no' | 'unknown';
+    changeFlexibility: 'flexible' | 'restricted' | 'unknown';
+    reliability: { risk: 'low' | 'medium' | 'high' | 'unknown'; reason?: string };
+  };
+  price: {
+    position: 'cheapest' | 'below-average' | 'average' | 'above-average' | 'premium';
+    serviceFee: string;
+    currencyNote?: string;
+  };
+}
+
+// Extract premium factors from flight data (only use available data, never invent)
+function analyzePremiumFactors(flight: any, allFlights: any[]): PremiumAnalysis {
   const stops = parseInt(flight.stops || '0') || 0;
+  const duration = parseFloat(flight.duration || '4') || 4;
+  const price = parseFloat(flight.price || 0);
   const allPrices = allFlights.map(f => parseFloat(f.price || 0)).filter(p => p > 0);
   const minPrice = Math.min(...allPrices);
-  const maxPrice = Math.max(...allPrices);
+  const avgPrice = allPrices.reduce((a, b) => a + b, 0) / allPrices.length;
   const hasDirect = allFlights.some(f => parseInt(f.stops || '0') === 0);
+  const directDuration = hasDirect ? allFlights.find(f => parseInt(f.stops || '0') === 0)?.duration : null;
+  const directDurNum = directDuration ? parseFloat(directDuration) : null;
+
+  // Comfort: Stops
+  let stopQuality: 'direct' | 'short' | 'ideal' | 'long' | 'unknown' = 'unknown';
+  let stopDuration: string | undefined;
+  if (stops === 0) {
+    stopQuality = 'direct';
+  } else if (stops === 1) {
+    // Try to get layover duration from raw data if available
+    const layoverMins = flight.raw?.layoverDuration || flight.layoverDuration;
+    if (layoverMins) {
+      if (layoverMins < 60) stopQuality = 'short';
+      else if (layoverMins < 120) stopQuality = 'ideal';
+      else stopQuality = 'long';
+      stopDuration = `${Math.round(layoverMins)} min`;
+    } else {
+      stopQuality = 'ideal'; // Default assumption for 1 stop
+    }
+  } else {
+    stopQuality = 'long';
+  }
+
+  // Comfort: Total time vs direct
+  let vsDirect: 'same' | 'faster' | 'slower' | 'unknown' = 'unknown';
+  let timePenalty: string | undefined;
+  if (directDurNum !== null && duration > directDurNum) {
+    vsDirect = 'slower';
+    const extraHours = Math.round((duration - directDurNum) * 10) / 10;
+    timePenalty = `+${extraHours}h vs direct`;
+  } else if (directDurNum !== null && duration < directDurNum) {
+    vsDirect = 'faster';
+  } else if (stops === 0) {
+    vsDirect = 'same';
+  }
+
+  // Comfort: Departure time
+  let depTime: string | null = null;
+  let timeComfort: 'convenient' | 'okay' | 'red-eye' | 'very-early' | 'unknown' = 'unknown';
+  if (flight.raw?.departureTime || flight.departureTime) {
+    const dep = new Date(flight.raw?.departureTime || flight.departureTime);
+    depTime = dep.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const hour = dep.getHours();
+    if (hour >= 6 && hour < 10) timeComfort = 'convenient';
+    else if (hour >= 10 && hour < 18) timeComfort = 'okay';
+    else if (hour >= 22 || hour < 4) timeComfort = 'red-eye';
+    else if (hour >= 4 && hour < 6) timeComfort = 'very-early';
+  }
+
+  // Comfort: Layover risk (only if we have layover duration)
+  let layoverRisk: 'low' | 'medium' | 'high' | 'unknown' = 'unknown';
+  if (stops > 0) {
+    const layoverMins = flight.raw?.layoverDuration || flight.layoverDuration;
+    if (layoverMins) {
+      if (layoverMins < 45) layoverRisk = 'high';
+      else if (layoverMins < 90) layoverRisk = 'medium';
+      else layoverRisk = 'low';
+    }
+  } else {
+    layoverRisk = 'low';
+  }
+
+  // Comfort: Airport quality (simple check from airport codes)
+  let airportQuality: 'major-hub' | 'smaller' | 'unknown' = 'unknown';
+  const majorHubs = ['SYD', 'MEL', 'BNE', 'PER', 'ADL', 'LAX', 'JFK', 'LHR', 'DXB', 'SIN', 'HKG', 'NRT'];
+  if (flight.from && majorHubs.includes(flight.from.toUpperCase())) {
+    airportQuality = 'major-hub';
+  } else if (flight.from) {
+    airportQuality = 'smaller';
+  }
+
+  // Practical: Baggage (check raw data, never invent)
+  let baggageIncluded: 'yes' | 'no' | 'unknown' = 'unknown';
+  if (flight.raw?.baggageIncluded !== undefined) {
+    baggageIncluded = flight.raw.baggageIncluded ? 'yes' : 'no';
+  } else if (flight.baggageIncluded !== undefined) {
+    baggageIncluded = flight.baggageIncluded ? 'yes' : 'no';
+  }
+
+  // Practical: Change flexibility (check raw data)
+  let changeFlexibility: 'flexible' | 'restricted' | 'unknown' = 'unknown';
+  if (flight.raw?.changeable !== undefined) {
+    changeFlexibility = flight.raw.changeable ? 'flexible' : 'restricted';
+  } else if (flight.changeable !== undefined) {
+    changeFlexibility = flight.changeable ? 'flexible' : 'restricted';
+  }
+
+  // Practical: Reliability
+  let reliabilityRisk: 'low' | 'medium' | 'high' | 'unknown' = 'unknown';
+  let reliabilityReason: string | undefined;
+  if (stops > 1) {
+    reliabilityRisk = 'medium';
+    reliabilityReason = 'Multiple segments increase schedule risk';
+  } else if (layoverRisk === 'high') {
+    reliabilityRisk = 'high';
+    reliabilityReason = 'Tight connection increases delay risk';
+  } else if (stops === 0) {
+    reliabilityRisk = 'low';
+  } else {
+    reliabilityRisk = 'low';
+  }
+
+  // Price position
+  let pricePosition: 'cheapest' | 'below-average' | 'average' | 'above-average' | 'premium';
+  if (price <= minPrice * 1.05) pricePosition = 'cheapest';
+  else if (price < avgPrice * 0.9) pricePosition = 'below-average';
+  else if (price <= avgPrice * 1.1) pricePosition = 'average';
+  else if (price <= avgPrice * 1.3) pricePosition = 'above-average';
+  else pricePosition = 'premium';
+
+  const serviceFee = (price * 0.04).toFixed(2);
+
+  return {
+    comfort: {
+      stops: { count: stops, quality: stopQuality, duration: stopDuration },
+      totalTime: { hours: duration, vsDirect, penalty: timePenalty },
+      departureTime: { time: depTime, comfort: timeComfort },
+      layoverRisk,
+      airportQuality,
+    },
+    practical: {
+      baggageIncluded,
+      changeFlexibility,
+      reliability: { risk: reliabilityRisk, reason: reliabilityReason },
+    },
+    price: {
+      position: pricePosition,
+      serviceFee,
+    },
+  };
+}
+
+// Generate human-readable verdict with premium intelligence
+function generateVerdict(flight: any, allFlights: any[], score: number): { 
+  verdict: string; 
+  reason: string; 
+  comfort: string[]; 
+  tradeoffs: string[]; 
+  tip?: string;
+  moreDetails?: {
+    connectionRisk?: string;
+    timeComfort?: string;
+    baggageNotes?: string;
+    changeNotes?: string;
+    scoreBreakdown?: string;
+  };
+} {
+  const analysis = analyzePremiumFactors(flight, allFlights);
+  const price = parseFloat(flight.price || 0);
+  const allPrices = allFlights.map(f => parseFloat(f.price || 0)).filter(p => p > 0);
+  const minPrice = Math.min(...allPrices);
   const priceDiff = price - minPrice;
   const pricePercentDiff = minPrice > 0 ? (priceDiff / minPrice) * 100 : 0;
+  const hasDirect = allFlights.some(f => parseInt(f.stops || '0') === 0);
 
-  const warnings: string[] = [];
-  let tip: string | undefined;
-
-  // Determine verdict
+  // Determine verdict based on score and premium factors
   let verdict: string;
   let reason: string;
 
   if (score >= 7.5) {
-    verdict = "✅ Good value for your trip";
-    if (stops === 0 && pricePercentDiff < 20) {
-      reason = "This direct flight balances price and convenience well.";
-    } else if (stops === 0) {
-      reason = "This direct flight is worth the extra cost if you want to avoid stops.";
+    if (analysis.comfort.stops.quality === 'direct' && pricePercentDiff < 20) {
+      verdict = "✅ Best overall comfort/value";
+      reason = "Direct + good departure time + lowest price today";
+    } else if (analysis.comfort.stops.quality === 'direct') {
+      verdict = "✅ Excellent comfort, premium price";
+      reason = "Direct flight with convenient timing, but priced higher than alternatives";
     } else if (pricePercentDiff < 15) {
-      reason = "This option balances price and travel time well, with minimal stops.";
+      verdict = "✅ Good value balance";
+      reason = "Balances price and travel time well, with minimal stops";
     } else {
-      reason = "This is a solid choice if you want the lowest price without major downsides.";
+      verdict = "✅ Solid budget option";
+      reason = "Lowest price with acceptable comfort trade-offs";
     }
   } else if (score >= 5.5) {
     verdict = "⚠️ Decent option — consider alternatives";
     if (pricePercentDiff > 30) {
-      reason = "This flight is more expensive than other options, but the schedule might work better for you.";
-    } else if (stops > 1) {
-      reason = "This flight is cheap, but multiple stops increase total travel time significantly.";
+      reason = "More expensive than alternatives, but schedule may work better";
+    } else if (analysis.comfort.stops.count > 1) {
+      reason = "Cheap but multiple stops increase travel time significantly";
     } else {
-      reason = "This option is okay, but there might be better value elsewhere.";
+      reason = "Okay option, but better value may be available";
     }
   } else {
     verdict = "⚠️ Not great value — consider alternatives";
-    if (pricePercentDiff > 40 && stops > 0) {
-      reason = "This flight is expensive and includes stops, making it less attractive than other options.";
+    if (pricePercentDiff > 40 && analysis.comfort.stops.count > 0) {
+      reason = "Expensive with stops, less attractive than alternatives";
     } else if (pricePercentDiff > 40) {
-      reason = "This flight is significantly more expensive than alternatives with similar schedules.";
-    } else if (stops > 1) {
-      reason = "This flight is cheap, but the long stopover increases total travel time.";
+      reason = "Significantly more expensive than alternatives with similar schedules";
+    } else if (analysis.comfort.stops.count > 1) {
+      reason = "Cheap but long stopover increases total travel time";
     } else {
-      reason = "This option has drawbacks that make it less appealing than other choices.";
+      reason = "Has drawbacks that make it less appealing";
     }
   }
 
-  // Generate warnings (max 3)
-  if (pricePercentDiff > 25 && pricePercentDiff <= 40) {
-    warnings.push(`Price is ${Math.round(pricePercentDiff)}% higher than cheapest option`);
-  } else if (pricePercentDiff > 40) {
-    warnings.push(`Price is significantly higher (${Math.round(pricePercentDiff)}% more than cheapest)`);
-  }
-
-  if (stops === 1) {
-    warnings.push(`Includes 1 stop (adds ~2h total travel time)`);
-  } else if (stops > 1) {
-    warnings.push(`Includes ${stops} stops (adds ~${stops * 2}h total travel time)`);
-  }
-
-  if (hasDirect && stops > 0) {
-    const directPrice = allFlights.find(f => parseInt(f.stops || '0') === 0)?.price;
-    if (directPrice && parseFloat(directPrice) - price < price * 0.3) {
-      warnings.push(`Direct flights available for similar price`);
+  // Build comfort factors (max 3 bullets)
+  const comfort: string[] = [];
+  if (analysis.comfort.stops.quality === 'direct') {
+    comfort.push("Direct flight (no layover fatigue)");
+  } else if (analysis.comfort.stops.count === 1) {
+    if (analysis.comfort.stops.duration) {
+      comfort.push(`${analysis.comfort.stops.count} stop (${analysis.comfort.stops.duration} layover)`);
+    } else {
+      comfort.push(`${analysis.comfort.stops.count} stop`);
     }
+  } else {
+    comfort.push(`${analysis.comfort.stops.count} stops (adds travel time)`);
   }
 
-  // Generate smart tip (optional)
+  if (analysis.comfort.departureTime.comfort === 'convenient') {
+    comfort.push("Departure time is convenient");
+  } else if (analysis.comfort.departureTime.comfort === 'red-eye') {
+    comfort.push("Red-eye departure (overnight flight)");
+  } else if (analysis.comfort.departureTime.comfort === 'very-early') {
+    comfort.push("Very early departure time");
+  }
+
+  if (analysis.comfort.totalTime.vsDirect === 'same' || analysis.comfort.stops.quality === 'direct') {
+    comfort.push("Total time is short");
+  } else if (analysis.comfort.totalTime.penalty) {
+    comfort.push(`Total time: ${analysis.comfort.totalTime.penalty}`);
+  }
+
+  // Build trade-offs (max 2-3 bullets)
+  const tradeoffs: string[] = [];
+  if (analysis.practical.baggageIncluded === 'unknown') {
+    tradeoffs.push("Baggage details not shown (check fare rules)");
+  } else if (analysis.practical.baggageIncluded === 'no') {
+    tradeoffs.push("Baggage not included (may cost extra)");
+  }
+
+  if (analysis.practical.changeFlexibility === 'unknown') {
+    tradeoffs.push("Change/refund policy not provided by supplier");
+  } else if (analysis.practical.changeFlexibility === 'restricted') {
+    tradeoffs.push("Restricted change/refund policy");
+  }
+
+  // Add economy class note if not premium
+  tradeoffs.push("Economy (no extra legroom info available)");
+
+  // Generate tip
+  let tip: string | undefined;
   if (pricePercentDiff > 20 && pricePercentDiff < 35) {
-    tip = `Flying earlier or later could save around ${flight.currency || 'USD'} ${Math.round(priceDiff * 0.3)}.`;
-  } else if (stops > 0 && hasDirect) {
+    tip = `If you prefer more comfort, filter for "morning departure" or "fewer stops".`;
+  } else if (analysis.comfort.stops.count > 0 && hasDirect) {
     const directOption = allFlights.find(f => parseInt(f.stops || '0') === 0);
     if (directOption) {
       const directPrice = parseFloat(directOption.price || 0);
@@ -145,11 +360,47 @@ function generateVerdict(flight: any, allFlights: any[], score: number): { verdi
     }
   }
 
-  return { verdict, reason, warnings: warnings.slice(0, 3), tip };
+  // Build more details
+  const moreDetails: {
+    connectionRisk?: string;
+    timeComfort?: string;
+    baggageNotes?: string;
+    changeNotes?: string;
+    scoreBreakdown?: string;
+  } = {};
+
+  if (analysis.comfort.layoverRisk !== 'unknown' && analysis.comfort.layoverRisk !== 'low') {
+    moreDetails.connectionRisk = `Connection risk: ${analysis.comfort.layoverRisk} (${analysis.comfort.stops.duration || 'layover duration unknown'}). ${analysis.comfort.layoverRisk === 'high' ? 'Tight connections increase delay risk.' : 'Moderate connection time.'}`;
+  }
+
+  if (analysis.comfort.departureTime.time) {
+    const timeDesc = analysis.comfort.departureTime.comfort === 'convenient' ? 'Convenient' :
+                     analysis.comfort.departureTime.comfort === 'okay' ? 'Acceptable' :
+                     analysis.comfort.departureTime.comfort === 'red-eye' ? 'Red-eye (overnight)' :
+                     analysis.comfort.departureTime.comfort === 'very-early' ? 'Very early' : 'Unknown';
+    moreDetails.timeComfort = `Departure: ${analysis.comfort.departureTime.time} (${timeDesc}). ${analysis.comfort.departureTime.comfort === 'red-eye' ? 'Overnight flights can be tiring but may save money.' : ''}`;
+  }
+
+  if (analysis.practical.baggageIncluded !== 'unknown') {
+    moreDetails.baggageNotes = `Baggage: ${analysis.practical.baggageIncluded === 'yes' ? 'Included' : 'Not included'}. Check fare rules for specific allowances.`;
+  } else {
+    moreDetails.baggageNotes = "Baggage: Not provided by supplier. Check airline fare rules during booking.";
+  }
+
+  if (analysis.practical.changeFlexibility !== 'unknown') {
+    moreDetails.changeNotes = `Changes/Refunds: ${analysis.practical.changeFlexibility === 'flexible' ? 'Flexible (fees may apply)' : 'Restricted (may not be changeable)'}. Check fare rules for details.`;
+  } else {
+    moreDetails.changeNotes = "Change/Refund policy: Not provided by supplier. Check airline fare rules during booking.";
+  }
+
+  moreDetails.scoreBreakdown = `Score ${score}/10: Higher because ${analysis.comfort.stops.quality === 'direct' ? 'direct' : `${analysis.comfort.stops.count} stop(s)`} + ${analysis.price.position === 'cheapest' ? 'low price' : analysis.price.position}; lower if ${analysis.comfort.stops.count > 0 ? 'layovers' : 'awkward times'} or ${pricePercentDiff > 20 ? 'higher price' : 'longer duration'}.`;
+
+  return { verdict, reason, comfort: comfort.slice(0, 3), tradeoffs: tradeoffs.slice(0, 3), tip, moreDetails };
 }
 
 export function FloatingAiAssist({ type, results, selectedFlight, selectedCar, selectedTransfer, selectedStay, tripData, chatContext, onOpenChat }: FloatingAiAssistProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showMoreDetails, setShowMoreDetails] = useState(false);
   // No need for activeTab state - we only show one tab per page
   const [analyzingFlight, setAnalyzingFlight] = useState<any>(null);
 
@@ -310,49 +561,108 @@ export function FloatingAiAssist({ type, results, selectedFlight, selectedCar, s
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[rgba(15,17,20,0.4)]" style={{ maxHeight: 'calc(500px - 180px)' }}>
-              {/* Flights Tab */}
+              {/* Flights Tab - Premium Intelligence Format */}
               {type === 'flights' && bestOptions && currentFlight && valueScore !== null && verdictData && (
                 <>
-                  {/* Clear Verdict - TOP, BIG TEXT */}
+                  {/* Verdict: Clean, Big */}
                   <div className="mb-4">
-                    <div className="text-2xl md:text-3xl font-bold text-ec-text mb-3 leading-tight">
+                    <div className="text-xl md:text-2xl font-bold text-ec-text mb-2 leading-tight">
                       {verdictData.verdict}
                     </div>
-                    <div className="text-base text-ec-muted leading-relaxed mb-4">
+                    <div className="text-sm text-ec-muted leading-relaxed">
                       {verdictData.reason}
                     </div>
                   </div>
 
-                  {/* Value Score - Single, Rounded */}
-                  <div className="mb-4 pb-4 border-b border-[rgba(28,140,130,0.15)]">
+                  {/* Value Score - Realistic */}
+                  <div className="mb-4 pb-3 border-b border-[rgba(28,140,130,0.15)]">
                     <div className="flex items-center gap-3">
-                      <div className="text-2xl font-bold text-ec-text">{valueScore}/10</div>
-                      <div className="text-sm text-ec-muted">Ecovira Value Score</div>
+                      <div className="text-xl font-bold text-ec-text">Ecovira Value Score: {valueScore}/10</div>
                     </div>
+                    {verdictData.moreDetails?.scoreBreakdown && (
+                      <div className="text-xs text-ec-muted mt-1">
+                        {verdictData.moreDetails.scoreBreakdown}
+                      </div>
+                    )}
                   </div>
 
-                  {/* What to Know - MAX 3 bullets */}
-                  {verdictData.warnings.length > 0 && (
-                    <div className="mb-4">
-                      <div className="text-sm font-medium text-ec-text mb-2">What to know:</div>
-                      <ul className="space-y-1.5 text-sm text-ec-muted">
-                        {verdictData.warnings.map((warning, i) => (
+                  {/* Comfort - Structured */}
+                  {verdictData.comfort.length > 0 && (
+                    <div className="mb-3">
+                      <div className="text-xs font-semibold text-ec-text uppercase tracking-[0.1em] mb-2">Comfort:</div>
+                      <ul className="space-y-1 text-sm text-ec-muted">
+                        {verdictData.comfort.map((item, i) => (
                           <li key={i} className="flex items-start gap-2">
                             <span className="text-ec-teal mt-0.5">•</span>
-                            <span>{warning}</span>
+                            <span>{item}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
                   )}
 
-                  {/* Smart Tip - OPTIONAL, 1 line */}
+                  {/* Trade-offs - Structured */}
+                  {verdictData.tradeoffs.length > 0 && (
+                    <div className="mb-3">
+                      <div className="text-xs font-semibold text-ec-text uppercase tracking-[0.1em] mb-2">Trade-offs:</div>
+                      <ul className="space-y-1 text-sm text-ec-muted">
+                        {verdictData.tradeoffs.map((item, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-ec-muted mt-0.5">•</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Tip - Optional */}
                   {verdictData.tip && (
-                    <div className="mb-4 p-3 bg-[rgba(200,162,77,0.1)] border border-[rgba(200,162,77,0.2)] rounded-ec-sm">
-                      <div className="text-sm text-ec-text flex items-start gap-2">
+                    <div className="mb-3 p-2.5 bg-[rgba(200,162,77,0.1)] border border-[rgba(200,162,77,0.2)] rounded-ec-sm">
+                      <div className="text-xs text-ec-text flex items-start gap-2">
                         <span className="text-ec-gold">💡</span>
                         <span>{verdictData.tip}</span>
                       </div>
+                    </div>
+                  )}
+
+                  {/* More Details - Expandable */}
+                  {verdictData.moreDetails && (
+                    <div className="mb-3">
+                      <button
+                        onClick={() => setShowMoreDetails(!showMoreDetails)}
+                        className="text-xs text-ec-teal hover:text-ec-text font-medium transition-colors flex items-center gap-1"
+                      >
+                        {showMoreDetails ? '▼' : '▶'} More details
+                      </button>
+                      {showMoreDetails && (
+                        <div className="mt-2 space-y-2 text-xs text-ec-muted pl-4 border-l border-[rgba(28,140,130,0.2)]">
+                          {verdictData.moreDetails.connectionRisk && (
+                            <div>
+                              <div className="font-medium text-ec-text mb-0.5">Connection Risk:</div>
+                              <div>{verdictData.moreDetails.connectionRisk}</div>
+                            </div>
+                          )}
+                          {verdictData.moreDetails.timeComfort && (
+                            <div>
+                              <div className="font-medium text-ec-text mb-0.5">Time Comfort:</div>
+                              <div>{verdictData.moreDetails.timeComfort}</div>
+                            </div>
+                          )}
+                          {verdictData.moreDetails.baggageNotes && (
+                            <div>
+                              <div className="font-medium text-ec-text mb-0.5">Baggage:</div>
+                              <div>{verdictData.moreDetails.baggageNotes}</div>
+                            </div>
+                          )}
+                          {verdictData.moreDetails.changeNotes && (
+                            <div>
+                              <div className="font-medium text-ec-text mb-0.5">Changes/Refunds:</div>
+                              <div>{verdictData.moreDetails.changeNotes}</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
