@@ -1,4 +1,4 @@
-export async function searchDuffelFlights(params: { from: string; to: string; departDate: string; adults: number }) {
+export async function searchDuffelFlights(params: { from: string; to: string; departDate: string; adults: number; cabinClass?: string; tripType?: string; returnDate?: string; children?: number; infants?: number }) {
   const token = process.env.DUFFEL_ACCESS_TOKEN;
   if (!token) {
     throw new Error("Duffel key missing");
@@ -13,17 +13,38 @@ export async function searchDuffelFlights(params: { from: string; to: string; de
     "Accept-Encoding": "gzip"
   };
 
+  const slices = [
+    {
+      origin: params.from,
+      destination: params.to,
+      departure_date: params.departDate
+    }
+  ];
+
+  if (params.tripType === "return" && params.returnDate) {
+    slices.push({
+      origin: params.to,
+      destination: params.from,
+      departure_date: params.returnDate
+    });
+  }
+
+  const passengers = [];
+  for (let i = 0; i < (params.adults || 1); i++) {
+    passengers.push({ type: "adult" });
+  }
+  for (let i = 0; i < (params.children || 0); i++) {
+    passengers.push({ type: "child" });
+  }
+  for (let i = 0; i < (params.infants || 0); i++) {
+    passengers.push({ type: "infant_without_seat" });
+  }
+
   const body = {
     data: {
-      slices: [
-        {
-          origin: params.from,
-          destination: params.to,
-          departure_date: params.departDate
-        }
-      ],
-      passengers: Array.from({ length: params.adults }, () => ({ type: "adult" })),
-      cabin_class: "economy"
+      slices,
+      passengers,
+      cabin_class: params.cabinClass || "economy"
     }
   };
 
