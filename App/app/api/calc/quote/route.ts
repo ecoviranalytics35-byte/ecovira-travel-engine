@@ -1,4 +1,4 @@
-import { buildQuote } from "../../../../../lib/calc/quote";
+import { buildQuote } from "@/lib/calc/quote";
 
 export async function POST(request: Request) {
   try {

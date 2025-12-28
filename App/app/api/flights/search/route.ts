@@ -1,4 +1,4 @@
-import { searchDuffelFlights } from '../../../../lib/flights/duffel';
+import { searchDuffelFlights } from '@/lib/flights/duffel';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const adults = parseInt(searchParams.get('adults') || '1');
   const cabinClass = searchParams.get('cabinClass') || 'economy';
   const tripType = searchParams.get('tripType') || 'oneway';
-  const returnDate = searchParams.get('returnDate');
+  const returnDate = searchParams.get('returnDate') ?? undefined;
   const children = parseInt(searchParams.get('children') || '0');
   const infants = parseInt(searchParams.get('infants') || '0');
   const debug = searchParams.get('debug') === '1';

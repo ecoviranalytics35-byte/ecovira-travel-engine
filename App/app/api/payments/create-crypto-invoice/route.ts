@@ -1,4 +1,4 @@
-import { createNowPaymentsInvoice } from "../../../../../lib/payments/nowpayments";
+import { createNowPaymentsInvoice } from "@/lib/payments/nowpayments";
 
 export async function POST(request: Request) {
   try {

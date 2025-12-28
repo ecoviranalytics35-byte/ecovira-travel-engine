@@ -1,4 +1,4 @@
-import { getStripeClient } from "../../../../../lib/payments/stripe";
+import { getStripeClient } from "@/lib/payments/stripe";
 
 export async function POST(request: Request) {
   try {

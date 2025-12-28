@@ -1,4 +1,4 @@
-import { choosePaymentProvider } from "../../../../../lib/payments/router";
+import { choosePaymentProvider } from "@/lib/payments/router";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
