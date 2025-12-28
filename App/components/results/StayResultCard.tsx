@@ -1,3 +1,5 @@
+"use client";
+
 import { StayResult } from '@/lib/core/types';
 import { EcoviraCard } from '../EcoviraCard';
 import { EcoviraButton } from '../Button';
@@ -8,6 +10,48 @@ interface StayResultCardProps {
 }
 
 export function StayResultCard({ stay, onSelect }: StayResultCardProps) {
+  // Calculate check-out date from check-in + nights
+  const getCheckOutDate = () => {
+    if (!stay.checkIn || !stay.nights) return 'N/A';
+    try {
+      // Handle both YYYY-MM-DD format and other formats
+      const checkInStr = String(stay.checkIn);
+      const checkInDate = new Date(checkInStr);
+      
+      // Validate date
+      if (isNaN(checkInDate.getTime())) {
+        return 'N/A';
+      }
+      
+      const checkOutDate = new Date(checkInDate);
+      const nights = Number(stay.nights) || 0;
+      checkOutDate.setDate(checkOutDate.getDate() + nights);
+      
+      return checkOutDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch (error) {
+      console.error('Error calculating check-out date:', error, { checkIn: stay.checkIn, nights: stay.nights });
+      return 'N/A';
+    }
+  };
+
+  // Format check-in date
+  const formatCheckInDate = () => {
+    if (!stay.checkIn) return 'N/A';
+    try {
+      const checkInStr = String(stay.checkIn);
+      const date = new Date(checkInStr);
+      
+      // Validate date
+      if (isNaN(date.getTime())) {
+        return checkInStr; // Return original if invalid
+      }
+      
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch (error) {
+      return String(stay.checkIn);
+    }
+  };
+
   return (
     <EcoviraCard variant="glass" className="p-6 md:p-8">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -25,25 +69,27 @@ export function StayResultCard({ stay, onSelect }: StayResultCardProps) {
               <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-1">
                 Check-in
               </div>
-              <div className="text-ec-text font-medium">{stay.checkIn}</div>
+              <div className="text-ec-text font-medium">{formatCheckInDate()}</div>
+            </div>
+            <div>
+              <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-1">
+                Check-out
+              </div>
+              <div className="text-ec-text font-medium">
+                {getCheckOutDate()}
+              </div>
             </div>
             <div>
               <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-1">
                 Nights
               </div>
-              <div className="text-ec-text font-medium">{stay.nights}</div>
+              <div className="text-ec-text font-medium">{stay.nights || 'N/A'}</div>
             </div>
             <div>
               <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-1">
                 Room Type
               </div>
-              <div className="text-ec-text font-medium capitalize">{stay.roomType}</div>
-            </div>
-            <div>
-              <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-1">
-                Class
-              </div>
-              <div className="text-ec-text font-medium capitalize">{stay.classType}</div>
+              <div className="text-ec-text font-medium capitalize">{stay.roomType || 'Standard'}</div>
             </div>
           </div>
         </div>

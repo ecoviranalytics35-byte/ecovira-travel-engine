@@ -2,9 +2,10 @@
 
 import { ReactNode, useState, useEffect, useRef } from 'react';
 import { EcoviraTabs } from '../EcoviraTabs';
-import { Plane, Hotel, Car, CarTaxiFront, MessageCircle } from 'lucide-react';
+import { Plane, Hotel, Car, CarTaxiFront, MessageCircle, Briefcase } from 'lucide-react';
 import { EcoviraChatWidget } from '../chat/EcoviraChatWidget';
 import { Footer } from './Footer';
+import Link from 'next/link';
 
 interface PremiumShellProps {
   children: ReactNode;
@@ -37,21 +38,7 @@ export function PremiumShell({ children, rightPanel, chatContext }: PremiumShell
     setIsChatOpen(true);
   };
 
-  // Optional: Debug logging only in development, client-side only, after mount
-  useEffect(() => {
-    if (process.env.NODE_ENV !== 'development') return;
-    if (!chatButtonRef.current) return;
-    
-    // Log button mount state (client-side only)
-    const el = chatButtonRef.current;
-    const computedStyle = window.getComputedStyle(el);
-    console.log('[PremiumShell] Chat button mounted', {
-      tagName: el.tagName,
-      className: el.className,
-      zIndex: computedStyle.zIndex,
-      pointerEvents: computedStyle.pointerEvents,
-    });
-  }, []); // Run once after mount
+  // Removed debug logging to prevent hydration warnings
 
   return (
     <div className="min-h-screen relative" style={{ overflow: 'visible' }}>
@@ -81,8 +68,15 @@ export function PremiumShell({ children, rightPanel, chatContext }: PremiumShell
             </a>
 
             {/* Center: Premium Tabs */}
-            <div className="hidden md:flex">
+            <div className="hidden md:flex items-center gap-6">
               <EcoviraTabs tabs={tabs} />
+              <Link
+                href="/my-trips"
+                className="px-4 py-2 text-sm font-medium text-ec-muted hover:text-ec-text hover:bg-[rgba(28,140,130,0.1)] rounded-ec-sm transition-colors flex items-center gap-2"
+              >
+                <Briefcase size={16} />
+                <span>My Trips</span>
+              </Link>
             </div>
 
             {/* Right: Chat */}
@@ -110,7 +104,16 @@ export function PremiumShell({ children, rightPanel, chatContext }: PremiumShell
 
           {/* Mobile Tabs */}
           <div className="md:hidden pb-4">
-            <EcoviraTabs tabs={tabs} className="overflow-x-auto" />
+            <div className="flex items-center gap-4">
+              <EcoviraTabs tabs={tabs} className="overflow-x-auto flex-1" />
+              <Link
+                href="/my-trips"
+                className="px-3 py-2 text-xs font-medium text-ec-muted hover:text-ec-text hover:bg-[rgba(28,140,130,0.1)] rounded-ec-sm transition-colors flex items-center gap-1.5 flex-shrink-0"
+              >
+                <Briefcase size={14} />
+                <span>Trips</span>
+              </Link>
+            </div>
           </div>
         </div>
       </header>

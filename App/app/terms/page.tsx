@@ -1,11 +1,9 @@
 "use client";
 
-import { EcoviraCard } from '@/components/EcoviraCard';
-
 export default function TermsAndConditions() {
   return (
     <div className="max-w-4xl mx-auto py-12 md:py-16 px-4 md:px-6">
-      <EcoviraCard variant="glass" className="p-8 md:p-12">
+      <div className="rounded-ec-lg bg-ec-card border border-[rgba(28,140,130,0.22)] shadow-ec-card p-8 md:p-12">
         <h1 className="text-4xl md:text-5xl font-serif font-bold text-ec-text mb-6">
           Terms & Conditions
         </h1>
@@ -96,7 +94,7 @@ export default function TermsAndConditions() {
             </p>
           </section>
         </div>
-      </EcoviraCard>
+      </div>
     </div>
   );
 }

@@ -703,25 +703,7 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
   };
 
 
-  // Optional: Debug logging only in development, client-side only, after mount
-  useEffect(() => {
-    if (process.env.NODE_ENV !== 'development') return;
-    if (!chatPanelRef.current || !isOpen) return;
-    
-    // Log panel mount state (client-side only)
-    const el = chatPanelRef.current;
-    const computedStyle = window.getComputedStyle(el);
-    const rect = el.getBoundingClientRect();
-    console.log('[EcoviraChatWidget] Chat panel mounted', {
-      tagName: el.tagName,
-      display: computedStyle.display,
-      visibility: computedStyle.visibility,
-      opacity: computedStyle.opacity,
-      zIndex: computedStyle.zIndex,
-      position: { top: rect.top, right: rect.right },
-      windowSize: { width: window.innerWidth, height: window.innerHeight },
-    });
-  }, [isOpen]); // Run when panel opens
+  // Removed debug logging to prevent hydration warnings
 
   return (
     <>

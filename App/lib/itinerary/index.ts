@@ -87,13 +87,30 @@ export async function updateItineraryItems(itineraryId: string, items: Omit<Itin
   if (error) throw error;
 }
 
-export async function createBooking(itineraryId: string, paymentId: string): Promise<Booking> {
+export async function createBooking(
+  itineraryId: string,
+  paymentId: string,
+  options?: {
+    passengerEmail?: string;
+    passengerLastName?: string;
+    phoneNumber?: string;
+    smsOptIn?: boolean;
+    bookingReference?: string;
+    supplierReference?: string;
+  }
+): Promise<Booking> {
   const { data, error } = await supabaseAdmin
     .from('bookings')
     .insert({
       itinerary_id: itineraryId,
       payment_id: paymentId,
       status: 'pending',
+      passenger_email: options?.passengerEmail,
+      passenger_last_name: options?.passengerLastName,
+      phone_number: options?.phoneNumber,
+      sms_opt_in: options?.smsOptIn || false,
+      booking_reference: options?.bookingReference,
+      supplier_reference: options?.supplierReference,
     })
     .select()
     .single();

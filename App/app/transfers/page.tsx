@@ -66,17 +66,8 @@ export default function Transfers() {
         adults: passengers.toString(),
       });
       const url = `/api/transport/transfers/search?${params.toString()}`;
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'transfers/page.tsx:handleSearch',message:'Starting transfers search',data:{url,fromLocation,toLocation,date,time,passengers},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       const res = await fetch(url);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'transfers/page.tsx:handleSearch',message:'Received response',data:{status:res.status,statusText:res.statusText,ok:res.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       const data = await res.json();
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'transfers/page.tsx:handleSearch',message:'Parsed response data',data:{hasErrors:!!data.errors,errors:data.errors,resultsCount:data.results?.length||0,hasResults:!!data.results},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       if (data.errors && data.errors.length > 0) {
         setError(data.errors[0]);
         setResults([]);
@@ -85,9 +76,6 @@ export default function Transfers() {
         setError("");
       }
     } catch (err) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'transfers/page.tsx:handleSearch',message:'Search failed with error',data:{error:err instanceof Error?err.message:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       setError("We encountered a network issue. Please try again.");
     } finally {
       setLoading(false);
