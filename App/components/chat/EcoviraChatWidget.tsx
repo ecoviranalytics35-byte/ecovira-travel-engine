@@ -798,12 +798,12 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
             opacity: 1,
             zIndex: 10000,
             position: 'fixed',
-            top: '100px',
+            bottom: '24px',
             right: '24px',
             width: '420px',
             height: '600px',
             maxWidth: 'calc(100vw - 48px)',
-            maxHeight: 'calc(100vh - 120px)'
+            maxHeight: 'calc(100vh - 48px)'
           }}
           ref={chatPanelRef}
         >
