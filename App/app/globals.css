@@ -1,3 +1,5 @@
+@import '../theme/ecovira-tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -47,7 +49,7 @@ html, body { padding: 0; margin: 0; }
 }
 
 body {
-  background-color: var(--ec-bg);
-  color: var(--ec-ink);
+  background: var(--ec-bg-secondary);
+  color: var(--ec-text-primary);
   font-family: 'Inter', sans-serif;
 }

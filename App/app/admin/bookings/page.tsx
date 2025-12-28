@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabaseAdmin } from '../../../lib/core/supabase';
 import { Booking, Itinerary } from '../../../lib/core/types';
 import { Card } from '../../../components/Card';
-import { Badge } from '../../../components/Badge';
+import { EcoviraBadge } from '../../../components/Badge';
 
 export default function AdminBookings() {
   const [bookings, setBookings] = useState<(Booking & { itineraries: Itinerary & { itinerary_items: any[] } })[]>([]);
@@ -37,7 +37,7 @@ export default function AdminBookings() {
       case 'paid': return 'info';
       case 'pending': return 'warn';
       case 'failed': return 'error';
-      default: return 'default';
+      default: return 'muted';
     }
   };
 
@@ -69,7 +69,7 @@ export default function AdminBookings() {
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-lg font-medium text-ec-bg">Booking #{booking.id.slice(-8)}</h3>
-                      <Badge variant={getStatusVariant(booking.status)}>{booking.status}</Badge>
+                      <EcoviraBadge variant={getStatusVariant(booking.status)}>{booking.status}</EcoviraBadge>
                     </div>
                     <p className="text-sm text-ec-muted">
                       Created: {new Date(booking.createdAt).toLocaleDateString()}

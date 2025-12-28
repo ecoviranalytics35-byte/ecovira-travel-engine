@@ -3,59 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { StayResult } from "@/lib/core/types";
-
-export default function Stays() {
-  const [city, setCity] = useState("Melbourne");
-  const [checkIn, setCheckIn] = useState("2025-12-28");
-  const [nights, setNights] = useState(2);
-  const [adults, setAdults] = useState(2);
-  const [children, setChildren] = useState(0);
-  const [roomType, setRoomType] = useState("double");
-  const [classType, setClassType] = useState("standard");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [results, setResults] = useState<StayResult[]>([]);
-
-  const handleSearch = async () => {
-    setLoading(true);
-    setError("");
-    setResults([]);
-    try {
-      const params = new URLSearchParams({
-        city,
-        checkIn,
-        nights: nights.toString(),
-        adults: adults.toString(),
-        children: children.toString(),
-        roomType,
-        classType,
-      });
-      const url = `/api/stays/search?${params.toString()}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.errors && data.errors.length > 0) {
-        setError(data.errors[0]);
-        setResults([]);
-      } else {
-        setResults(data.results);
-        setError("");
-      }
-    } catch (err) {
-      setError("Network error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-"use client";
-
-import { useState } from "react";
-import Link from "next/link";
-import type { StayResult } from "@/lib/core/types";
-import { Button } from "../../components/Button";
+import { EcoviraButton } from "../../components/Button";
 import { Input } from "../../components/Input";
-import { Card } from "../../components/Card";
-import { Badge } from "../../components/Badge";
+import { EcoviraCard } from "../../components/EcoviraCard";
+import { EcoviraBadge } from "../../components/Badge";
 
 function SkeletonLoader() {
   return (
@@ -110,63 +61,98 @@ export default function Stays() {
   };
 
   return (
-    <main className="min-h-screen bg-ec-bg p-6">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-serif font-semibold text-ec-ink mb-8">Find Your Stay</h1>
+    <main className="min-h-screen bg-ec-bg">
+      {/* Hero Section */}
+      <section className="bg-ec-night text-ec-bg py-16 md:py-20">
+        <div className="max-w-4xl mx-auto text-center px-6">
+          <div className="text-ec-gold text-sm font-medium uppercase tracking-wider mb-4">
+            Ecovira Stays
+          </div>
+          <h1 className="text-4xl md:text-5xl font-serif font-semibold mb-6">
+            Luxury stays, curated in seconds.
+          </h1>
+          <p className="text-lg text-ec-muted mb-8 max-w-2xl mx-auto">
+            Discover premium hotels with live pricing and concierge support.
+          </p>
+          <div className="flex flex-wrap justify-center gap-6 text-sm text-ec-muted">
+            <span>Live pricing</span>
+            <span>Secure checkout</span>
+            <span>Concierge support</span>
+          </div>
+        </div>
+      </section>
 
-        <Card className="mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Search Section */}
+      <section className="py-12 md:py-16">
+        <div className="max-w-4xl mx-auto px-6 md:px-10">
+
+        <EcoviraCard className="mb-8 p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div>
-              <label className="block text-sm font-medium text-ec-ink-2 mb-2">City</label>
-              <Input value={city} onChange={e => setCity(e.target.value)} placeholder="Melbourne" />
+              <EcoviraCard variant="glass-hover" className="p-4">
+                <label className="block text-xs font-medium text-ec-teal-primary uppercase tracking-wider mb-3">City</label>
+                <Input value={city} onChange={e => setCity(e.target.value)} placeholder="Melbourne" className="bg-transparent border-0 text-ec-text-primary placeholder-ec-text-muted" />
+              </EcoviraCard>
             </div>
             <div>
-              <label className="block text-sm font-medium text-ec-ink-2 mb-2">Check-in</label>
-              <Input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} />
+              <Card className="bg-ec-night/55 border-ec-gold/18 shadow-ec-1">
+                <label className="block text-xs font-medium text-ec-ink-2 uppercase tracking-wider mb-3">Check-in</label>
+                <Input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} className="bg-ec-surface border-0" />
+              </Card>
             </div>
             <div>
-              <label className="block text-sm font-medium text-ec-ink-2 mb-2">Nights</label>
-              <Input type="number" value={nights} onChange={e => setNights(parseInt(e.target.value))} min="1" />
+              <Card className="bg-ec-night/55 border-ec-gold/18 shadow-ec-1">
+                <label className="block text-xs font-medium text-ec-ink-2 uppercase tracking-wider mb-3">Nights</label>
+                <Input type="number" value={nights} onChange={e => setNights(parseInt(e.target.value))} min="1" className="bg-ec-surface border-0" />
+              </Card>
             </div>
             <div>
-              <label className="block text-sm font-medium text-ec-ink-2 mb-2">Adults</label>
-              <Input type="number" value={adults} onChange={e => setAdults(parseInt(e.target.value))} min="1" />
+              <Card className="bg-ec-night/55 border-ec-gold/18 shadow-ec-1">
+                <label className="block text-xs font-medium text-ec-ink-2 uppercase tracking-wider mb-3">Adults</label>
+                <Input type="number" value={adults} onChange={e => setAdults(parseInt(e.target.value))} min="1" className="bg-ec-surface border-0" />
+              </Card>
             </div>
             <div>
-              <label className="block text-sm font-medium text-ec-ink-2 mb-2">Children</label>
-              <Input type="number" value={children} onChange={e => setChildren(parseInt(e.target.value))} min="0" />
+              <Card className="bg-ec-night/55 border-ec-gold/18 shadow-ec-1">
+                <label className="block text-xs font-medium text-ec-ink-2 uppercase tracking-wider mb-3">Children</label>
+                <Input type="number" value={children} onChange={e => setChildren(parseInt(e.target.value))} min="0" className="bg-ec-surface border-0" />
+              </Card>
             </div>
             <div>
-              <label className="block text-sm font-medium text-ec-ink-2 mb-2">Room Type</label>
-              <select
-                value={roomType}
-                onChange={e => setRoomType(e.target.value)}
-                className="w-full px-4 py-3 bg-ec-surface border border-ec-border rounded-ec-md text-ec-ink focus:outline-none focus:ring-2 focus:ring-ec-teal/20"
-              >
-                <option value="single">Single</option>
-                <option value="double">Double</option>
-                <option value="suite">Suite</option>
-              </select>
+              <Card className="bg-ec-night/55 border-ec-gold/18 shadow-ec-1">
+                <label className="block text-xs font-medium text-ec-ink-2 uppercase tracking-wider mb-3">Room Type</label>
+                <select
+                  value={roomType}
+                  onChange={e => setRoomType(e.target.value)}
+                  className="w-full px-4 py-3 bg-ec-surface border-0 rounded-ec-md text-ec-ink focus:outline-none focus:ring-2 focus:ring-ec-teal/20"
+                >
+                  <option value="single">Single</option>
+                  <option value="double">Double</option>
+                  <option value="suite">Suite</option>
+                </select>
+              </Card>
             </div>
             <div>
-              <label className="block text-sm font-medium text-ec-ink-2 mb-2">Class</label>
-              <select
-                value={classType}
-                onChange={e => setClassType(e.target.value)}
-                className="w-full px-4 py-3 bg-ec-surface border border-ec-border rounded-ec-md text-ec-ink focus:outline-none focus:ring-2 focus:ring-ec-teal/20"
-              >
-                <option value="standard">Standard</option>
-                <option value="deluxe">Deluxe</option>
-                <option value="luxury">Luxury</option>
-              </select>
+              <Card className="bg-ec-night/55 border-ec-gold/18 shadow-ec-1">
+                <label className="block text-xs font-medium text-ec-ink-2 uppercase tracking-wider mb-3">Class</label>
+                <select
+                  value={classType}
+                  onChange={e => setClassType(e.target.value)}
+                  className="w-full px-4 py-3 bg-ec-surface border-0 rounded-ec-md text-ec-ink focus:outline-none focus:ring-2 focus:ring-ec-teal/20"
+                >
+                  <option value="standard">Standard</option>
+                  <option value="deluxe">Deluxe</option>
+                  <option value="luxury">Luxury</option>
+                </select>
+              </Card>
             </div>
             <div className="flex items-end">
-              <Button onClick={handleSearch} disabled={loading} className="w-full">
-                {loading ? 'Searching...' : 'Search Stays'}
-              </Button>
+              <EcoviraButton onClick={handleSearch} disabled={loading} size="lg" className="w-full px-8 py-4 text-lg">
+                {loading ? 'Searching...' : 'Search Stays'} →
+              </EcoviraButton>
             </div>
           </div>
-        </Card>
+        </EcoviraCard>
 
         {loading && (
           <div className="space-y-4">
@@ -180,7 +166,24 @@ export default function Stays() {
 
         {error && (
           <Card className="border-ec-error/20 bg-ec-error/5">
-            <p className="text-ec-error">{error}</p>
+            <div className="text-center py-8">
+              <div className="text-4xl mb-4">⚠️</div>
+              <h3 className="text-xl font-serif font-medium text-ec-error mb-2">
+                We can't reach the stays engine right now
+              </h3>
+              <p className="text-ec-muted mb-6">
+                Please try again in a moment, or contact concierge support.
+              </p>
+              <div className="flex justify-center gap-4">
+                <Button variant="secondary" onClick={() => setError("")}>
+                  Retry
+                </Button>
+                <div className="text-sm text-ec-muted">
+                  <div className="cursor-pointer hover:text-ec-ink" onClick={() => {}}>Technical details</div>
+                  <p className="mt-2">{error}</p>
+                </div>
+              </div>
+            </div>
           </Card>
         )}
 
@@ -223,10 +226,10 @@ export default function Stays() {
         )}
 
         <div className="mt-8 text-center">
-          <Link href="/" className="text-ec-teal hover:underline">← Back to home</Link>
+          <Link href="/" className="text-ec-teal hover:underline">Back to home</Link>
         </div>
       </div>
+    </section>
     </main>
   );
-}
 }

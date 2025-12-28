@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Button } from '../components/Button';
+import { EcoviraButton } from '../components/Button';
 import { Card } from '../components/Card';
 
 export default function Home() {
@@ -16,12 +16,12 @@ export default function Home() {
             Discover flights, stays, and experiences curated for the discerning traveler.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild>
+            <EcoviraButton asChild>
               <Link href="/flights">Plan Your Journey</Link>
-            </Button>
-            <Button variant="secondary" asChild>
+            </EcoviraButton>
+            <EcoviraButton variant="secondary" asChild>
               <Link href="/stays">Find Accommodation</Link>
-            </Button>
+            </EcoviraButton>
           </div>
         </div>
       </section>
