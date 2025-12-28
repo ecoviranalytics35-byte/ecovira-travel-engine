@@ -1,11 +1,7 @@
 "use client";
 
-import { useState } from 'react';
 import { FlightResult } from '@/lib/core/types';
 import { EcoviraCard } from './EcoviraCard';
-import { EcoviraButton } from './Button';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import { cn } from '../lib/utils';
 
 interface FlightResultCardProps {
   flight: FlightResult;
@@ -13,8 +9,6 @@ interface FlightResultCardProps {
 }
 
 export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
-  const [showBreakdown, setShowBreakdown] = useState(false);
-  
   // Mock additional data for display
   const airline = flight.provider || 'Amadeus';
   const airlineInitial = airline.charAt(0).toUpperCase();
@@ -22,13 +16,6 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
   const stops = '1 Stop';
   const departureDate = 'Dec 05, 2025 14:40';
   const arrivalDate = 'Dec 05, 2025 16:15';
-  
-  // Calculate service fee (4% of base price)
-  const basePriceNum = Number(flight.price) / 1.04;
-  const serviceFeeNum = Number(flight.price) - basePriceNum;
-  const taxesFees = (serviceFeeNum * 0.2).toFixed(2); // Mock taxes
-  const serviceFee = serviceFeeNum.toFixed(2);
-  const basePrice = basePriceNum.toFixed(2);
 
   return (
     <EcoviraCard variant="glass" className="p-6">
@@ -81,42 +68,15 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
           </div>
         </div>
 
-        {/* Bottom: Price Breakdown + CTA */}
-        <div className="flex items-center justify-between gap-4">
+        {/* Bottom: CTA */}
+        <div className="flex items-center justify-end gap-4">
           <button
-            onClick={() => setShowBreakdown(!showBreakdown)}
-            className="flex items-center gap-2 text-sm text-ec-muted hover:text-ec-text transition-colors"
-          >
-            {showBreakdown ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            <span>Price Breakdown</span>
-          </button>
-          <EcoviraButton
-            size="md"
-            variant="primary"
-            className="ec-btn-primary min-w-[180px]"
             onClick={() => onSelect?.(flight)}
+            className="px-6 py-3 min-w-[180px] rounded-full bg-gradient-to-br from-[rgba(28,140,130,0.4)] to-[rgba(28,140,130,0.3)] border border-[rgba(28,140,130,0.5)] text-ec-text font-semibold text-sm shadow-[0_0_8px_rgba(28,140,130,0.3),0_0_16px_rgba(28,140,130,0.2)] hover:shadow-[0_0_12px_rgba(28,140,130,0.4),0_0_24px_rgba(28,140,130,0.3)] hover:border-[rgba(28,140,130,0.7)] hover:from-[rgba(28,140,130,0.5)] hover:to-[rgba(28,140,130,0.4)] transition-all duration-300 flex items-center justify-center gap-2"
           >
             Select Flight →
-          </EcoviraButton>
+          </button>
         </div>
-
-        {/* Collapsible Price Breakdown */}
-        {showBreakdown && (
-          <div className="mt-4 pt-4 border-t border-[rgba(28,140,130,0.15)] space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-ec-muted">Base Fare:</span>
-              <span className="text-ec-text">{flight.currency} {basePrice}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-ec-muted">Taxes & Fees:</span>
-              <span className="text-ec-text">{flight.currency} {taxesFees}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-ec-gold font-medium">Service Fee (4.0%):</span>
-              <span className="text-ec-gold font-medium">{flight.currency} {serviceFee}</span>
-            </div>
-          </div>
-        )}
       </div>
     </EcoviraCard>
   );

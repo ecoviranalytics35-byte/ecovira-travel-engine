@@ -1,12 +1,22 @@
 "use client";
 
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { EcoviraTabs } from '../EcoviraTabs';
 import { Plane, Hotel, Car, CarTaxiFront, MessageCircle } from 'lucide-react';
+import { EcoviraChatWidget } from '../chat/EcoviraChatWidget';
 
 interface PremiumShellProps {
   children: ReactNode;
   rightPanel?: ReactNode;
+  chatContext?: {
+    page?: 'flights' | 'stays' | 'cars' | 'transfers';
+    route?: { from?: string; to?: string };
+    dates?: { depart?: string; return?: string };
+    passengers?: number;
+    cabin?: string;
+    currency?: string;
+    topFlights?: Array<{ price: string; duration: string; stops: string; from: string; to: string }>;
+  };
 }
 
 const tabs = [
@@ -16,7 +26,9 @@ const tabs = [
   { label: 'Transfers', path: '/transfers', icon: <CarTaxiFront size={18} /> },
 ];
 
-export function PremiumShell({ children, rightPanel }: PremiumShellProps) {
+export function PremiumShell({ children, rightPanel, chatContext }: PremiumShellProps) {
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
   return (
     <div className="min-h-screen relative">
       {/* Premium Background */}
@@ -42,11 +54,13 @@ export function PremiumShell({ children, rightPanel }: PremiumShellProps) {
               <EcoviraTabs tabs={tabs} />
             </div>
 
-            {/* Right: Help */}
+            {/* Right: Chat */}
             <div className="flex items-center gap-4">
               <button
-                className="w-9 h-9 flex items-center justify-center text-ec-muted hover:text-ec-text hover:bg-ec-card/50 rounded-ec-sm transition-colors"
-                aria-label="Help"
+                onClick={() => setIsChatOpen(true)}
+                className="w-9 h-9 flex items-center justify-center text-ec-muted hover:text-ec-text hover:bg-ec-card/50 rounded-ec-sm transition-colors relative z-50"
+                style={{ pointerEvents: 'auto', zIndex: 50 }}
+                aria-label="Open 24/7 AI Assistant"
               >
                 <MessageCircle size={18} />
               </button>
@@ -79,6 +93,9 @@ export function PremiumShell({ children, rightPanel }: PremiumShellProps) {
           )}
         </div>
       </main>
+
+      {/* 24/7 AI Chat Widget - Controlled by PremiumShell state */}
+      <EcoviraChatWidget context={chatContext} isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
 }

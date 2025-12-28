@@ -14,8 +14,8 @@ import { SearchPanelShell } from "../../components/search/SearchPanelShell";
 import { ResultsList } from "../../components/results/ResultsList";
 import { ResultsLayout } from "../../components/results/ResultsLayout";
 import { SegmentedToggle } from "../../components/ui/SegmentedToggle";
-import { FlightCalculator } from "../../components/calculators/FlightCalculator";
 import { TripSummary } from "../../components/results/TripSummary";
+import { FloatingAiAssist } from "../../components/ai/FloatingAiAssist";
 
 function SkeletonLoader() {
   return (
@@ -245,18 +245,15 @@ export default function Flights() {
           {results.length > 0 && (
             <ResultsLayout
               sidebar={
-                <>
-                  <TripSummary
-                    from={from}
-                    to={to}
-                    departDate={departDate}
-                    returnDate={returnDate}
-                    adults={adults}
-                    cabinClass={cabinClass}
-                    tripType={tripType}
-                  />
-                  <FlightCalculator results={results} />
-                </>
+                <TripSummary
+                  from={from}
+                  to={to}
+                  departDate={departDate}
+                  returnDate={returnDate}
+                  adults={adults}
+                  cabinClass={cabinClass}
+                  tripType={tripType}
+                />
               }
             >
               <ResultsList
@@ -278,6 +275,21 @@ export default function Flights() {
                 ))}
               </ResultsList>
             </ResultsLayout>
+          )}
+
+          {/* AI Assist - Always render when results exist */}
+          {results.length > 0 && (
+            <FloatingAiAssist
+              type="flights"
+              results={results}
+              tripData={{
+                from,
+                to,
+                departDate,
+                returnDate,
+                adults,
+              }}
+            />
           )}
 
     </>

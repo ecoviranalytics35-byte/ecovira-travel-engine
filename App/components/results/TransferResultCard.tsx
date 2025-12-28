@@ -50,14 +50,12 @@ export function TransferResultCard({ transfer, onSelect }: TransferResultCardPro
             </div>
             <p className="text-sm text-ec-muted">total</p>
           </div>
-          <EcoviraButton
-            size="lg"
-            variant="primary"
-            className="w-full min-w-[200px] ec-btn-primary"
+          <button
             onClick={() => onSelect?.(transfer)}
+            className="w-full px-6 py-3 min-w-[200px] rounded-full bg-gradient-to-br from-[rgba(28,140,130,0.4)] to-[rgba(28,140,130,0.3)] border border-[rgba(28,140,130,0.5)] text-ec-text font-semibold text-sm shadow-[0_0_8px_rgba(28,140,130,0.3),0_0_16px_rgba(28,140,130,0.2)] hover:shadow-[0_0_12px_rgba(28,140,130,0.4),0_0_24px_rgba(28,140,130,0.3)] hover:border-[rgba(28,140,130,0.7)] hover:from-[rgba(28,140,130,0.5)] hover:to-[rgba(28,140,130,0.4)] transition-all duration-300 flex items-center justify-center gap-2"
           >
             Select Transfer →
-          </EcoviraButton>
+          </button>
         </div>
       </div>
     </EcoviraCard>

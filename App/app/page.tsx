@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import type { FlightResult } from "@/lib/core/types";
 import { EcoviraButton } from '../components/Button';
 import { Input } from '../components/Input';
@@ -14,8 +13,8 @@ import { SearchPanelShell } from '../components/search/SearchPanelShell';
 import { ResultsList } from '../components/results/ResultsList';
 import { ResultsLayout } from '../components/results/ResultsLayout';
 import { SegmentedToggle } from '../components/ui/SegmentedToggle';
-import { FlightCalculator } from '../components/calculators/FlightCalculator';
 import { TripSummary } from '../components/results/TripSummary';
+import { FloatingAiAssist } from '../components/ai/FloatingAiAssist';
 
 function SkeletonLoader() {
   return (
@@ -28,7 +27,6 @@ function SkeletonLoader() {
 }
 
 export default function Home() {
-  const router = useRouter();
   const [tripType, setTripType] = useState("roundtrip");
   const [from, setFrom] = useState("MEL");
   const [to, setTo] = useState("SYD");
@@ -40,6 +38,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<FlightResult[]>([]);
+  const [selectedFlight, setSelectedFlight] = useState<FlightResult | null>(null);
 
   const handleSearch = async () => {
     setLoading(true);
@@ -223,9 +222,9 @@ export default function Home() {
       )}
 
       {!loading && !error && results.length > 0 && (
-        <ResultsLayout
-          sidebar={
-            <>
+        <>
+          <ResultsLayout
+            sidebar={
               <TripSummary
                 from={from}
                 to={to}
@@ -235,29 +234,53 @@ export default function Home() {
                 cabinClass={cabinClass}
                 tripType={tripType}
               />
-              <FlightCalculator results={results} />
-            </>
-          }
-        >
-          <ResultsList
-            title="Results"
-            count={results.length}
-            countLabel={results.length === 1 ? 'flight' : 'flights'}
-            sortOptions={[
-              { value: 'price', label: 'Sort by Price' },
-              { value: 'duration', label: 'Sort by Duration' },
-              { value: 'departure', label: 'Sort by Departure' },
-            ]}
-            onSortChange={(value) => {
-              // TODO: Implement sorting
-              console.log('Sort by:', value);
-            }}
+            }
           >
-            {results.map((flight, i) => (
-              <FlightResultCard key={i} flight={flight} />
-            ))}
-          </ResultsList>
-        </ResultsLayout>
+            <ResultsList
+              title="Results"
+              count={results.length}
+              countLabel={results.length === 1 ? 'flight' : 'flights'}
+              sortOptions={[
+                { value: 'price', label: 'Sort by Price' },
+                { value: 'duration', label: 'Sort by Duration' },
+                { value: 'departure', label: 'Sort by Departure' },
+              ]}
+              onSortChange={(value) => {
+                // TODO: Implement sorting
+                console.log('Sort by:', value);
+              }}
+            >
+              {results.map((flight, i) => (
+                <FlightResultCard 
+                  key={i} 
+                  flight={flight} 
+                  onSelect={(f) => setSelectedFlight(f)}
+                />
+              ))}
+            </ResultsList>
+          </ResultsLayout>
+        </>
+      )}
+
+      {/* AI Assist - Always render when results exist, outside conditional */}
+      {!loading && !error && results.length > 0 && (
+        <FloatingAiAssist
+          type="flights"
+          results={results}
+          selectedFlight={selectedFlight || undefined}
+          tripData={{
+            from,
+            to,
+            departDate,
+            returnDate,
+            adults,
+          }}
+          onOpenChat={() => {
+            if (typeof window !== 'undefined' && (window as any).ecoviraChatOpen) {
+              (window as any).ecoviraChatOpen();
+            }
+          }}
+        />
       )}
 
       {!loading && !error && results.length === 0 && (

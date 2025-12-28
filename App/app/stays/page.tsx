@@ -13,7 +13,7 @@ import { SearchPanelShell } from "../../components/search/SearchPanelShell";
 import { ResultsList } from "../../components/results/ResultsList";
 import { ResultsLayout } from "../../components/results/ResultsLayout";
 import { StayResultCard } from "../../components/results/StayResultCard";
-import { StayCalculator } from "../../components/calculators/StayCalculator";
+import { FloatingAiAssist } from "../../components/ai/FloatingAiAssist";
 
 function SkeletonLoader() {
   return (
@@ -249,27 +249,35 @@ export default function Stays() {
       )}
 
       {results.length > 0 && (
-        <ResultsLayout
-          sidebar={<StayCalculator results={results} nights={nights} />}
-        >
-          <ResultsList
-            title="Results"
-            count={results.length}
-            countLabel={results.length === 1 ? 'stay' : 'stays'}
-            sortOptions={[
-              { value: 'price', label: 'Sort by Price' },
-              { value: 'rating', label: 'Sort by Rating' },
-            ]}
-            onSortChange={(value) => {
-              // TODO: Implement sorting
-              console.log('Sort by:', value);
+        <>
+          <ResultsLayout sidebar={null}>
+            <ResultsList
+              title="Results"
+              count={results.length}
+              countLabel={results.length === 1 ? 'stay' : 'stays'}
+              sortOptions={[
+                { value: 'price', label: 'Sort by Price' },
+                { value: 'rating', label: 'Sort by Rating' },
+              ]}
+              onSortChange={(value) => {
+                // TODO: Implement sorting
+                console.log('Sort by:', value);
+              }}
+            >
+              {results.map((stay, i) => (
+                <StayResultCard key={i} stay={stay} />
+              ))}
+            </ResultsList>
+          </ResultsLayout>
+          <FloatingAiAssist
+            type="stays"
+            results={results}
+            tripData={{
+              nights,
+              adults,
             }}
-          >
-            {results.map((stay, i) => (
-              <StayResultCard key={i} stay={stay} />
-            ))}
-          </ResultsList>
-        </ResultsLayout>
+          />
+        </>
       )}
     </>
   );
