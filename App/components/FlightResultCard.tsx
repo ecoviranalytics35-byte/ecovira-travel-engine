@@ -1,8 +1,6 @@
 import { FlightResult } from '@/lib/core/types';
 import { EcoviraCard } from './EcoviraCard';
-import { EcoviraDivider } from './EcoviraDivider';
 import { EcoviraButton } from './Button';
-import { EcoviraBadge } from './Badge';
 
 interface FlightResultCardProps {
   flight: FlightResult;
@@ -18,87 +16,87 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
   const arrivalTime = '1:00 PM';
   const serviceFee = '15.00';
 
+  const basePrice = (Number(flight.price) - Number(serviceFee)).toFixed(2);
+
   return (
-    <EcoviraCard variant="glass" className="p-6">
-      <div className="grid grid-cols-12 gap-6">
-        {/* Left Info Block */}
-        <div className="col-span-8">
-          <div className="space-y-4">
-            {/* Airline Name */}
-            <div className="text-lg font-semibold text-ec-text-primary">
-              {airline}
-            </div>
+    <EcoviraCard variant="glass" className="p-6 md:p-8">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8">
+        {/* Left Info Block - col-span-8 */}
+        <div className="md:col-span-8 space-y-5">
+          {/* Airline Name */}
+          <div className="text-lg md:text-xl font-semibold text-ec-text">
+            {airline}
+          </div>
 
-            {/* Route */}
-            <div className="text-ec-teal-primary font-semibold">
-              {flight.from} → {flight.to}
-            </div>
+          {/* Route */}
+          <div className="text-ec-teal font-semibold text-lg md:text-xl">
+            {flight.from} → {flight.to}
+          </div>
 
-            {/* Departure & Arrival */}
-            <div className="grid grid-cols-2 gap-8">
-              <div>
-                <div className="text-xs font-medium uppercase tracking-wider text-ec-teal-primary mb-2">
-                  Departure
-                </div>
-                <div className="text-base font-semibold text-ec-text-primary">
-                  {departureTime}
-                </div>
-                <div className="text-sm text-ec-text-secondary">
-                  {flight.from}
-                </div>
+          {/* Departure & Arrival */}
+          <div className="grid grid-cols-2 gap-6 md:gap-8">
+            <div>
+              <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-2">
+                Departure
               </div>
-              <div>
-                <div className="text-xs font-medium uppercase tracking-wider text-ec-teal-primary mb-2">
-                  Arrival
-                </div>
-                <div className="text-base font-semibold text-ec-text-primary">
-                  {arrivalTime}
-                </div>
-                <div className="text-sm text-ec-text-secondary">
-                  {flight.to}
-                </div>
+              <div className="text-base md:text-lg font-semibold text-ec-text">
+                {departureTime}
+              </div>
+              <div className="text-sm text-ec-muted">
+                {flight.from}
               </div>
             </div>
-
-            {/* Details Row */}
-            <div className="flex items-center gap-4 text-sm text-ec-text-secondary">
-              <span className="flex items-center gap-1">
-                <span className="text-ec-teal-primary">⏱️</span>
-                {duration}
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="text-ec-teal-primary">🛑</span>
-                {stops}
-              </span>
+            <div>
+              <div className="text-xs font-medium uppercase tracking-[0.12em] text-ec-muted mb-2">
+                Arrival
+              </div>
+              <div className="text-base md:text-lg font-semibold text-ec-text">
+                {arrivalTime}
+              </div>
+              <div className="text-sm text-ec-muted">
+                {flight.to}
+              </div>
             </div>
+          </div>
+
+          {/* Details Row */}
+          <div className="flex items-center gap-4 text-sm text-ec-muted">
+            <span className="flex items-center gap-1.5">
+              <span className="text-ec-teal">⏱️</span>
+              {duration}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-ec-teal">🛑</span>
+              {stops}
+            </span>
           </div>
         </div>
 
         {/* Vertical Divider */}
-        <div className="col-span-1 flex justify-center">
-          <EcoviraDivider orientation="vertical" />
+        <div className="hidden md:block md:col-span-1 flex justify-center">
+          <div className="w-px h-full bg-[rgba(28,140,130,0.22)]"></div>
         </div>
 
-        {/* Right Price Block */}
-        <div className="col-span-3 flex flex-col items-end justify-between">
-          <div className="text-right">
+        {/* Right Price Block - col-span-4 */}
+        <div className="md:col-span-3 flex flex-col items-end justify-between">
+          <div className="text-right w-full">
             {/* Total Price */}
-            <div className="text-4xl font-bold text-ec-text-primary mb-1">
+            <div className="text-4xl md:text-[46px] font-bold text-ec-text mb-1">
               {flight.currency} {flight.price}
             </div>
-            <div className="text-sm text-ec-text-secondary mb-4">
+            <div className="text-sm text-ec-muted mb-4">
               per person
             </div>
 
             {/* Price Breakdown */}
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
-                <span className="text-ec-text-secondary">Base fare</span>
-                <span className="text-ec-text-primary">{flight.currency} {(Number(flight.price) - Number(serviceFee)).toFixed(2)}</span>
+                <span className="text-ec-muted">Base fare</span>
+                <span className="text-ec-text">{flight.currency} {basePrice}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-ec-gold-primary font-medium">Service fee</span>
-                <span className="text-ec-gold-primary font-medium">{flight.currency} {serviceFee}</span>
+                <span className="text-ec-gold font-medium">Service fee</span>
+                <span className="text-ec-gold font-medium">{flight.currency} {serviceFee}</span>
               </div>
             </div>
           </div>

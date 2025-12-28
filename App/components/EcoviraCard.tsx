@@ -11,10 +11,10 @@ export const EcoviraCard = forwardRef<HTMLDivElement, EcoviraCardProps>(
       <div
         ref={ref}
         className={cn(
-          'rounded-ec-card transition-all duration-300',
+          'rounded-ec-lg transition-all duration-300',
           {
-            'bg-ec-bg-glass border border-ec-teal-border shadow-ec-glass hover:bg-ec-bg-glass-hover hover:border-ec-teal-border-hover hover:shadow-ec-glass-hover hover:-translate-y-1': variant === 'glass',
-            'bg-ec-bg-glass-hover border border-ec-teal-border-hover shadow-ec-glass-hover': variant === 'glass-hover',
+            'bg-ec-card border border-[rgba(28,140,130,0.22)] shadow-ec-card hover:border-[rgba(28,140,130,0.45)] hover:-translate-y-[2px]': variant === 'glass',
+            'bg-ec-card-2 border border-[rgba(28,140,130,0.30)] shadow-ec-card': variant === 'glass-hover',
           },
           className
         )}

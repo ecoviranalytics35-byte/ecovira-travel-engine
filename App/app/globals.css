@@ -1,5 +1,3 @@
-@import '../theme/ecovira-tokens.css';
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,48 +6,72 @@ html, body { padding: 0; margin: 0; }
 * { box-sizing: border-box; }
 
 :root {
-  /* Neutrals */
-  --ec-bg: #F6F1E8;
-  --ec-surface: #FBF8F2;
-  --ec-surface-2: #F1EADF;
-  --ec-ink: #1A1B1E;
-  --ec-ink-2: #3A3B40;
-  --ec-muted: #6E7077;
-  --ec-border: #E4DED3;
+  /* Ecovira Premium Theme Tokens - Exact Spec */
+  
+  /* Neutrals (dark luxury) */
+  --ec-bg: #07080A;
+  --ec-bg-2: #0F1114;
+  --ec-card: rgba(15, 17, 20, 0.58);
+  --ec-card-2: rgba(21, 24, 29, 0.62);
+  --ec-border: rgba(255, 255, 255, 0.08);
+  --ec-text: #EDEDED;
+  --ec-muted: rgba(237, 237, 237, 0.68);
+  --ec-dim: rgba(237, 237, 237, 0.50);
 
-  /* Dark mode surfaces */
-  --ec-night: #0F1114;
-  --ec-night-2: #15181D;
-  --ec-night-border: #2A2D33;
-
-  /* Gold accent */
+  /* Brand accents */
+  --ec-teal: #1C8C82;
+  --ec-teal-d: #0F6B63;
+  --ec-teal-glow: rgba(28, 140, 130, 0.35);
   --ec-gold: #C8A24D;
   --ec-gold-2: #E3C77A;
-  --ec-gold-muted: #8A7440;
+  --ec-gold-glow: rgba(200, 162, 77, 0.20);
 
-  /* Teal accent */
-  --ec-teal: #0F6B63;
-  --ec-teal-2: #1C8C82;
-  --ec-teal-muted: #0B4F49;
+  /* Radii */
+  --ec-r-lg: 20px;
+  --ec-r-md: 16px;
+  --ec-r-sm: 12px;
 
-  /* Status colors */
-  --ec-success: #2D6A4F;
-  --ec-warn: #9A6B2F;
-  --ec-error: #8B2E2E;
-  --ec-info: #2F4A6D;
+  /* Shadows (premium) */
+  --ec-shadow-card: 0 18px 60px rgba(0,0,0,0.55);
+  --ec-shadow-hairline: 0 0 0 1px rgba(28,140,130,0.18);
 
-  /* Layout */
-  --ec-radius-lg: 18px;
-  --ec-radius-md: 14px;
-  --ec-radius-sm: 10px;
-
-  /* Shadow */
-  --ec-shadow-1: 0 4px 12px rgba(26, 27, 30, 0.08);
-  --ec-shadow-2: 0 8px 24px rgba(26, 27, 30, 0.12);
+  /* Legacy compatibility (mapped to new tokens) */
+  --ec-bg-primary: var(--ec-bg-2);
+  --ec-bg-secondary: linear-gradient(180deg, #0B0D10 0%, #0F1114 40%, #07080A 100%);
+  --ec-bg-glass: var(--ec-card);
+  --ec-bg-glass-hover: var(--ec-card-2);
+  --ec-teal-primary: var(--ec-teal);
+  --ec-teal-hover: var(--ec-teal);
+  --ec-teal-border: rgba(28, 140, 130, 0.22);
+  --ec-teal-border-hover: rgba(28, 140, 130, 0.45);
+  --ec-gold-primary: var(--ec-gold);
+  --ec-gold-secondary: var(--ec-gold-2);
+  --ec-text-primary: var(--ec-text);
+  --ec-text-secondary: var(--ec-muted);
+  --ec-text-muted: var(--ec-dim);
+  --ec-radius-card: var(--ec-r-lg);
+  --ec-radius-button: var(--ec-r-md);
+  --ec-radius-input: var(--ec-r-md);
+  --ec-shadow-glass: var(--ec-shadow-card);
+  --ec-shadow-glass-hover: var(--ec-shadow-card);
 }
 
 body {
-  background: var(--ec-bg-secondary);
-  color: var(--ec-text-primary);
+  background: var(--ec-bg);
+  color: var(--ec-text);
   font-family: 'Inter', sans-serif;
+}
+
+/* Remove default link styles */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+a:visited {
+  color: inherit;
+}
+
+a:hover {
+  text-decoration: none;
 }
