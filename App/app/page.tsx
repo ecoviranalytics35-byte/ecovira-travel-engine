@@ -39,9 +39,9 @@ export default function Home() {
               <p className="text-ec-ink-2 mb-6">
                 Access to global airlines with real-time pricing and exclusive deals.
               </p>
-              <Button variant="tertiary" asChild>
+              <EcoviraButton variant="ghost" asChild>
                 <Link href="/flights">Search Flights</Link>
-              </Button>
+              </EcoviraButton>
             </Card>
 
             <Card className="text-center">
@@ -50,9 +50,9 @@ export default function Home() {
               <p className="text-ec-ink-2 mb-6">
                 Curated selection of premium hotels and resorts worldwide.
               </p>
-              <Button variant="tertiary" asChild>
-                <Link href="/stays">Find Stays</Link>
-              </Button>
+              <EcoviraButton variant="ghost" asChild>
+                <Link href="/stays">Find Hotels</Link>
+              </EcoviraButton>
             </Card>
           </div>
         </div>
