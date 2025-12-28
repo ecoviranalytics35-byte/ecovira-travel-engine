@@ -20,7 +20,7 @@ export function ResultsList({
   onSortChange,
 }: ResultsListProps) {
   return (
-    <div>
+    <div className="pointer-events-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-3xl md:text-4xl font-serif font-semibold text-ec-text mb-2">

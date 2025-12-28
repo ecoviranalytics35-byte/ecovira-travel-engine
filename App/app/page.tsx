@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import type { FlightResult } from "@/lib/core/types";
 import { EcoviraButton } from '../components/Button';
 import { Input } from '../components/Input';
@@ -9,12 +10,21 @@ import { FlightResultCard } from '../components/FlightResultCard';
 import { DatePicker } from '../components/DatePicker';
 import { CurrencySelector } from '../components/CurrencySelector';
 import { useCurrency } from '../contexts/CurrencyContext';
-import { SearchPanelShell } from '../components/search/SearchPanelShell';
 import { ResultsList } from '../components/results/ResultsList';
 import { ResultsLayout } from '../components/results/ResultsLayout';
 import { SegmentedToggle } from '../components/ui/SegmentedToggle';
 import { TripSummary } from '../components/results/TripSummary';
 import { FloatingAiAssist } from '../components/ai/FloatingAiAssist';
+import { SearchPanelSkeleton } from '../components/search/SearchPanelSkeleton';
+
+// Client-only SearchPanelShell (no SSR to prevent hydration errors from browser extensions)
+const SearchPanelShellClient = dynamic(
+  () => import('../components/search/SearchPanelShell.client'),
+  { 
+    ssr: false,
+    loading: () => <SearchPanelSkeleton />
+  }
+);
 
 function SkeletonLoader() {
   return (
@@ -74,8 +84,8 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Engine Search Card - Structured Layout */}
-      <SearchPanelShell
+      {/* Engine Search Card - Structured Layout (Client-only to prevent hydration errors) */}
+      <SearchPanelShellClient
         ctaLabel="Search Flights →"
         onSearch={handleSearch}
         loading={loading}
@@ -171,7 +181,7 @@ export default function Home() {
             showCrypto={true}
           />
         </div>
-      </SearchPanelShell>
+      </SearchPanelShellClient>
 
       {/* Results Section */}
       {loading && (

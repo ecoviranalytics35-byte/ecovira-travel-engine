@@ -46,13 +46,20 @@ export async function searchAmadeusFlights(params: AmadeusFlightSearchParams): P
     },
   });
 
-  // Normalize results
-  const results = data.data.slice(0, 10).map((offer: any) => {
+  // Normalize results - ensure every offer has a valid ID
+  const results = data.data.slice(0, 10).map((offer: any, index: number) => {
     const firstSegment = offer.itineraries[0]?.segments?.[0];
     const lastSegment = offer.itineraries[0]?.segments?.[offer.itineraries[0]?.segments?.length - 1];
     
+    // Ensure ID is always present - use offer.id or generate fallback
+    const offerId = offer.id || `amadeus-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    if (!offer.id) {
+      console.warn("[searchAmadeusFlights] Offer missing ID, using fallback", { offer, offerId, index });
+    }
+    
     return {
-      id: offer.id,
+      id: offerId,
       from: firstSegment?.departure?.iataCode || params.originLocationCode,
       to: lastSegment?.arrival?.iataCode || params.destinationLocationCode,
       departDate: firstSegment?.departure?.at?.split('T')[0] || params.departureDate,

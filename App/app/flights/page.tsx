@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import type { FlightResult } from "@/lib/core/types";
+import { useEvent } from "@/lib/hooks/useEvent";
 import { EcoviraButton } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { EcoviraCard } from "../../components/EcoviraCard";
@@ -10,12 +12,21 @@ import { FlightResultCard } from "../../components/FlightResultCard";
 import { DatePicker } from "../../components/DatePicker";
 import { CurrencySelector } from "../../components/CurrencySelector";
 import { useCurrency } from "../../contexts/CurrencyContext";
-import { SearchPanelShell } from "../../components/search/SearchPanelShell";
 import { ResultsList } from "../../components/results/ResultsList";
 import { ResultsLayout } from "../../components/results/ResultsLayout";
 import { SegmentedToggle } from "../../components/ui/SegmentedToggle";
 import { TripSummary } from "../../components/results/TripSummary";
 import { FloatingAiAssist } from "../../components/ai/FloatingAiAssist";
+import { SearchPanelSkeleton } from "../../components/search/SearchPanelSkeleton";
+
+// Client-only SearchPanelShell (no SSR to prevent hydration errors from browser extensions)
+const SearchPanelShellClient = dynamic(
+  () => import("../../components/search/SearchPanelShell.client"),
+  { 
+    ssr: false,
+    loading: () => <SearchPanelSkeleton />
+  }
+);
 
 function SkeletonLoader() {
   return (
@@ -40,28 +51,110 @@ export default function Flights() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<FlightResult[]>([]);
+  const [selectedFlight, setSelectedFlight] = useState<FlightResult | null>(null);
 
-  const handleSearch = async () => {
-    setLoading(true);
-    setError("");
-    setResults([]);
+  const handleSearch = useCallback(async () => {
+    console.log("[handleSearch] ENTER", { ts: Date.now(), from, to, departDate, returnDate, adults, cabinClass, currency, tripType });
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:58',message:'[handleSearch] ENTER',data:{ts:Date.now(),from,to,departDate,returnDate,adults,cabinClass,currency,tripType},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+    // #endregion
     try {
+      setLoading(true);
+      setError("");
+      setResults([]);
+      
       const url = `/api/flights/search?from=${from}&to=${to}&departDate=${departDate}&adults=${adults}&cabinClass=${cabinClass}&currency=${currency}&tripType=${tripType}${tripType === "roundtrip" && returnDate ? `&returnDate=${returnDate}` : ''}`;
+      console.log("[handleSearch] Fetching API", { url });
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:65',message:'[handleSearch] Fetching API',data:{url},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
+      
       const res = await fetch(url);
       const data = await res.json();
+      
+      console.log("[handleSearch] API response", { status: res.status, ok: res.ok, hasErrors: !!data.errors, resultsCount: data.results?.length || 0 });
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:70',message:'[handleSearch] API response',data:{status:res.status,ok:res.ok,hasErrors:!!data.errors,resultsCount:data.results?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
+      
       if (data.errors && data.errors.length > 0) {
         setError(data.errors[0]);
         setResults([]);
       } else {
-        setResults(data.results);
+        // Normalize results - ensure every result has a valid ID
+        const normalizedResults = (data.results || []).map((result: FlightResult, index: number) => {
+          if (!result.id) {
+            const fallbackId = `normalized-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`;
+            console.warn("[handleSearch] Result missing ID, using fallback", { result, fallbackId, index });
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:84',message:'[handleSearch] Result missing ID, using fallback',data:{result,fallbackId,index},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'D'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+            // #endregion
+            return { ...result, id: fallbackId };
+          }
+          return result;
+        });
+        setResults(normalizedResults);
         setError("");
       }
     } catch (err) {
+      console.error("[handleSearch] ERROR", err);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:81',message:'[handleSearch] ERROR',data:{error:err instanceof Error?err.message:'Unknown',errorStack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'C'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
       setError("We encountered a network issue. Please try again.");
+      throw err;
     } finally {
       setLoading(false);
+      console.log("[handleSearch] EXIT");
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:88',message:'[handleSearch] EXIT',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
     }
-  };
+  }, [from, to, departDate, returnDate, adults, cabinClass, currency, tripType]);
+
+  // Use stable event handler for dynamic import compatibility
+  const onSearch = useEvent(handleSearch);
+
+  // Handle flight selection with router navigation
+  const handleSelectFlight = useCallback((f: FlightResult) => {
+    console.log("[handleSelectFlight] ENTER", { flightId: f.id, offerId: f.id, fullOffer: f, ts: Date.now() });
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:107',message:'[handleSelectFlight] ENTER',data:{flightId:f.id,offerId:f.id,fullOffer:f,ts:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+    // #endregion
+    
+    // Validate offer ID
+    if (!f.id) {
+      console.error("[handleSelectFlight] ERROR - Missing offer ID", { flight: f });
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:112',message:'[handleSelectFlight] ERROR - Missing offer ID',data:{flight:f},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'D'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
+      setError("Cannot select flight: missing offer ID. Please try another option.");
+      return;
+    }
+    
+    try {
+      setSelectedFlight(f);
+      const checkoutUrl = `/checkout/flight?offerId=${encodeURIComponent(f.id)}`;
+      console.log("[handleSelectFlight] Navigating to checkout", { checkoutUrl, offerId: f.id });
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:120',message:'[handleSelectFlight] Navigating to checkout',data:{checkoutUrl,offerId:f.id},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
+      router.push(checkoutUrl);
+      console.log("[handleSelectFlight] EXIT - navigated to checkout");
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:123',message:'[handleSelectFlight] EXIT - navigated',data:{offerId:f.id},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
+    } catch (err) {
+      console.error("[handleSelectFlight] ERROR", err);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:127',message:'[handleSelectFlight] ERROR',data:{error:err instanceof Error?err.message:'Unknown',errorStack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'C'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
+      setError(`Failed to select flight: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      throw err;
+    }
+  }, [router]);
+  
+  const onSelectFlight = useEvent(handleSelectFlight);
 
   return (
     <>
@@ -75,10 +168,10 @@ export default function Flights() {
         </p>
       </div>
 
-      {/* Engine Search Card - Structured Layout */}
-      <SearchPanelShell
+      {/* Engine Search Card - Structured Layout (Client-only to prevent hydration errors) */}
+      <SearchPanelShellClient
         ctaLabel="Search Flights →"
-        onSearch={handleSearch}
+        onSearch={onSearch}
         loading={loading}
       >
         {/* Trip Type Toggle */}
@@ -172,7 +265,7 @@ export default function Flights() {
             showCrypto={true}
           />
         </div>
-      </SearchPanelShell>
+      </SearchPanelShellClient>
 
           {loading && (
             <div className="space-y-6 mt-12">
@@ -271,7 +364,11 @@ export default function Flights() {
                 }}
               >
                 {results.map((flight, i) => (
-                  <FlightResultCard key={i} flight={flight} />
+                  <FlightResultCard 
+                    key={i} 
+                    flight={flight} 
+                    onSelect={onSelectFlight}
+                  />
                 ))}
               </ResultsList>
             </ResultsLayout>
@@ -282,6 +379,7 @@ export default function Flights() {
             <FloatingAiAssist
               type="flights"
               results={results}
+              selectedFlight={selectedFlight || undefined}
               tripData={{
                 from,
                 to,

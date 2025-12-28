@@ -9,6 +9,18 @@ interface FlightResultCardProps {
 }
 
 export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
+  // Ensure offer has a valid ID
+  const offerId = flight.id || `fallback-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const hasValidId = !!flight.id;
+  
+  // Log error if ID is missing
+  if (!flight.id) {
+    console.error("[FlightResultCard] MISSING OFFER ID", { flight, offerId });
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FlightResultCard.tsx:15',message:'[FlightResultCard] MISSING OFFER ID',data:{flight,offerId},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'D'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+    // #endregion
+  }
+
   // Mock additional data for display
   const airline = flight.provider || 'Amadeus';
   const airlineInitial = airline.charAt(0).toUpperCase();
@@ -18,8 +30,8 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
   const arrivalDate = 'Dec 05, 2025 16:15';
 
   return (
-    <EcoviraCard variant="glass" className="p-6">
-      <div className="max-w-[1100px] mx-auto">
+    <EcoviraCard variant="glass" className="p-6 relative">
+      <div className="max-w-[1100px] mx-auto pointer-events-auto">
         {/* Top Row: Airline + Price */}
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-4">
@@ -64,10 +76,72 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
         </div>
 
         {/* Bottom: CTA */}
-        <div className="flex items-center justify-end gap-4">
+        <div className="flex items-center justify-end gap-4 pointer-events-auto">
           <button
-            onClick={() => onSelect?.(flight)}
-            className="px-6 py-3 min-w-[180px] rounded-full bg-gradient-to-br from-[rgba(28,140,130,0.4)] to-[rgba(28,140,130,0.3)] border border-[rgba(28,140,130,0.5)] text-ec-text font-semibold text-sm shadow-[0_0_8px_rgba(28,140,130,0.3),0_0_16px_rgba(28,140,130,0.2)] hover:shadow-[0_0_12px_rgba(28,140,130,0.4),0_0_24px_rgba(28,140,130,0.3)] hover:border-[rgba(28,140,130,0.7)] hover:from-[rgba(28,140,130,0.5)] hover:to-[rgba(28,140,130,0.4)] transition-all duration-300 flex items-center justify-center gap-2"
+            type="button"
+            disabled={!hasValidId}
+            className="relative z-[9999] pointer-events-auto cursor-pointer px-6 py-3 min-w-[180px] rounded-full bg-gradient-to-br from-[rgba(28,140,130,0.4)] to-[rgba(28,140,130,0.3)] border border-[rgba(28,140,130,0.5)] text-ec-text font-semibold text-sm shadow-[0_0_8px_rgba(28,140,130,0.3),0_0_16px_rgba(28,140,130,0.2)] hover:shadow-[0_0_12px_rgba(28,140,130,0.4),0_0_24px_rgba(28,140,130,0.3)] hover:border-[rgba(28,140,130,0.7)] hover:from-[rgba(28,140,130,0.5)] hover:to-[rgba(28,140,130,0.4)] transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!hasValidId ? "Missing offer ID - cannot select this flight" : undefined}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log("[SelectFlight] POINTERDOWN fired", offerId);
+              // #region agent log
+              fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FlightResultCard.tsx:83',message:'[SelectFlight] POINTERDOWN fired',data:{offerId},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+              // #endregion
+              
+              if (!hasValidId) {
+                console.error("[SelectFlight] BLOCKED - Missing offer ID", { offerId, flight });
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FlightResultCard.tsx:90',message:'[SelectFlight] BLOCKED - Missing offer ID',data:{offerId,flight},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'D'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+                // #endregion
+                return;
+              }
+              
+              if (onSelect) {
+                const normalizedFlight = { ...flight, id: offerId };
+                console.log("[SelectFlight] Calling onSelect with normalized flight", { offerId, normalizedFlight });
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FlightResultCard.tsx:101',message:'[SelectFlight] Calling onSelect with normalized flight',data:{offerId,normalizedFlight},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+                // #endregion
+                onSelect(normalizedFlight);
+              } else {
+                console.warn("[SelectFlight] onSelect handler missing", { offerId });
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FlightResultCard.tsx:108',message:'[SelectFlight] onSelect handler missing',data:{offerId},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'B'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+                // #endregion
+              }
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log("[SelectFlight] CLICK fired", offerId);
+              // #region agent log
+              fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FlightResultCard.tsx:115',message:'[SelectFlight] CLICK fired',data:{offerId},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+              // #endregion
+              
+              if (!hasValidId) {
+                console.error("[SelectFlight] BLOCKED - Missing offer ID", { offerId, flight });
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FlightResultCard.tsx:122',message:'[SelectFlight] BLOCKED - Missing offer ID',data:{offerId,flight},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'D'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+                // #endregion
+                return;
+              }
+              
+              if (onSelect) {
+                const normalizedFlight = { ...flight, id: offerId };
+                console.log("[SelectFlight] Calling onSelect with normalized flight", { offerId, normalizedFlight });
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FlightResultCard.tsx:132',message:'[SelectFlight] Calling onSelect with normalized flight',data:{offerId,normalizedFlight},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+                // #endregion
+                onSelect(normalizedFlight);
+              } else {
+                console.warn("[SelectFlight] onSelect handler missing", { offerId });
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FlightResultCard.tsx:139',message:'[SelectFlight] onSelect handler missing',data:{offerId},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'B'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+                // #endregion
+              }
+            }}
           >
             Select Flight →
           </button>

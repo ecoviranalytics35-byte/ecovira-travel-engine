@@ -37,6 +37,13 @@ export function PremiumShell({ children, rightPanel, chatContext }: PremiumShell
     e.stopPropagation();
     setIsChatOpen(true);
   };
+  
+  // Listen for chat open events from floating button
+  useEffect(() => {
+    const handleChatOpen = () => setIsChatOpen(true);
+    window.addEventListener('ecovira-chat-open', handleChatOpen);
+    return () => window.removeEventListener('ecovira-chat-open', handleChatOpen);
+  }, []);
 
   // Removed debug logging to prevent hydration warnings
 

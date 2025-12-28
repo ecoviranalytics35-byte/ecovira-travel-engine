@@ -1,19 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import type { StayResult } from "@/lib/core/types";
+import { useEvent } from "@/lib/hooks/useEvent";
 import { EcoviraButton } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { EcoviraCard } from "../../components/EcoviraCard";
 import { DatePicker } from "../../components/DatePicker";
 import { CurrencySelector } from "../../components/CurrencySelector";
 import { useCurrency } from "../../contexts/CurrencyContext";
-import { SearchPanelShell } from "../../components/search/SearchPanelShell";
 import { ResultsList } from "../../components/results/ResultsList";
 import { ResultsLayout } from "../../components/results/ResultsLayout";
 import { StayResultCard } from "../../components/results/StayResultCard";
 import { FloatingAiAssist } from "../../components/ai/FloatingAiAssist";
+import { SearchPanelSkeleton } from "../../components/search/SearchPanelSkeleton";
+
+// Client-only SearchPanelShell (no SSR to prevent hydration errors from browser extensions)
+const SearchPanelShellClient = dynamic(
+  () => import("../../components/search/SearchPanelShell.client"),
+  { 
+    ssr: false,
+    loading: () => <SearchPanelSkeleton />
+  }
+);
 
 function SkeletonLoader() {
   return (
@@ -37,12 +48,18 @@ export default function Stays() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<StayResult[]>([]);
+  const [selectedStay, setSelectedStay] = useState<StayResult | null>(null);
 
-  const handleSearch = async () => {
-    setLoading(true);
-    setError("");
-    setResults([]);
+  const handleSearch = useCallback(async () => {
+    console.log("[handleSearch] ENTER", { ts: Date.now(), city, checkIn, nights, adults, children, roomType, classType });
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:52',message:'[handleSearch] ENTER',data:{ts:Date.now(),city,checkIn,nights,adults,children,roomType,classType},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+    // #endregion
     try {
+      setLoading(true);
+      setError("");
+      setResults([]);
+      
       const params = new URLSearchParams({
         city,
         checkIn,
@@ -53,8 +70,19 @@ export default function Stays() {
         classType,
       });
       const url = `/api/stays/search?${params.toString()}`;
+      console.log("[handleSearch] Fetching API", { url });
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:66',message:'[handleSearch] Fetching API',data:{url},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
+      
       const res = await fetch(url);
       const data = await res.json();
+      
+      console.log("[handleSearch] API response", { status: res.status, ok: res.ok, hasErrors: !!data.errors, resultsCount: data.results?.length || 0 });
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:74',message:'[handleSearch] API response',data:{status:res.status,ok:res.ok,hasErrors:!!data.errors,resultsCount:data.results?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
+      
       if (data.errors && data.errors.length > 0) {
         setError(data.errors[0]);
         setResults([]);
@@ -63,11 +91,52 @@ export default function Stays() {
         setError("");
       }
     } catch (err) {
+      console.error("[handleSearch] ERROR", err);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:85',message:'[handleSearch] ERROR',data:{error:err instanceof Error?err.message:'Unknown',errorStack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'C'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
       setError("We encountered a network issue. Please try again.");
+      throw err;
     } finally {
       setLoading(false);
+      console.log("[handleSearch] EXIT");
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:93',message:'[handleSearch] EXIT',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
     }
-  };
+  }, [city, checkIn, nights, adults, children, roomType, classType]);
+
+  // Use stable event handler for dynamic import compatibility
+  const onSearch = useEvent(handleSearch);
+
+  // Handle stay selection with router navigation
+  const handleSelectStay = useCallback((s: StayResult) => {
+    console.log("[onSelectStay] ENTER", { stayId: s.id, ts: Date.now() });
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:113',message:'[onSelectStay] ENTER',data:{stayId:s.id,ts:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+    // #endregion
+    try {
+      setSelectedStay(s);
+      const checkoutUrl = `/checkout/stay?stayId=${encodeURIComponent(s.id)}`;
+      console.log("[onSelectStay] Navigating to checkout", { checkoutUrl, stayId: s.id });
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:120',message:'[onSelectStay] Navigating to checkout',data:{checkoutUrl,offerId:s.id},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
+      router.push(checkoutUrl);
+      console.log("[onSelectStay] EXIT - navigated to checkout");
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:125',message:'[onSelectStay] EXIT - navigated',data:{offerId:s.id},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
+    } catch (err) {
+      console.error("[onSelectStay] ERROR", err);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:130',message:'[onSelectStay] ERROR',data:{error:err instanceof Error?err.message:'Unknown',errorStack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'C'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      // #endregion
+      throw err;
+    }
+  }, [router]);
+  
+  const onSelectStay = useEvent(handleSelectStay);
 
   return (
     <>
@@ -81,10 +150,10 @@ export default function Stays() {
         </p>
       </div>
 
-      {/* Engine Search Card - Structured Layout */}
-      <SearchPanelShell
+      {/* Engine Search Card - Structured Layout (Client-only to prevent hydration errors) */}
+      <SearchPanelShellClient
         ctaLabel="Search Stays →"
-        onSearch={handleSearch}
+        onSearch={onSearch}
         loading={loading}
       >
         {/* Row 1: City | Check-in */}
@@ -180,7 +249,7 @@ export default function Stays() {
             showCrypto={true}
           />
         </div>
-      </SearchPanelShell>
+      </SearchPanelShellClient>
 
       {loading && (
         <div className="space-y-6">
@@ -265,13 +334,18 @@ export default function Stays() {
               }}
             >
               {results.map((stay, i) => (
-                <StayResultCard key={i} stay={stay} />
+                <StayResultCard 
+                  key={i} 
+                  stay={stay} 
+                  onSelect={onSelectStay}
+                />
               ))}
             </ResultsList>
           </ResultsLayout>
           <FloatingAiAssist
             type="stays"
             results={results}
+            selectedStay={selectedStay || undefined}
             tripData={{
               nights,
               adults,

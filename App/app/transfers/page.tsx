@@ -1,17 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import type { TransferResult } from "@/lib/core/types";
 import { Input } from '../../components/Input';
 import { DatePicker } from '../../components/DatePicker';
 import { CurrencySelector } from '../../components/CurrencySelector';
-import { SearchPanelShell } from '../../components/search/SearchPanelShell';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { ResultsList } from '../../components/results/ResultsList';
 import { TransferResultCard } from '../../components/results/TransferResultCard';
 import { FloatingAiAssist } from '../../components/ai/FloatingAiAssist';
 import { TestModeBanner } from '../../components/ui/TestModeBanner';
 import { getCoordinates } from '@/lib/utils/geocoding';
+import { SearchPanelSkeleton } from '../../components/search/SearchPanelSkeleton';
+
+// Client-only SearchPanelShell (no SSR to prevent hydration errors from browser extensions)
+const SearchPanelShellClient = dynamic(
+  () => import('../../components/search/SearchPanelShell.client'),
+  { 
+    ssr: false,
+    loading: () => <SearchPanelSkeleton />
+  }
+);
 
 function SkeletonLoader() {
   return (
@@ -97,8 +107,8 @@ export default function Transfers() {
       {/* Test Mode Banner */}
       <TestModeBanner />
 
-      {/* Engine Search Card - Structured Layout */}
-      <SearchPanelShell
+      {/* Engine Search Card - Structured Layout (Client-only to prevent hydration errors) */}
+      <SearchPanelShellClient
         ctaLabel="Search Transfers →"
         onSearch={handleSearch}
         loading={loading}
@@ -162,7 +172,7 @@ export default function Transfers() {
             showCrypto={true}
           />
         </div>
-      </SearchPanelShell>
+      </SearchPanelShellClient>
 
       {/* Error Message */}
       {error && (

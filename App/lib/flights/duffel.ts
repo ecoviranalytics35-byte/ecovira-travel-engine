@@ -70,15 +70,25 @@ export async function searchDuffelFlights(params: { from: string; to: string; de
   const offerRequestId = data.data.id;
   const offersCount = offers.length;
   const rawKeys = Object.keys(data.data || {});
-  const results = offers.slice(0, 10).map((offer: any) => ({
-    id: offer.id,
-    from: params.from,
-    to: params.to,
-    departDate: params.departDate,
-    price: offer.total_amount,
-    currency: offer.total_currency,
-    provider: "duffel",
-    raw: offer
-  }));
+  // Normalize results - ensure every offer has a valid ID
+  const results = offers.slice(0, 10).map((offer: any, index: number) => {
+    // Ensure ID is always present - use offer.id or generate fallback
+    const offerId = offer.id || `duffel-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    if (!offer.id) {
+      console.warn("[searchDuffelFlights] Offer missing ID, using fallback", { offer, offerId, index });
+    }
+    
+    return {
+      id: offerId,
+      from: params.from,
+      to: params.to,
+      departDate: params.departDate,
+      price: offer.total_amount,
+      currency: offer.total_currency,
+      provider: "duffel",
+      raw: offer
+    };
+  });
   return { results, debug: { offerRequestId, offersCount, rawKeys } };
 }

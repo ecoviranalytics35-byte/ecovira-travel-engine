@@ -11,13 +11,13 @@ interface ResultsLayoutProps {
 
 export function ResultsLayout({ children, sidebar }: ResultsLayoutProps) {
   return (
-    <div className="mt-20">
+    <div className="mt-20 pointer-events-auto">
       <div className={cn(
         "grid gap-6 ec-results-layout",
         sidebar ? "grid-cols-1 lg:grid-cols-10" : "grid-cols-1"
       )}>
         {/* Left: Results List (70% if sidebar, 100% if no sidebar) */}
-        <div className={cn("space-y-5", sidebar ? "lg:col-span-7" : "lg:col-span-12")}>
+        <div className={cn("space-y-5 pointer-events-auto", sidebar ? "lg:col-span-7" : "lg:col-span-12")}>
           {children}
         </div>
 

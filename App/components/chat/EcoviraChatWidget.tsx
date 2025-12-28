@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { X, Send, Bot, MessageCircle } from 'lucide-react';
 import { EcoviraCard } from '../EcoviraCard';
 import { cn } from '../../lib/utils';
+import { useAutoHideOnScroll } from './useAutoHideOnScroll';
 
 interface EcoviraChatWidgetProps {
   context?: {
@@ -302,15 +303,30 @@ const FAQ_RESPONSES: Record<string, string> = {
 
 export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }: EcoviraChatWidgetProps) {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const [manuallyClosed, setManuallyClosed] = useState(false);
   const chatPanelRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   
   // Use controlled state if provided, otherwise use internal state
   const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
   
+  // Auto-hide on scroll (only if not manually closed)
+  const { isVisible: autoHideVisible, setIsVisible: setAutoHideVisible } = useAutoHideOnScroll({
+    threshold: 12,
+    enabled: isOpen && !manuallyClosed
+  });
+  
+  // Determine final visibility: show if open AND (not manually closed OR auto-hide says visible)
+  const shouldShow = isOpen && (!manuallyClosed || autoHideVisible);
+  
   // Also listen for global events as fallback (for uncontrolled mode)
   useEffect(() => {
     if (controlledIsOpen === undefined) {
-      const handleOpen = () => setInternalIsOpen(true);
+      const handleOpen = () => {
+        setInternalIsOpen(true);
+        setManuallyClosed(false); // Reset manual close when reopened
+        setAutoHideVisible(true);
+      };
       const handleClose = () => setInternalIsOpen(false);
       
       window.addEventListener('ecovira-chat-open', handleOpen);
@@ -321,7 +337,15 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
         window.removeEventListener('ecovira-chat-close', handleClose);
       };
     }
-  }, [controlledIsOpen]);
+  }, [controlledIsOpen, setAutoHideVisible]);
+  
+  // Reset manuallyClosed when chat is reopened via controlled prop
+  useEffect(() => {
+    if (controlledIsOpen && manuallyClosed) {
+      setManuallyClosed(false);
+      setAutoHideVisible(true);
+    }
+  }, [controlledIsOpen, manuallyClosed, setAutoHideVisible]);
   
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([
     { 
@@ -791,19 +815,21 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
       {/* Chat Panel */}
       {isOpen && (
         <div 
-          className="fixed z-[10000] flex flex-col" 
+          className="fixed z-[100] flex flex-col transition-all duration-300 ease-out" 
           style={{ 
             display: 'block', 
-            visibility: 'visible', 
-            opacity: 1,
-            zIndex: 10000,
+            visibility: shouldShow ? 'visible' : 'hidden',
+            opacity: shouldShow ? 1 : 0,
+            transform: shouldShow ? 'translateY(0)' : 'translateY(calc(100% + 24px))',
+            zIndex: 100,
             position: 'fixed',
             bottom: '24px',
             right: '24px',
             width: '420px',
             height: '600px',
             maxWidth: 'calc(100vw - 48px)',
-            maxHeight: 'calc(100vh - 48px)'
+            maxHeight: 'calc(100vh - 48px)',
+            pointerEvents: shouldShow ? 'auto' : 'none'
           }}
           ref={chatPanelRef}
         >
@@ -821,6 +847,8 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
               </div>
               <button
                 onClick={() => {
+                  setManuallyClosed(true);
+                  setAutoHideVisible(false);
                   if (onClose) {
                     onClose();
                   } else {
@@ -835,7 +863,28 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[rgba(15,17,20,0.75)]">
+            <div 
+              ref={messagesContainerRef}
+              className="flex-1 overflow-y-auto p-4 space-y-4 bg-[rgba(15,17,20,0.75)]"
+              style={{
+                minHeight: 0,
+                overscrollBehavior: 'contain'
+              }}
+              onWheel={(e) => {
+                // Prevent scroll chaining - stop propagation if at scroll boundaries
+                const el = messagesContainerRef.current;
+                if (!el) return;
+                
+                const { scrollTop, scrollHeight, clientHeight } = el;
+                const isAtTop = scrollTop === 0;
+                const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
+                
+                // If scrolling up at top or down at bottom, prevent page scroll
+                if ((e.deltaY < 0 && isAtTop) || (e.deltaY > 0 && isAtBottom)) {
+                  e.stopPropagation();
+                }
+              }}
+            >
               {messages.map((msg, i) => (
                 <div
                   key={i}
@@ -898,6 +947,27 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
             </div>
           </EcoviraCard>
         </div>
+      )}
+
+      {/* Floating "Open Chat" Button - Show when manually closed */}
+      {manuallyClosed && (
+        <button
+          onClick={() => {
+            setManuallyClosed(false);
+            setAutoHideVisible(true);
+            if (controlledIsOpen === undefined) {
+              setInternalIsOpen(true);
+            } else {
+              // Trigger parent to open via custom event
+              window.dispatchEvent(new CustomEvent('ecovira-chat-open'));
+            }
+          }}
+          className="fixed z-[99] bottom-6 right-6 w-14 h-14 md:w-16 md:h-16 flex items-center justify-center text-ec-text rounded-full transition-all duration-300 bg-gradient-to-br from-[rgba(28,140,130,0.35)] to-[rgba(28,140,130,0.25)] border-2 border-[rgba(28,140,130,0.5)] shadow-[0_0_12px_rgba(28,140,130,0.4),0_0_24px_rgba(28,140,130,0.25),0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_0_18px_rgba(28,140,130,0.6),0_0_32px_rgba(28,140,130,0.4),0_6px_24px_rgba(0,0,0,0.4)] hover:border-[rgba(28,140,130,0.7)] hover:from-[rgba(28,140,130,0.45)] hover:to-[rgba(28,140,130,0.35)] hover:scale-105 active:scale-95"
+          aria-label="Open 24/7 AI Assistant"
+          type="button"
+        >
+          <MessageCircle size={24} className="md:w-7 md:h-7" strokeWidth={2.5} />
+        </button>
       )}
 
     </>

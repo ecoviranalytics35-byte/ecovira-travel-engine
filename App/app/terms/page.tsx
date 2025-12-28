@@ -94,6 +94,9 @@ export default function TermsAndConditions() {
             </p>
           </section>
         </div>
+        <div className="mt-12 pt-8 border-t border-[rgba(28,140,130,0.22)] text-center text-xs text-ec-muted">
+          © {new Date().getFullYear()} Ecovira. All rights reserved.
+        </div>
       </div>
     </div>
   );
