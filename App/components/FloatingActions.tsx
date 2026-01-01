@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
+import { Sparkles } from "lucide-react";
 
 export default function FloatingActions() {
   const router = useRouter();
@@ -109,7 +110,20 @@ export default function FloatingActions() {
       {/* #endregion */}
       <button
         type="button"
-        className="rounded-full px-4 py-3 font-semibold bg-white/10 border border-white/15 backdrop-blur hover:bg-white/15 text-white"
+        className="rounded-full text-white transition-all duration-300 hover:scale-105 active:scale-95 focus:outline-none w-12 h-12 flex items-center justify-center"
+        style={{
+          backgroundColor: '#14b8a6',
+          boxShadow: "0 0 18px rgba(255,255,255,0.55)"
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#0d9488';
+          e.currentTarget.style.boxShadow = "0 0 26px rgba(255,255,255,0.75)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = '#14b8a6';
+          e.currentTarget.style.boxShadow = "0 0 18px rgba(255,255,255,0.55)";
+        }}
+        aria-label="24/7 AI Assistant"
         onClick={() => {
           // #region agent log
           fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FloatingActions.tsx:96',message:'[FloatingActions] AI Assistant button clicked',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'button-visibility',hypothesisId:'D'})}).catch(()=>{});
@@ -119,7 +133,7 @@ export default function FloatingActions() {
           console.log("[FloatingActions] Open chat clicked");
         }}
       >
-        24/7 AI Assistant
+        <Sparkles className="w-5 h-5" />
       </button>
 
       {/* #region agent log */}
@@ -130,7 +144,19 @@ export default function FloatingActions() {
       {/* #endregion */}
       <button
         type="button"
-        className="rounded-full px-4 py-3 font-semibold bg-gradient-to-r from-emerald-400 to-cyan-400 text-black hover:opacity-90"
+        className="rounded-full text-white font-semibold transition-all duration-300 hover:scale-105 active:scale-95 focus:outline-none px-4 py-3"
+        style={{
+          backgroundColor: '#14b8a6',
+          boxShadow: "0 0 18px rgba(255,255,255,0.55)"
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#0d9488';
+          e.currentTarget.style.boxShadow = "0 0 26px rgba(255,255,255,0.75)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = '#14b8a6';
+          e.currentTarget.style.boxShadow = "0 0 18px rgba(255,255,255,0.55)";
+        }}
         onClick={() => {
           // #region agent log
           fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FloatingActions.tsx:112',message:'[FloatingActions] My Trips button clicked',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'button-visibility',hypothesisId:'D'})}).catch(()=>{});
