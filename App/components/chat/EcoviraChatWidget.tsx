@@ -415,10 +415,31 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
   ]);
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
+  // Auto-scroll only if user is at bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    
+    const checkScrollPosition = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px threshold
+      setShouldAutoScroll(isAtBottom);
+    };
+    
+    container.addEventListener('scroll', checkScrollPosition);
+    checkScrollPosition();
+    
+    return () => container.removeEventListener('scroll', checkScrollPosition);
+  }, []);
+
+  // Auto-scroll when new messages arrive (only if user is at bottom)
+  useEffect(() => {
+    if (shouldAutoScroll && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, shouldAutoScroll]);
 
   const handleSend = (query?: string) => {
     const userMessage = query || input.trim();
@@ -953,10 +974,13 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
             {/* Messages */}
             <div 
               ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto p-4 space-y-4 bg-[rgba(15,17,20,0.75)]"
+              className="overflow-y-auto p-4 space-y-4 bg-[rgba(15,17,20,0.75)]"
               style={{
-                minHeight: 0,
-                overscrollBehavior: 'contain'
+                height: '400px',
+                maxHeight: '400px',
+                overflowY: 'auto',
+                overscrollBehavior: 'contain',
+                WebkitOverflowScrolling: 'touch',
               }}
               onWheel={(e) => {
                 // Prevent scroll chaining - stop propagation if at scroll boundaries

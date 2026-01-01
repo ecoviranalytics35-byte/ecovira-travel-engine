@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { SeatSelection } from '@/lib/core/booking-extras';
 import { EXTRAS_PRICING } from '@/lib/core/booking-extras';
+import { X, ArrowLeft } from 'lucide-react';
 
 interface SeatSelectorProps {
   cabinClass: 'economy' | 'business' | 'first';
@@ -10,6 +11,9 @@ interface SeatSelectorProps {
   currency: string;
   onSeatsChange: (seats: SeatSelection[]) => void;
   initialSeats?: SeatSelection[];
+  onClose?: () => void;
+  onSkip?: () => void;
+  onConfirm?: () => void;
 }
 
 // Mock seat map layout (3-3 configuration for economy, 2-2 for business/first)
@@ -69,9 +73,17 @@ const generateSeatMap = (cabinClass: 'economy' | 'business' | 'first') => {
   return seats;
 };
 
-export function SeatSelector({ cabinClass, passengerCount, currency, onSeatsChange, initialSeats = [] }: SeatSelectorProps) {
+export function SeatSelector({ cabinClass, passengerCount, currency, onSeatsChange, initialSeats = [], onClose, onSkip, onConfirm }: SeatSelectorProps) {
   const [selectedSeats, setSelectedSeats] = useState<SeatSelection[]>(initialSeats);
   const seatMap = generateSeatMap(cabinClass);
+  
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
   
   const getSeatPrice = (seatType: string): number => {
     const pricing = EXTRAS_PRICING.seats[cabinClass];
@@ -123,261 +135,274 @@ export function SeatSelector({ cabinClass, passengerCount, currency, onSeatsChan
   const totalSeatPrice = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
   
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-xl font-semibold text-ec-text mb-1">Select Seats</h3>
-          <p className="text-sm text-ec-muted">
-            {selectedSeats.length} of {passengerCount} seat{passengerCount > 1 ? 's' : ''} selected
-            {cabinClass === 'economy' && ' (Free for Economy)'}
-          </p>
-        </div>
-        {totalSeatPrice > 0 && (
-          <div className="text-right">
-            <div className="text-sm text-ec-muted">Seat selection</div>
-            <div className="text-lg font-semibold text-ec-text">{currency} {totalSeatPrice.toFixed(2)}</div>
+    <div 
+      className="fixed inset-0 flex items-center justify-center p-2 md:p-4 bg-black/60 backdrop-blur-sm"
+      style={{ 
+        zIndex: 9999,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) {
+          onClose();
+        }
+      }}
+    >
+      {/* Luxury Centered Card - Full screen on mobile */}
+      <div 
+        className="w-full md:max-w-[780px] bg-[rgba(15,17,20,0.95)] backdrop-blur-xl border border-[rgba(28,140,130,0.3)] rounded-ec-lg shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex flex-col"
+        style={{
+          maxHeight: '90vh',
+          height: 'auto',
+          zIndex: 10000,
+          position: 'relative',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-[rgba(28,140,130,0.2)]">
+          <div className="flex-1">
+            <h2 className="text-2xl font-serif font-semibold text-white mb-1">Choose your seat</h2>
+            <p className="text-sm text-white/70">
+              {cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1)} Class • {passengerCount} passenger{passengerCount > 1 ? 's' : ''}
+            </p>
           </div>
-        )}
-      </div>
-      
-      {/* Helper Text */}
-      <div className="p-3 bg-[rgba(28,140,130,0.1)] rounded-ec-md border border-[rgba(28,140,130,0.2)]">
-        <p className="text-sm text-ec-text">
-          <strong className="text-ec-teal">Note:</strong> Seat selection is free for Economy. Business and First may incur a fee.
-        </p>
-      </div>
-      
-      {/* Seat Map */}
-      <div className="bg-[rgba(15,17,20,0.6)] rounded-ec-lg border border-[rgba(28,140,130,0.25)] p-8 overflow-x-auto">
-        <div className="mb-6 text-center">
-          <div className="text-sm font-medium text-ec-muted mb-2">Front of Aircraft</div>
-          <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-[rgba(28,140,130,0.3)] to-transparent"></div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-[rgba(28,140,130,0.15)] rounded-lg transition-colors text-white/70 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
         
-        {/* Seat Legend - Premium & Clear */}
-        <div className="flex items-center justify-center gap-6 mb-8 pb-6 border-b border-[rgba(28,140,130,0.15)]">
-          <div className="flex items-center gap-3">
-            <div 
-              className="w-10 h-10 rounded-lg border-2 border-[rgba(28,140,130,0.6)] flex items-center justify-center"
-              style={{
-                background: 'linear-gradient(135deg, rgba(28,140,130,0.25), rgba(28,140,130,0.15))',
-              }}
-            >
-              <span className="text-white font-semibold text-sm">A</span>
+        {/* Legend Row - Pill Chips */}
+        <div className="px-6 py-4 border-b border-[rgba(28,140,130,0.15)]">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-lg border border-[rgba(28,140,130,0.5)] bg-[rgba(28,140,130,0.15)] flex items-center justify-center">
+                <span className="text-white text-xs font-semibold">A</span>
+              </div>
+              <span className="text-sm text-white/90">Available</span>
             </div>
-            <div>
-              <div className="text-sm font-medium text-ec-text">Available</div>
-              <div className="text-xs text-ec-muted">Click to select</div>
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-lg border-2 border-[rgba(28,140,130,0.8)] bg-gradient-to-br from-[rgba(28,140,130,0.4)] to-[rgba(28,140,130,0.3)] flex items-center justify-center shadow-[0_0_8px_rgba(28,140,130,0.4)]">
+                <span className="text-white text-xs font-bold">B</span>
+              </div>
+              <span className="text-sm text-white/90">Selected</span>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div 
-              className="w-10 h-10 rounded-lg border-2 flex items-center justify-center relative"
-              style={{
-                background: 'linear-gradient(135deg, #1C8C82, #0F6B63)',
-                borderColor: '#1C8C82',
-                boxShadow: '0 0 12px rgba(28,140,130,0.5), 0 0 24px rgba(28,140,130,0.3)',
-              }}
-            >
-              <span className="text-white font-bold text-sm">B</span>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-ec-text">Selected</div>
-              <div className="text-xs text-ec-muted">Your choice</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div 
-              className="w-10 h-10 rounded-lg border-2 flex items-center justify-center"
-              style={{
-                background: 'rgba(60, 60, 60, 0.4)',
-                borderColor: 'rgba(100, 100, 100, 0.4)',
-              }}
-            >
-              <span className="text-ec-muted font-medium text-sm line-through">C</span>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-ec-muted">Occupied</div>
-              <div className="text-xs text-ec-muted">Not available</div>
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-lg border border-[rgba(100,100,100,0.4)] bg-[rgba(60,60,60,0.3)] flex items-center justify-center opacity-50">
+                <span className="text-white/40 text-xs font-medium line-through">C</span>
+              </div>
+              <span className="text-sm text-white/70">Occupied</span>
             </div>
           </div>
         </div>
         
-        {/* Seat Grid - Spacious & Clear */}
-        <div className="flex justify-center">
-          <div className="space-y-3 min-w-max">
-            {Object.entries(seatsByRow).map(([row, seats]) => {
-              // Split seats into left and right sides for aisle gap
-              const leftSeats = seats.filter(s => {
-                const letter = s.position.slice(-1);
-                return cabinClass === 'economy' 
-                  ? ['A', 'B', 'C'].includes(letter)
-                  : ['A', 'B'].includes(letter);
-              });
-              const rightSeats = seats.filter(s => {
-                const letter = s.position.slice(-1);
-                return cabinClass === 'economy'
-                  ? ['D', 'E', 'F'].includes(letter)
-                  : ['C', 'D'].includes(letter);
-              });
-              
-              return (
-                <div key={row} className="flex items-center gap-4">
-                  {/* Row Number */}
-                  <div className="w-10 text-right">
-                    <span className="text-base font-semibold text-ec-text">{row}</span>
-                  </div>
-                  
-                  {/* Left Side Seats */}
-                  <div className="flex items-center gap-2">
-                    {leftSeats.map((seat) => {
-                      const selected = isSelected(seat.position);
-                      const price = getSeatPrice(seat.type);
-                      
-                      return (
-                        <button
-                          key={seat.position}
-                          type="button"
-                          onClick={() => handleSeatClick(seat.position, seat.type, seat.available)}
-                          disabled={!seat.available}
-                          className={`
-                            w-12 h-12 rounded-lg border-2 font-semibold text-sm transition-all duration-200
-                            flex items-center justify-center relative
-                            ${selected 
-                              ? 'cursor-pointer' 
+        {/* Scrollable Seat Map Container */}
+        <div 
+          className="flex-1 overflow-y-auto px-6 py-6"
+          style={{ 
+            maxHeight: 'calc(90vh - 280px)',
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          {/* Front of Aircraft Label - Top Left */}
+          <div className="mb-4">
+            <span className="text-xs font-medium text-white/60">Front of aircraft</span>
+          </div>
+          
+          {/* Seat Grid - Clean Fixed Layout */}
+          <div className="flex justify-center">
+            <div className="space-y-2">
+              {Object.entries(seatsByRow).map(([row, seats]) => {
+                // Split seats into left and right sides for aisle gap
+                const leftSeats = seats.filter(s => {
+                  const letter = s.position.slice(-1);
+                  return cabinClass === 'economy' 
+                    ? ['A', 'B', 'C'].includes(letter)
+                    : ['A', 'B'].includes(letter);
+                });
+                const rightSeats = seats.filter(s => {
+                  const letter = s.position.slice(-1);
+                  return cabinClass === 'economy'
+                    ? ['D', 'E', 'F'].includes(letter)
+                    : ['C', 'D'].includes(letter);
+                });
+                
+                return (
+                  <div key={row} className="flex items-center gap-3">
+                    {/* Fixed Row Number - Left Aligned */}
+                    <div className="w-8 text-right">
+                      <span className="text-sm font-semibold text-white/90">{row}</span>
+                    </div>
+                    
+                    {/* Left Side Seats */}
+                    <div className="flex items-center gap-2">
+                      {leftSeats.map((seat) => {
+                        const selected = isSelected(seat.position);
+                        const price = getSeatPrice(seat.type);
+                        
+                        return (
+                          <button
+                            key={seat.position}
+                            type="button"
+                            onClick={() => handleSeatClick(seat.position, seat.type, seat.available)}
+                            disabled={!seat.available}
+                            className={`
+                              w-9 h-9 rounded-lg border font-semibold text-xs transition-all duration-200
+                              flex items-center justify-center relative
+                              ${selected 
+                                ? 'cursor-pointer' 
+                                : seat.available
+                                ? 'cursor-pointer hover:scale-105 hover:shadow-[0_0_8px_rgba(28,140,130,0.4)]'
+                                : 'cursor-not-allowed opacity-50'
+                              }
+                            `}
+                            style={selected 
+                              ? {
+                                  background: 'linear-gradient(135deg, rgba(28,140,130,0.6), rgba(28,140,130,0.5))',
+                                  borderColor: 'rgba(28,140,130,0.8)',
+                                  color: '#FFFFFF',
+                                  boxShadow: '0 0 8px rgba(28,140,130,0.5)',
+                                }
                               : seat.available
-                              ? 'cursor-pointer hover:scale-110 hover:shadow-lg'
-                              : 'cursor-not-allowed opacity-50'
+                              ? {
+                                  background: 'rgba(28,140,130,0.15)',
+                                  borderColor: 'rgba(28,140,130,0.5)',
+                                  color: '#FFFFFF',
+                                  borderWidth: '1px',
+                                }
+                              : {
+                                  background: 'rgba(60, 60, 60, 0.3)',
+                                  borderColor: 'rgba(100, 100, 100, 0.4)',
+                                  color: 'rgba(255,255,255,0.4)',
+                                  borderWidth: '1px',
+                                }
                             }
-                          `}
-                          style={selected 
-                            ? {
-                                background: 'linear-gradient(135deg, #1C8C82, #0F6B63)',
-                                borderColor: '#1C8C82',
-                                color: '#FFFFFF',
-                                boxShadow: '0 0 12px rgba(28,140,130,0.6), 0 0 24px rgba(28,140,130,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
+                            title={seat.available ? `${seat.position}${price > 0 ? ` - ${currency} ${price.toFixed(2)}` : ' - Free'}` : `${seat.position} - Occupied`}
+                          >
+                            {seat.position.slice(-1)}
+                            {selected && (
+                              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[rgba(200,162,77,0.9)] rounded-full border border-white"></div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Aisle Gap */}
+                    <div className="w-10 flex items-center justify-center">
+                      <div className="h-px w-full bg-[rgba(28,140,130,0.2)]"></div>
+                    </div>
+                    
+                    {/* Right Side Seats */}
+                    <div className="flex items-center gap-2">
+                      {rightSeats.map((seat) => {
+                        const selected = isSelected(seat.position);
+                        const price = getSeatPrice(seat.type);
+                        
+                        return (
+                          <button
+                            key={seat.position}
+                            type="button"
+                            onClick={() => handleSeatClick(seat.position, seat.type, seat.available)}
+                            disabled={!seat.available}
+                            className={`
+                              w-9 h-9 rounded-lg border font-semibold text-xs transition-all duration-200
+                              flex items-center justify-center relative
+                              ${selected 
+                                ? 'cursor-pointer' 
+                                : seat.available
+                                ? 'cursor-pointer hover:scale-105 hover:shadow-[0_0_8px_rgba(28,140,130,0.4)]'
+                                : 'cursor-not-allowed opacity-50'
                               }
-                            : seat.available
-                            ? {
-                                background: 'linear-gradient(135deg, rgba(28,140,130,0.3), rgba(28,140,130,0.2))',
-                                borderColor: 'rgba(28,140,130,0.6)',
-                                color: '#FFFFFF',
-                              }
-                            : {
-                                background: 'rgba(60, 60, 60, 0.4)',
-                                borderColor: 'rgba(100, 100, 100, 0.4)',
-                                color: 'rgba(237, 237, 237, 0.4)',
-                              }
-                          }
-                          title={seat.available ? `${seat.position}${price > 0 ? ` - ${currency} ${price.toFixed(2)}` : ' - Free'}` : `${seat.position} - Occupied`}
-                        >
-                          {seat.position.slice(-1)}
-                          {selected && (
-                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-ec-gold rounded-full border border-white"></div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  
-                  {/* Aisle Gap */}
-                  <div className="w-8 flex items-center justify-center">
-                    <div className="h-px w-full bg-[rgba(28,140,130,0.2)]"></div>
-                  </div>
-                  
-                  {/* Right Side Seats */}
-                  <div className="flex items-center gap-2">
-                    {rightSeats.map((seat) => {
-                      const selected = isSelected(seat.position);
-                      const price = getSeatPrice(seat.type);
-                      
-                      return (
-                        <button
-                          key={seat.position}
-                          type="button"
-                          onClick={() => handleSeatClick(seat.position, seat.type, seat.available)}
-                          disabled={!seat.available}
-                          className={`
-                            w-12 h-12 rounded-lg border-2 font-semibold text-sm transition-all duration-200
-                            flex items-center justify-center relative
-                            ${selected 
-                              ? 'cursor-pointer' 
+                            `}
+                            style={selected 
+                              ? {
+                                  background: 'linear-gradient(135deg, rgba(28,140,130,0.6), rgba(28,140,130,0.5))',
+                                  borderColor: 'rgba(28,140,130,0.8)',
+                                  color: '#FFFFFF',
+                                  boxShadow: '0 0 8px rgba(28,140,130,0.5)',
+                                }
                               : seat.available
-                              ? 'cursor-pointer hover:scale-110 hover:shadow-lg'
-                              : 'cursor-not-allowed opacity-50'
+                              ? {
+                                  background: 'rgba(28,140,130,0.15)',
+                                  borderColor: 'rgba(28,140,130,0.5)',
+                                  color: '#FFFFFF',
+                                  borderWidth: '1px',
+                                }
+                              : {
+                                  background: 'rgba(60, 60, 60, 0.3)',
+                                  borderColor: 'rgba(100, 100, 100, 0.4)',
+                                  color: 'rgba(255,255,255,0.4)',
+                                  borderWidth: '1px',
+                                }
                             }
-                          `}
-                          style={selected 
-                            ? {
-                                background: 'linear-gradient(135deg, #1C8C82, #0F6B63)',
-                                borderColor: '#1C8C82',
-                                color: '#FFFFFF',
-                                boxShadow: '0 0 12px rgba(28,140,130,0.6), 0 0 24px rgba(28,140,130,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
-                              }
-                            : seat.available
-                            ? {
-                                background: 'linear-gradient(135deg, rgba(28,140,130,0.3), rgba(28,140,130,0.2))',
-                                borderColor: 'rgba(28,140,130,0.6)',
-                                color: '#FFFFFF',
-                              }
-                            : {
-                                background: 'rgba(60, 60, 60, 0.4)',
-                                borderColor: 'rgba(100, 100, 100, 0.4)',
-                                color: 'rgba(237, 237, 237, 0.4)',
-                              }
-                          }
-                          title={seat.available ? `${seat.position}${price > 0 ? ` - ${currency} ${price.toFixed(2)}` : ' - Free'}` : `${seat.position} - Occupied`}
-                        >
-                          {seat.position.slice(-1)}
-                          {selected && (
-                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-ec-gold rounded-full border border-white"></div>
-                          )}
-                        </button>
-                      );
-                    })}
+                            title={seat.available ? `${seat.position}${price > 0 ? ` - ${currency} ${price.toFixed(2)}` : ' - Free'}` : `${seat.position} - Occupied`}
+                          >
+                            {seat.position.slice(-1)}
+                            {selected && (
+                              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[rgba(200,162,77,0.9)] rounded-full border border-white"></div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          
+          {/* Rear of Aircraft Label */}
+          <div className="mt-4 text-center">
+            <span className="text-xs font-medium text-white/60">Rear of aircraft</span>
+          </div>
+        </div>
+        
+        {/* Sticky Footer */}
+        <div className="sticky bottom-0 p-6 border-t border-[rgba(28,140,130,0.2)] bg-[rgba(15,17,20,0.98)] backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              {selectedSeats.length > 0 ? (
+                <div>
+                  <div className="text-sm text-white/70 mb-1">Selected: {selectedSeats.map(s => s.seatNumber).join(', ')}</div>
+                  <div className="text-lg font-semibold text-white">
+                    {totalSeatPrice > 0 ? `${currency} ${totalSeatPrice.toFixed(2)}` : 'Free'}
                   </div>
                 </div>
-              );
-            })}
+              ) : (
+                <div className="text-sm text-white/70">No seats selected</div>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {onSkip && (
+                <button
+                  onClick={onSkip}
+                  className="px-6 py-2.5 rounded-lg border border-[rgba(28,140,130,0.3)] text-white/90 hover:bg-[rgba(28,140,130,0.15)] transition-colors text-sm font-medium"
+                >
+                  Skip
+                </button>
+              )}
+              {onConfirm && (
+                <button
+                  onClick={onConfirm}
+                  className="px-6 py-2.5 rounded-lg bg-gradient-to-br from-[rgba(28,140,130,0.5)] to-[rgba(28,140,130,0.4)] border border-[rgba(28,140,130,0.6)] text-white font-semibold text-sm shadow-[0_0_12px_rgba(28,140,130,0.3)] hover:shadow-[0_0_16px_rgba(28,140,130,0.4)] transition-all"
+                >
+                  Confirm seat{selectedSeats.length > 1 ? 's' : ''}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-        
-        <div className="mt-6 text-center">
-          <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-[rgba(28,140,130,0.3)] to-transparent"></div>
-          <div className="text-sm font-medium text-ec-muted mt-2">Rear of Aircraft</div>
         </div>
       </div>
-      
-      {/* Selected Seats Summary */}
-      {selectedSeats.length > 0 && (
-        <div className="p-5 bg-gradient-to-br from-[rgba(28,140,130,0.15)] to-[rgba(28,140,130,0.08)] rounded-ec-md border border-[rgba(28,140,130,0.3)]">
-          <div className="text-base font-semibold text-ec-text mb-3 flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-ec-teal"></div>
-            Selected Seats
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {selectedSeats.map((seat, index) => (
-              <div 
-                key={index} 
-                className="px-4 py-2 rounded-lg text-sm font-medium text-ec-text"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(28,140,130,0.25), rgba(28,140,130,0.15))',
-                  border: '1px solid rgba(28,140,130,0.4)',
-                }}
-              >
-                <span className="font-semibold">{seat.seatNumber}</span>
-                {seat.price > 0 && (
-                  <span className="text-ec-muted ml-2">({currency} {seat.price.toFixed(2)})</span>
-                )}
-                {seat.price === 0 && (
-                  <span className="text-ec-teal ml-2 text-xs">Free</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-

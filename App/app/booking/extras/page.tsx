@@ -13,6 +13,9 @@ export default function BookingExtrasPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [showSeatModal, setShowSeatModal] = useState(false);
+  const [baggageExpanded, setBaggageExpanded] = useState(true);
+  const [insuranceExpanded, setInsuranceExpanded] = useState(true);
   
   // Get flight data from query params or sessionStorage
   const flightId = searchParams.get('flightId');
@@ -105,32 +108,90 @@ export default function BookingExtrasPage() {
         <div className="lg:col-span-2 space-y-8">
           {/* Seat Selection */}
           <div className="ec-card p-6 md:p-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-semibold text-white mb-1">Select Seats</h3>
+                <p className="text-sm text-white/70">
+                  {extras.seats.length > 0 
+                    ? `${extras.seats.length} seat${extras.seats.length > 1 ? 's' : ''} selected`
+                    : 'Choose your preferred seats'
+                  }
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSeatModal(true)}
+                className="px-6 py-2.5 rounded-lg bg-gradient-to-br from-[rgba(28,140,130,0.4)] to-[rgba(28,140,130,0.3)] border border-[rgba(28,140,130,0.5)] text-white font-semibold text-sm hover:from-[rgba(28,140,130,0.5)] hover:to-[rgba(28,140,130,0.4)] transition-all"
+              >
+                {extras.seats.length > 0 ? 'Change Seats' : 'Select Seats'}
+              </button>
+            </div>
+            {extras.seats.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {extras.seats.map((seat, idx) => (
+                  <div
+                    key={idx}
+                    className="px-4 py-2 rounded-lg bg-[rgba(28,140,130,0.15)] border border-[rgba(28,140,130,0.3)] text-white text-sm font-medium"
+                  >
+                    {seat.seatNumber} {seat.price > 0 ? `(${currency} ${seat.price.toFixed(2)})` : '(Free)'}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {/* Seat Selector Modal */}
+          {showSeatModal && (
             <SeatSelector
               cabinClass={cabinClass}
               passengerCount={passengerCount}
               currency={currency}
               onSeatsChange={handleSeatsChange}
               initialSeats={extras.seats}
+              onClose={() => setShowSeatModal(false)}
+              onSkip={() => setShowSeatModal(false)}
+              onConfirm={() => setShowSeatModal(false)}
             />
+          )}
+          
+          {/* Baggage Selection - Collapsible */}
+          <div className="ec-card p-6 md:p-8">
+            <button
+              onClick={() => setBaggageExpanded(!baggageExpanded)}
+              className="w-full flex items-center justify-between mb-4 text-left"
+            >
+              <h3 className="text-xl font-semibold text-white">Baggage</h3>
+              <span className="text-white/70 text-sm">
+                {baggageExpanded ? '▼' : '▶'}
+              </span>
+            </button>
+            {baggageExpanded && (
+              <BaggageSelector
+                currency={currency}
+                onBaggageChange={handleBaggageChange}
+                initialBaggage={extras.baggage}
+              />
+            )}
           </div>
           
-          {/* Baggage Selection */}
+          {/* Insurance Selection - Collapsible */}
           <div className="ec-card p-6 md:p-8">
-            <BaggageSelector
-              currency={currency}
-              onBaggageChange={handleBaggageChange}
-              initialBaggage={extras.baggage}
-            />
-          </div>
-          
-          {/* Insurance Selection */}
-          <div className="ec-card p-6 md:p-8">
-            <InsuranceSelector
-              currency={currency}
-              passengerCount={passengerCount}
-              onInsuranceChange={handleInsuranceChange}
-              initialInsurance={extras.insurance}
-            />
+            <button
+              onClick={() => setInsuranceExpanded(!insuranceExpanded)}
+              className="w-full flex items-center justify-between mb-4 text-left"
+            >
+              <h3 className="text-xl font-semibold text-white">Travel Insurance</h3>
+              <span className="text-white/70 text-sm">
+                {insuranceExpanded ? '▼' : '▶'}
+              </span>
+            </button>
+            {insuranceExpanded && (
+              <InsuranceSelector
+                currency={currency}
+                passengerCount={passengerCount}
+                onInsuranceChange={handleInsuranceChange}
+                initialInsurance={extras.insurance}
+              />
+            )}
           </div>
         </div>
         

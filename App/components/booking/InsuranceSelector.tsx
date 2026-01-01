@@ -58,19 +58,19 @@ export function InsuranceSelector({ currency, passengerCount, onInsuranceChange,
   };
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" style={{ color: '#FFFFFF' }}>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-ec-text flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
             <Shield size={20} className="text-ec-teal" />
             Travel Insurance
           </h3>
-          <p className="text-sm text-ec-muted">Optional protection for your trip</p>
+          <p className="text-sm text-white/70">Optional protection for your trip</p>
         </div>
         {insurance && (
           <div className="text-right">
-            <div className="text-sm text-ec-muted">Insurance</div>
-            <div className="text-lg font-semibold text-ec-text">
+            <div className="text-sm text-white/70">Insurance</div>
+            <div className="text-lg font-semibold text-white">
               {currency} {insurance.price.toFixed(2)}
               {insurance.perPassenger && ` (${passengerCount} passenger${passengerCount > 1 ? 's' : ''})`}
             </div>
@@ -106,9 +106,9 @@ export function InsuranceSelector({ currency, passengerCount, onInsuranceChange,
                       onChange={() => handleInsuranceToggle(option.type)}
                       className="w-5 h-5 text-ec-teal focus:ring-ec-teal"
                     />
-                    <div className="text-lg font-bold text-ec-text">{option.label}</div>
+                    <div className="text-lg font-bold text-white">{option.label}</div>
                   </div>
-                  <ul className="text-sm text-ec-muted space-y-1.5 ml-8">
+                  <ul className="text-sm text-white/70 space-y-1.5 ml-8">
                     {option.features.map((feature, idx) => (
                       <li key={idx} className="flex items-center gap-2">
                         <span className="text-ec-teal">•</span>
@@ -118,11 +118,11 @@ export function InsuranceSelector({ currency, passengerCount, onInsuranceChange,
                   </ul>
                 </div>
                 <div className="text-right">
-                  <div className="text-xl font-bold text-ec-text mb-1">
+                  <div className="text-xl font-bold text-white mb-1">
                     {currency} {totalPrice.toFixed(2)}
                   </div>
                   {EXTRAS_PRICING.insurance.perPassenger && (
-                    <div className="text-sm text-ec-muted">
+                    <div className="text-sm text-white/70">
                       {currency} {option.price.toFixed(2)} per passenger
                     </div>
                   )}
@@ -135,7 +135,7 @@ export function InsuranceSelector({ currency, passengerCount, onInsuranceChange,
       
       {/* Disclaimer */}
       <div className="p-3 bg-[rgba(200,162,77,0.1)] rounded-ec-md border border-[rgba(200,162,77,0.2)]">
-        <p className="text-xs text-ec-muted">
+        <p className="text-xs text-white/70">
           <strong className="text-ec-gold">Note:</strong> Travel insurance is provided by a third-party provider. 
           Terms and conditions apply. Review coverage details before purchase.
         </p>
