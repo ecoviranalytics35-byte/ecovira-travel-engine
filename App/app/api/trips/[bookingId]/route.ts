@@ -42,6 +42,7 @@ export async function GET(
       // Transform demo booking to TripBooking format
       const itinerary = (demoBooking as any).itineraries;
       const flightItem = itinerary?.itinerary_items?.find((item: any) => item.type === 'flight');
+      const stayItem = itinerary?.itinerary_items?.find((item: any) => item.type === 'stay');
 
       const trip = {
         id: demoBooking.id,
@@ -60,9 +61,21 @@ export async function GET(
           scheduledArrival: flightItem.item_data?.scheduledArrival || flightItem.item_data?.arrivalDate || flightItem.item?.arrivalDate || '',
           pnr: (demoBooking as any).supplier_reference,
         } : undefined,
+        hotelData: stayItem ? {
+          hotelId: stayItem.item_data?.hotelId || '',
+          hotelName: stayItem.item_data?.hotelName || '',
+          checkIn: stayItem.item_data?.checkIn || '',
+          checkOut: stayItem.item_data?.checkOut || '',
+          nights: stayItem.item_data?.nights || 0,
+          room: stayItem.item_data?.room || {},
+          numberOfRooms: stayItem.item_data?.numberOfRooms || 1,
+          adults: stayItem.item_data?.adults || 0,
+          children: stayItem.item_data?.children || 0,
+          extras: stayItem.item_data?.extras || undefined,
+        } : undefined,
         passengerLastName: (demoBooking as any).passenger_last_name,
         passengerCount: itinerary?.itinerary_items?.reduce((sum: number, item: any) => {
-          return sum + (item.item_data?.adults || item.item?.adults || 1);
+          return sum + (item.item_data?.adults || item.item?.adults || item.item_data?.numberOfRooms ? (item.item_data?.adults || 0) + (item.item_data?.children || 0) : 1);
         }, 0) || 1,
         route: flightItem ? {
           from: flightItem.item_data?.departureAirport || flightItem.item_data?.from || flightItem.item?.from || '',
@@ -70,6 +83,8 @@ export async function GET(
           departDate: flightItem.item_data?.scheduledDeparture || flightItem.item_data?.departDate || flightItem.item?.departDate || '',
           returnDate: undefined,
         } : undefined,
+        // Include extras from flight item data
+        extras: flightItem?.item_data?.extras || undefined,
       };
 
       return NextResponse.json({ trip });
@@ -98,6 +113,7 @@ export async function GET(
 
     const itinerary = booking.itineraries;
     const flightItem = itinerary?.itinerary_items?.find((item: any) => item.type === 'flight');
+    const stayItem = itinerary?.itinerary_items?.find((item: any) => item.type === 'stay');
 
     const trip = {
       id: booking.id,
@@ -116,8 +132,23 @@ export async function GET(
         scheduledArrival: flightItem.item?.arrivalDate || '',
         pnr: (booking as any).supplier_reference,
       } : undefined,
+      hotelData: stayItem ? {
+        hotelId: stayItem.item_data?.hotelId || stayItem.item?.hotelId || '',
+        hotelName: stayItem.item_data?.hotelName || stayItem.item?.hotelName || '',
+        checkIn: stayItem.item_data?.checkIn || stayItem.item?.checkIn || '',
+        checkOut: stayItem.item_data?.checkOut || stayItem.item?.checkOut || '',
+        nights: stayItem.item_data?.nights || stayItem.item?.nights || 0,
+        room: stayItem.item_data?.room || stayItem.item?.room || {},
+        numberOfRooms: stayItem.item_data?.numberOfRooms || stayItem.item?.numberOfRooms || 1,
+        adults: stayItem.item_data?.adults || stayItem.item?.adults || 0,
+        children: stayItem.item_data?.children || stayItem.item?.children || 0,
+        extras: stayItem.item_data?.extras || stayItem.item?.extras || undefined,
+      } : undefined,
       passengerLastName: (booking as any).passenger_last_name,
       passengerCount: itinerary?.itinerary_items?.reduce((sum: number, item: any) => {
+        if (item.type === 'stay') {
+          return sum + ((item.item_data?.adults || item.item?.adults || 0) + (item.item_data?.children || item.item?.children || 0));
+        }
         return sum + (item.item?.adults || 1);
       }, 0) || 1,
       route: flightItem ? {
@@ -126,6 +157,8 @@ export async function GET(
         departDate: flightItem.item?.departDate || '',
         returnDate: undefined,
       } : undefined,
+      // Include extras from flight item data
+      extras: flightItem?.item_data?.extras || flightItem?.item?.extras || undefined,
     };
 
     return NextResponse.json({ trip });

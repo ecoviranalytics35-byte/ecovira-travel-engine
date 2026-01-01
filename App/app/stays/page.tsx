@@ -376,8 +376,14 @@ export default function Stays() {
               {results.map((stay, i) => (
                 <StayResultCard 
                   key={i} 
-                  stay={stay} 
-                  onSelect={onSelectStay}
+                  stay={stay}
+                  searchParams={{
+                    checkIn,
+                    nights,
+                    adults,
+                    children,
+                    currency,
+                  }}
                 />
               ))}
             </ResultsList>

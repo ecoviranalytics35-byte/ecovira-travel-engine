@@ -115,44 +115,65 @@ export default function Flights() {
   // Use stable event handler for dynamic import compatibility
   const onSearch = useEvent(handleSearch);
 
-  // Handle flight selection with router navigation
+  // Handle flight selection with router navigation - route to Extras first
   const handleSelectFlight = useCallback((f: FlightResult) => {
-    console.log("[handleSelectFlight] ENTER", { flightId: f.id, offerId: f.id, fullOffer: f, ts: Date.now() });
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:107',message:'[handleSelectFlight] ENTER',data:{flightId:f.id,offerId:f.id,fullOffer:f,ts:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-    // #endregion
+    console.log("[SELECT_FLIGHT_PUSH] ENTER", { 
+      offerId: f.id,
+      flightId: f.id, 
+      from: f.from,
+      to: f.to,
+      price: f.price,
+      currency: f.currency,
+    });
     
     // Validate offer ID
     if (!f.id) {
-      console.error("[handleSelectFlight] ERROR - Missing offer ID", { flight: f });
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:112',message:'[handleSelectFlight] ERROR - Missing offer ID',data:{flight:f},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'D'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-      // #endregion
+      console.error("[SELECT_FLIGHT_PUSH] ERROR - Missing offer ID", { flight: f });
       setError("Cannot select flight: missing offer ID. Please try another option.");
       return;
     }
     
     try {
+      // REQUIRED: Persist selected flight to state FIRST
       setSelectedFlight(f);
-      const checkoutUrl = `/checkout/flight?offerId=${encodeURIComponent(f.id)}`;
-      console.log("[handleSelectFlight] Navigating to checkout", { checkoutUrl, offerId: f.id });
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:120',message:'[handleSelectFlight] Navigating to checkout',data:{checkoutUrl,offerId:f.id},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-      // #endregion
-      router.push(checkoutUrl);
-      console.log("[handleSelectFlight] EXIT - navigated to checkout");
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:123',message:'[handleSelectFlight] EXIT - navigated',data:{offerId:f.id},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-      // #endregion
+      console.log("[SELECT_FLIGHT_PUSH] Flight set in state", f);
+      
+      // REQUIRED: Persist flight data to sessionStorage BEFORE navigation
+      const flightData = {
+        id: f.id,
+        from: f.from,
+        to: f.to,
+        departDate: f.departDate,
+        price: f.price,
+        currency: f.currency,
+        provider: f.provider,
+        cabinClass,
+        passengers: adults,
+        raw: f.raw,
+      };
+      
+      try {
+        sessionStorage.setItem('selectedFlight', JSON.stringify(flightData));
+        console.log("[SELECT_FLIGHT_PUSH] Flight data persisted to sessionStorage", flightData);
+      } catch (err) {
+        console.warn("[SELECT_FLIGHT_PUSH] Failed to persist to sessionStorage", err);
+      }
+      
+      // STEP 3: FIX NAVIGATION - Use correct route
+      const extrasUrl = `/booking/extras?flightId=${encodeURIComponent(f.id)}&cabinClass=${encodeURIComponent(cabinClass)}&passengers=${encodeURIComponent(adults)}&currency=${encodeURIComponent(currency)}`;
+      console.log("[SELECT_FLIGHT_PUSH] Navigating to:", extrasUrl);
+      
+      // Use router.push (Next.js App Router)
+      router.push(extrasUrl);
+      
+      console.log("[SELECT_FLIGHT_PUSH] Navigation initiated successfully");
     } catch (err) {
-      console.error("[handleSelectFlight] ERROR", err);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:127',message:'[handleSelectFlight] ERROR',data:{error:err instanceof Error?err.message:'Unknown',errorStack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'C'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-      // #endregion
-      setError(`Failed to select flight: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      throw err;
+      console.error("[SELECT_FLIGHT_PUSH] ERROR", err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to select flight: ${errorMessage}`);
+      alert(`Failed to select flight: ${errorMessage}`);
     }
-  }, [router]);
+  }, [router, cabinClass, adults, currency]);
   
   const onSelectFlight = useEvent(handleSelectFlight);
 
@@ -363,13 +384,20 @@ export default function Flights() {
                   console.log('Sort by:', value);
                 }}
               >
-                {results.map((flight, i) => (
-                  <FlightResultCard 
-                    key={i} 
-                    flight={flight} 
-                    onSelect={onSelectFlight}
-                  />
-                ))}
+                {results.map((flight, i) => {
+                  console.log("[Flights] Rendering flight card", { 
+                    index: i, 
+                    flightId: flight.id, 
+                    hasOnSelect: !!onSelectFlight 
+                  });
+                  return (
+                    <FlightResultCard 
+                      key={flight.id || i} 
+                      flight={flight} 
+                      onSelect={onSelectFlight}
+                    />
+                  );
+                })}
               </ResultsList>
             </ResultsLayout>
           )}

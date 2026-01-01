@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/core/supabase';
 import { generateMockTrip, isTestMode } from '@/lib/trips/mock-trip';
+import { isDemoBooking, DEMO_BOOKING_REFERENCES, DEMO_LAST_NAME } from '@/lib/demo/demo-constants';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,10 +17,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check for test/demo mode
-    if (isTestMode(reference, lastName, demo)) {
-      // Generate mock trip for testing
-      const mockTrip = generateMockTrip(72); // 3 days from now (good for check-in testing)
+    // Check for test/demo mode or hardcoded demo references
+    if (isTestMode(reference, lastName, demo) || isDemoBooking(reference, lastName) || demo === 'true') {
+      // Check for specific demo reference types
+      const ref = reference.toUpperCase().trim();
+      
+      // Generate appropriate mock trip based on reference type
+      if (ref === DEMO_BOOKING_REFERENCES.FLIGHT || ref === 'TEST123') {
+        const mockTrip = generateMockTrip(72); // 3 days from now (good for check-in testing)
+        // Ensure booking reference matches what user entered
+        mockTrip.bookingReference = ref;
+        mockTrip.passengerLastName = lastName;
+        return NextResponse.json({ trips: [mockTrip] });
+      }
+      
+      // For other demo references, generate generic mock trip
+      const mockTrip = generateMockTrip(72);
+      mockTrip.bookingReference = ref;
+      mockTrip.passengerLastName = lastName;
       return NextResponse.json({ trips: [mockTrip] });
     }
 
@@ -101,6 +116,8 @@ export async function GET(request: NextRequest) {
               departDate: flightItem.item_data?.scheduledDeparture || flightItem.item_data?.departDate || flightItem.item?.departDate || '',
               returnDate: undefined,
             } : undefined,
+            // Include extras from flight item data
+            extras: flightItem?.item_data?.extras || undefined,
           };
         });
       }

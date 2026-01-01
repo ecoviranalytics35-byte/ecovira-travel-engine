@@ -3,13 +3,38 @@
 import { StayResult } from '@/lib/core/types';
 import { EcoviraCard } from '../EcoviraCard';
 import { EcoviraButton } from '../Button';
+import { useRouter } from 'next/navigation';
 
 interface StayResultCardProps {
   stay: StayResult;
   onSelect?: (stay: StayResult) => void;
+  searchParams?: {
+    checkIn?: string;
+    nights?: number;
+    adults?: number;
+    children?: number;
+    currency?: string;
+  };
 }
 
-export function StayResultCard({ stay, onSelect }: StayResultCardProps) {
+export function StayResultCard({ stay, onSelect, searchParams }: StayResultCardProps) {
+  const router = useRouter();
+  
+  const handleSelect = () => {
+    if (onSelect) {
+      onSelect(stay);
+    } else {
+      // Route to hotel details page
+      const params = new URLSearchParams();
+      if (searchParams?.checkIn) params.set('checkIn', searchParams.checkIn);
+      if (searchParams?.nights) params.set('nights', searchParams.nights.toString());
+      if (searchParams?.adults) params.set('adults', searchParams.adults.toString());
+      if (searchParams?.children) params.set('children', searchParams.children.toString());
+      if (searchParams?.currency) params.set('currency', searchParams.currency);
+      
+      router.push(`/hotels/${stay.id}?${params.toString()}`);
+    }
+  };
   // Calculate check-out date from check-in + nights
   const getCheckOutDate = () => {
     if (!stay.checkIn || !stay.nights) return 'N/A';
@@ -105,37 +130,10 @@ export function StayResultCard({ stay, onSelect }: StayResultCardProps) {
           <button
             type="button"
             className="relative z-[9999] pointer-events-auto cursor-pointer w-full px-6 py-3 min-w-[200px] rounded-full bg-gradient-to-br from-[rgba(28,140,130,0.4)] to-[rgba(28,140,130,0.3)] border border-[rgba(28,140,130,0.5)] text-ec-text font-semibold text-sm shadow-[0_0_8px_rgba(28,140,130,0.3),0_0_16px_rgba(28,140,130,0.2)] hover:shadow-[0_0_12px_rgba(28,140,130,0.4),0_0_24px_rgba(28,140,130,0.3)] hover:border-[rgba(28,140,130,0.7)] hover:from-[rgba(28,140,130,0.5)] hover:to-[rgba(28,140,130,0.4)] transition-all duration-300 flex items-center justify-center gap-2"
-            onPointerDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log("[SelectStay] POINTERDOWN fired", stay.id);
-              // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StayResultCard.tsx:108',message:'[SelectStay] POINTERDOWN fired',data:{stayId:stay.id},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'A'})}).catch(()=>{});
-              // #endregion
-              if (onSelect) {
-                onSelect(stay);
-              } else {
-                console.warn("[SelectStay] onSelect handler missing", { stayId: stay.id });
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StayResultCard.tsx:117',message:'[SelectStay] onSelect handler missing',data:{stayId:stay.id},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'B'})}).catch(()=>{});
-                // #endregion
-              }
-            }}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log("[SelectStay] CLICK fired", stay.id);
-              // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StayResultCard.tsx:127',message:'[SelectStay] CLICK fired',data:{stayId:stay.id},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'A'})}).catch(()=>{});
-              // #endregion
-              if (onSelect) {
-                onSelect(stay);
-              } else {
-                console.warn("[SelectStay] onSelect handler missing", { stayId: stay.id });
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StayResultCard.tsx:137',message:'[SelectStay] onSelect handler missing',data:{stayId:stay.id},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'B'})}).catch(()=>{});
-                // #endregion
-              }
+              handleSelect();
             }}
           >
             Select Stay →

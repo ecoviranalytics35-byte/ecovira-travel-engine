@@ -1,6 +1,7 @@
 // Create demo bookings for testing
 import { supabaseAdmin } from '@/lib/core/supabase';
 import type { FlightResult, StayResult, CarResult, TransferResult } from '@/lib/core/types';
+import type { BookingExtras } from '@/lib/core/booking-extras';
 
 /**
  * Create a demo flight booking
@@ -11,8 +12,9 @@ export async function createDemoFlightBooking(params: {
   passengerLastName: string;
   phoneNumber?: string;
   departureOffsetHours?: number;
+  extras?: BookingExtras;
 }): Promise<{ bookingId: string; bookingReference: string }> {
-  const { flight, passengerEmail, passengerLastName, phoneNumber, departureOffsetHours = 72 } = params;
+  const { flight, passengerEmail, passengerLastName, phoneNumber, departureOffsetHours = 72, extras } = params;
   
   const now = new Date();
   const departure = new Date(now.getTime() + departureOffsetHours * 60 * 60 * 1000);
@@ -32,7 +34,7 @@ export async function createDemoFlightBooking(params: {
     throw new Error('Failed to create demo itinerary');
   }
 
-  // Create itinerary item
+  // Create itinerary item with extras
   const flightItemData = {
     airlineIata: flight.airline || 'QF',
     flightNumber: flight.flightNumber || 'QF101',
@@ -43,6 +45,7 @@ export async function createDemoFlightBooking(params: {
     price: parseFloat(flight.price || '0'),
     currency: flight.currency || 'AUD',
     raw: flight.raw || {},
+    extras: extras || null, // Store extras in flight item data
   };
 
   const { error: itemError } = await supabaseAdmin

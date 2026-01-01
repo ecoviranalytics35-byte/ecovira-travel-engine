@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Input } from '../Input';
 import { EcoviraButton } from '../Button';
-import { Mail, Phone, User } from 'lucide-react';
+import { Mail, Phone, User, FileText } from 'lucide-react';
 
 interface CheckoutFormProps {
   onSubmit: (data: {
@@ -11,15 +11,22 @@ interface CheckoutFormProps {
     passengerLastName: string;
     phoneNumber?: string;
     smsOptIn: boolean;
+    passportNumber?: string;
+    nationality?: string;
+    passportExpiry?: string;
   }) => void;
   loading?: boolean;
+  requirePassport?: boolean;
 }
 
-export function CheckoutForm({ onSubmit, loading }: CheckoutFormProps) {
+export function CheckoutForm({ onSubmit, loading, requirePassport = false }: CheckoutFormProps) {
   const [passengerEmail, setPassengerEmail] = useState('');
   const [passengerLastName, setPassengerLastName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [smsOptIn, setSmsOptIn] = useState(false);
+  const [passportNumber, setPassportNumber] = useState('');
+  const [nationality, setNationality] = useState('');
+  const [passportExpiry, setPassportExpiry] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +35,9 @@ export function CheckoutForm({ onSubmit, loading }: CheckoutFormProps) {
       passengerLastName,
       phoneNumber: phoneNumber.trim() || undefined,
       smsOptIn,
+      passportNumber: passportNumber.trim() || undefined,
+      nationality: nationality.trim() || undefined,
+      passportExpiry: passportExpiry.trim() || undefined,
     });
   };
 
@@ -69,6 +79,56 @@ export function CheckoutForm({ onSubmit, loading }: CheckoutFormProps) {
           </p>
         </div>
       </div>
+
+      {/* Passport Details (for international flights) */}
+      {(requirePassport || true) && (
+        <div className="pt-4 border-t border-[rgba(28,140,130,0.15)]">
+          <h3 className="text-sm font-semibold text-ec-text mb-4 flex items-center gap-2">
+            <FileText size={16} className="text-ec-teal" />
+            Passport Details (International Travel)
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+                Passport Number
+              </label>
+              <Input
+                type="text"
+                value={passportNumber}
+                onChange={(e) => setPassportNumber(e.target.value.toUpperCase())}
+                placeholder="A12345678"
+                className="font-mono"
+              />
+              <p className="text-xs text-ec-muted mt-2">
+                As shown on your passport
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+                  Nationality
+                </label>
+                <Input
+                  type="text"
+                  value={nationality}
+                  onChange={(e) => setNationality(e.target.value)}
+                  placeholder="Australian"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
+                  Expiry Date
+                </label>
+                <Input
+                  type="date"
+                  value={passportExpiry}
+                  onChange={(e) => setPassportExpiry(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Optional SMS Section */}
       <div className="pt-4 border-t border-[rgba(28,140,130,0.15)]">

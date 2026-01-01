@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Plane, Calendar, Users, Clock, MapPin, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
+import { Plane, Calendar, Users, Clock, MapPin, AlertCircle, CheckCircle, ExternalLink, Hotel } from 'lucide-react';
 import type { TripBooking, FlightStatus, CheckInInfo } from '@/lib/core/trip-types';
 import { FlightTracking } from '@/components/trips/FlightTracking';
 import { CheckInHub } from '@/components/trips/CheckInHub';
@@ -119,48 +119,49 @@ export default function TripDetails() {
         <p className="text-ec-muted">Booking Reference: {trip.bookingReference}</p>
       </div>
 
-      {/* Trip Summary */}
-      <div className="ec-card p-6 md:p-8 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h2 className="text-xl font-semibold text-ec-text mb-4 flex items-center gap-2">
-              <Plane size={20} className="text-ec-teal" />
-              Route
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <div className="text-xs text-ec-muted mb-1">From</div>
-                <div className="text-lg font-medium text-ec-text">{trip.route?.from || 'N/A'}</div>
-              </div>
-              <div>
-                <div className="text-xs text-ec-muted mb-1">To</div>
-                <div className="text-lg font-medium text-ec-text">{trip.route?.to || 'N/A'}</div>
-              </div>
-            </div>
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold text-ec-text mb-4 flex items-center gap-2">
-              <Calendar size={20} className="text-ec-teal" />
-              Dates
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <div className="text-xs text-ec-muted mb-1">Departure</div>
-                <div className="text-lg font-medium text-ec-text">
-                  {trip.route?.departDate ? new Date(trip.route.departDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+      {/* Trip Summary - Flight or Hotel */}
+      {trip.flightData && (
+        <div className="ec-card p-6 md:p-8 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h2 className="text-xl font-semibold text-ec-text mb-4 flex items-center gap-2">
+                <Plane size={20} className="text-ec-teal" />
+                Route
+              </h2>
+              <div className="space-y-3">
+                <div>
+                  <div className="text-xs text-ec-muted mb-1">From</div>
+                  <div className="text-lg font-medium text-ec-text">{trip.route?.from || 'N/A'}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-ec-muted mb-1">To</div>
+                  <div className="text-lg font-medium text-ec-text">{trip.route?.to || 'N/A'}</div>
                 </div>
               </div>
-              {trip.route?.returnDate && (
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-ec-text mb-4 flex items-center gap-2">
+                <Calendar size={20} className="text-ec-teal" />
+                Dates
+              </h2>
+              <div className="space-y-3">
                 <div>
-                  <div className="text-xs text-ec-muted mb-1">Return</div>
+                  <div className="text-xs text-ec-muted mb-1">Departure</div>
                   <div className="text-lg font-medium text-ec-text">
-                    {new Date(trip.route.returnDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                    {trip.route?.departDate ? new Date(trip.route.departDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
                   </div>
                 </div>
-              )}
+                {trip.route?.returnDate && (
+                  <div>
+                    <div className="text-xs text-ec-muted mb-1">Return</div>
+                    <div className="text-lg font-medium text-ec-text">
+                      {new Date(trip.route.returnDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
         <div className="mt-6 pt-6 border-t border-[rgba(28,140,130,0.15)] grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <div className="text-xs text-ec-muted mb-1">Passengers</div>
@@ -193,7 +194,59 @@ export default function TripDetails() {
             </div>
           )}
         </div>
+        
+        {/* Booking Extras */}
+        {trip.extras && (
+          <div className="mt-6 pt-6 border-t border-[rgba(28,140,130,0.15)]">
+            <h3 className="text-lg font-semibold text-ec-text mb-4">Booking Details</h3>
+            <div className="space-y-4">
+              {/* Seats */}
+              {trip.extras.seats && trip.extras.seats.length > 0 && (
+                <div>
+                  <div className="text-xs text-ec-muted mb-2">Selected Seats</div>
+                  <div className="flex flex-wrap gap-2">
+                    {trip.extras.seats.map((seat, idx) => (
+                      <div key={idx} className="px-3 py-1 bg-ec-teal/20 rounded-full text-sm text-ec-text">
+                        {seat.seatNumber}
+                        {seat.price > 0 && ` (${seat.currency} ${seat.price.toFixed(2)})`}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Baggage */}
+              {trip.extras.baggage && (
+                <div>
+                  <div className="text-xs text-ec-muted mb-2">Baggage</div>
+                  <div className="text-sm text-ec-text">Carry-on included</div>
+                  {trip.extras.baggage.checkedBags && trip.extras.baggage.checkedBags.length > 0 && (
+                    <div className="mt-1 space-y-1">
+                      {trip.extras.baggage.checkedBags.map((bag, idx) => (
+                        <div key={idx} className="text-sm text-ec-text">
+                          {bag.type} checked bag ({bag.currency} {bag.price.toFixed(2)})
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Insurance */}
+              {trip.extras.insurance && trip.extras.insurance.selected && (
+                <div>
+                  <div className="text-xs text-ec-muted mb-2">Travel Insurance</div>
+                  <div className="text-sm text-ec-text">
+                    {trip.extras.insurance.type === 'basic' ? 'Basic' : 'Premium'} Travel Insurance
+                    ({trip.extras.insurance.currency} {trip.extras.insurance.price.toFixed(2)})
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+      )}
 
       {/* Flight Tracking */}
       {trip.flightData && (

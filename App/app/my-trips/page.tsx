@@ -18,15 +18,15 @@ export default function MyTrips() {
   useEffect(() => {
     const demo = searchParams.get('demo');
     if (demo === 'true' || demo === '1') {
-      // Auto-populate test credentials for demo mode
-      setBookingRef('TEST123');
-      setLastName('TEST');
+      // Auto-populate demo credentials
+      setBookingRef('ECO-DEMO-FLT');
+      setLastName('Smith');
       // Auto-trigger lookup in demo mode
       const performDemoLookup = async () => {
         setLoading(true);
         setError('');
         try {
-          const res = await fetch(`/api/trips/lookup?reference=TEST123&lastName=TEST&demo=true`);
+          const res = await fetch(`/api/trips/lookup?reference=ECO-DEMO-FLT&lastName=Smith&demo=true`);
           const data = await res.json();
           if (data.error) {
             setError(data.error);

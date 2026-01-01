@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/core/supabase';
 import type { CheckInInfo } from '@/lib/core/trip-types';
 import { resolveAirlineCheckinUrl } from '@/lib/trips/airline-checkin-resolver';
 import { isDemoBookingId, getDemoBookingFromDB, getDemoTripById } from '@/lib/demo/booking-helpers';
+import { generateMockTrip } from '@/lib/trips/mock-trip';
 
 /**
  * Generate check-in info from trip data
@@ -58,7 +59,7 @@ export async function GET(
       : undefined;
     
     // Check if this is a demo booking
-    if (isDemoBookingId(bookingId)) {
+    if (isDemoBookingId(bookingId) || bookingId.includes('demo') || bookingId.includes('test')) {
       // Try to get from DB first
       const demoBooking = await getDemoBookingFromDB(bookingId);
       if (demoBooking) {
@@ -67,7 +68,7 @@ export async function GET(
       }
       
       // Fallback to generated mock trip
-      const mockTrip = getDemoTripById(bookingId, departureOffsetHours);
+      const mockTrip = getDemoTripById(bookingId, departureOffsetHours) || generateMockTrip(departureOffsetHours || 72);
       if (mockTrip) {
         const checkIn = generateCheckInInfo(mockTrip);
         return NextResponse.json({ checkIn });
