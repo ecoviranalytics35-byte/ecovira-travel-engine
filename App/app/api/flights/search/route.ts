@@ -1,4 +1,5 @@
 import { searchFlights } from '@/lib/search/orchestrator';
+import { generateDemoFlights } from '@/lib/demo/data-generators';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -12,13 +13,14 @@ export async function GET(request: Request) {
   const children = parseInt(searchParams.get('children') || '0');
   const infants = parseInt(searchParams.get('infants') || '0');
   const debug = searchParams.get('debug') === '1';
+  const demo = searchParams.get('demo');
 
   const currency = searchParams.get('currency') || 'USD';
   
   const params = {
-    from,
-    to,
-    departDate,
+    from: from || 'MEL',
+    to: to || 'SYD',
+    departDate: departDate || new Date().toISOString().split('T')[0],
     adults: Number.isFinite(adults) ? adults : 1,
     cabinClass,
     tripType,
@@ -28,6 +30,31 @@ export async function GET(request: Request) {
     currency,
   };
 
+  // Check for demo mode
+  const isDemoMode = demo === 'true' || demo === '1';
+  
+  if (isDemoMode) {
+    // Always return demo results in demo mode
+    const demoResults = generateDemoFlights(params);
+    return Response.json({ 
+      results: demoResults, 
+      meta: { demo: true, mode: 'demo' }, 
+      errors: [] 
+    });
+  }
+
+  // Try real search
   const { results, meta, errors } = await searchFlights(params);
+  
+  // If no results or errors, return demo results as fallback
+  if ((!results || results.length === 0) || (errors && errors.length > 0)) {
+    const demoResults = generateDemoFlights(params);
+    return Response.json({ 
+      results: demoResults, 
+      meta: { ...meta, demo: true, fallback: true }, 
+      errors: [] 
+    });
+  }
+
   return Response.json({ results, meta, errors });
 }

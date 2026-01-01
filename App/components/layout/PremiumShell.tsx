@@ -1,10 +1,12 @@
 "use client";
 
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useState, useEffect, useMemo } from 'react';
 import { EcoviraTabs } from '../EcoviraTabs';
 import { Plane, Hotel, Car, CarTaxiFront } from 'lucide-react';
 import { EcoviraChatWidget } from '../chat/EcoviraChatWidget';
 import { Footer } from './Footer';
+import { useTripContext } from '@/contexts/TripContext';
+import { getAirlineName } from '@/lib/trips/airline-checkin-resolver';
 
 interface PremiumShellProps {
   children: ReactNode;
@@ -27,8 +29,31 @@ const tabs = [
   { label: 'Transfers', path: '/transfers', icon: <CarTaxiFront size={18} /> },
 ];
 
-export function PremiumShell({ children, rightPanel, chatContext }: PremiumShellProps) {
+export function PremiumShell({ children, rightPanel, chatContext: baseChatContext }: PremiumShellProps) {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const { trip } = useTripContext();
+  
+  // Merge trip context with base chat context
+  const chatContext = useMemo(() => {
+    if (!trip || !trip.flightData) {
+      return baseChatContext;
+    }
+    
+    return {
+      ...baseChatContext,
+      page: 'my-trips' as const,
+      trip: {
+        bookingId: trip.id,
+        bookingReference: trip.bookingReference,
+        airlineIata: trip.flightData.airlineIata,
+        airlineName: trip.flightData.airlineName || getAirlineName(trip.flightData.airlineIata),
+        flightNumber: trip.flightData.flightNumber,
+        scheduledDeparture: trip.flightData.scheduledDeparture,
+        departureAirport: trip.flightData.departureAirport,
+        arrivalAirport: trip.flightData.arrivalAirport,
+      },
+    };
+  }, [trip, baseChatContext]);
   
   // Listen for chat open events from FloatingActions component
   useEffect(() => {

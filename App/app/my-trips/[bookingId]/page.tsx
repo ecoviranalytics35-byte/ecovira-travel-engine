@@ -6,11 +6,13 @@ import { Plane, Calendar, Users, Clock, MapPin, AlertCircle, CheckCircle, Extern
 import type { TripBooking, FlightStatus, CheckInInfo } from '@/lib/core/trip-types';
 import { FlightTracking } from '@/components/trips/FlightTracking';
 import { CheckInHub } from '@/components/trips/CheckInHub';
+import { useTripContext } from '@/contexts/TripContext';
 
 export default function TripDetails() {
   const params = useParams();
   const router = useRouter();
   const bookingId = params.bookingId as string;
+  const { setTrip: setTripContext } = useTripContext();
   
   const [trip, setTrip] = useState<TripBooking | null>(null);
   const [flightStatus, setFlightStatus] = useState<FlightStatus | null>(null);
@@ -22,7 +24,12 @@ export default function TripDetails() {
     if (bookingId) {
       loadTripDetails();
     }
-  }, [bookingId]);
+    
+    // Cleanup: Clear trip context when component unmounts or bookingId changes
+    return () => {
+      setTripContext(null);
+    };
+  }, [bookingId, setTripContext]);
 
   const loadTripDetails = async () => {
     setLoading(true);
@@ -40,6 +47,8 @@ export default function TripDetails() {
       }
 
       setTrip(tripData.trip);
+      // Share trip context with AI chat widget
+      setTripContext(tripData.trip);
 
       // Load flight status if it's a flight booking
       if (tripData.trip?.flightData) {

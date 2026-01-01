@@ -51,7 +51,60 @@ export async function GET(request: NextRequest) {
       // Column doesn't exist, skip this filter for MVP
     }
 
+    // Also include demo bookings if demo mode is active
     const { data: trips, error } = await query;
+    
+    // If demo mode, also fetch demo bookings
+    let demoTrips: any[] = [];
+    if (demo === 'true' || isTestMode(reference, lastName, demo)) {
+      const { data: demoBookings } = await supabaseAdmin
+        .from('bookings')
+        .select(`
+          *,
+          itineraries (
+            *,
+            itinerary_items (*)
+          )
+        `)
+        .eq('is_demo', true)
+        .ilike('booking_reference', reference);
+      
+      if (demoBookings && demoBookings.length > 0) {
+        demoTrips = demoBookings.map((booking: any) => {
+          const itinerary = booking.itineraries;
+          const flightItem = itinerary?.itinerary_items?.find((item: any) => item.type === 'flight');
+
+          return {
+            id: booking.id,
+            bookingReference: booking.booking_reference || booking.id,
+            itineraryId: booking.itinerary_id,
+            status: booking.status,
+            supplierReference: booking.supplier_reference,
+            createdAt: booking.created_at,
+            updatedAt: booking.updated_at,
+            flightData: flightItem ? {
+              airlineIata: flightItem.item_data?.airlineIata || flightItem.item_data?.raw?.airline_iata || flightItem.item?.raw?.airline_iata || flightItem.item?.from?.substring(0, 2),
+              flightNumber: flightItem.item_data?.flightNumber || flightItem.item_data?.raw?.flight_number || flightItem.item?.raw?.flight_number || 'N/A',
+              departureAirport: flightItem.item_data?.departureAirport || flightItem.item_data?.from || flightItem.item?.from || '',
+              arrivalAirport: flightItem.item_data?.arrivalAirport || flightItem.item_data?.to || flightItem.item?.to || '',
+              scheduledDeparture: flightItem.item_data?.scheduledDeparture || flightItem.item_data?.departDate || flightItem.item?.departDate || '',
+              scheduledArrival: flightItem.item_data?.scheduledArrival || flightItem.item_data?.arrivalDate || flightItem.item?.arrivalDate || '',
+              pnr: booking.supplier_reference,
+            } : undefined,
+            passengerLastName: booking.passenger_last_name,
+            passengerCount: itinerary?.itinerary_items?.reduce((sum: number, item: any) => {
+              return sum + (item.item_data?.adults || item.item?.adults || 1);
+            }, 0) || 1,
+            route: flightItem ? {
+              from: flightItem.item_data?.departureAirport || flightItem.item_data?.from || flightItem.item?.from || '',
+              to: flightItem.item_data?.arrivalAirport || flightItem.item_data?.to || flightItem.item?.to || '',
+              departDate: flightItem.item_data?.scheduledDeparture || flightItem.item_data?.departDate || flightItem.item?.departDate || '',
+              returnDate: undefined,
+            } : undefined,
+          };
+        });
+      }
+    }
 
     if (error) {
       console.error('[trips/lookup] Database error:', error);
@@ -69,8 +122,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Combine real and demo trips
+    const allTrips = [...(trips || []), ...demoTrips];
+    
     // Transform to TripBooking format
-    const formattedTrips = (trips || []).map((booking: any) => {
+    const formattedTrips = allTrips.map((booking: any) => {
       const itinerary = booking.itineraries;
       const flightItem = itinerary?.itinerary_items?.find((item: any) => item.type === 'flight');
 

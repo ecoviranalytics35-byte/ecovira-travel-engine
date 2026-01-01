@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { PremiumShell } from "../components/layout/PremiumShell";
 import { CurrencyProvider } from "../contexts/CurrencyContext";
+import { TripProvider } from "../contexts/TripContext";
 import FloatingActions from "../components/FloatingActions";
 
 export const metadata: Metadata = {
@@ -22,10 +23,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <CurrencyProvider>
-          <PremiumShell>
-            {children}
-          </PremiumShell>
-          <FloatingActions />
+          <TripProvider>
+            <PremiumShell>
+              {children}
+            </PremiumShell>
+            <FloatingActions />
+          </TripProvider>
         </CurrencyProvider>
       </body>
     </html>
