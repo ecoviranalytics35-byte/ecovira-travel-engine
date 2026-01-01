@@ -57,7 +57,7 @@ export default function TripDetails() {
         }
       }
     } catch (err) {
-      setError('Unable to load trip details. Please try again.');
+      setError('We couldn\'t find a booking with those details. Please check your booking reference and last name exactly as on your ticket, or contact your airline if the booking was made directly.');
     } finally {
       setLoading(false);
     }
@@ -197,11 +197,17 @@ export default function TripDetails() {
 
       {/* Check-in Hub */}
       {trip.flightData && (
-        <CheckInHub
-          bookingId={bookingId}
-          flightData={trip.flightData}
-          checkInInfo={checkInInfo}
-        />
+        <div id="checkin">
+          <CheckInHub
+            bookingId={bookingId}
+            flightData={{
+              ...trip.flightData,
+              airlineName: trip.flightData.airlineIata, // Will be resolved by resolver
+            }}
+            checkInInfo={checkInInfo}
+            trip={trip}
+          />
+        </div>
       )}
     </div>
   );

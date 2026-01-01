@@ -1,31 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/core/supabase';
 import { notifyCheckInOpensSoon, notifyCheckInOpen, notifyDepartureReminder } from '@/lib/notifications/trips';
-
-// Airline check-in URL helper (duplicated from checkin route to avoid import issues)
-function getAirlineCheckInUrl(airlineIata: string, pnr?: string): string | undefined {
-  const airlineUrls: Record<string, string> = {
-    'QF': 'https://www.qantas.com/au/en/manage-booking/check-in.html',
-    'VA': 'https://www.virginaustralia.com/au/en/manage-booking/check-in/',
-    'JQ': 'https://www.jetstar.com/au/en/manage-booking/check-in',
-    'AA': 'https://www.aa.com/reservation/findReservation',
-    'UA': 'https://www.united.com/en/us/checkin',
-    'DL': 'https://www.delta.com/check-in',
-    'BA': 'https://www.britishairways.com/en-gb/information/check-in/online-check-in',
-    'LH': 'https://www.lufthansa.com/online/checkin',
-    'EK': 'https://www.emirates.com/au/english/manage-booking/check-in/',
-    'SQ': 'https://www.singaporeair.com/en_UK/us/travel-info/check-in/',
-  };
-
-  const baseUrl = airlineUrls[airlineIata];
-  if (!baseUrl) return undefined;
-
-  if (pnr) {
-    return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}pnr=${pnr}`;
-  }
-
-  return baseUrl;
-}
+import { resolveAirlineCheckinUrl } from '@/lib/trips/airline-checkin-resolver';
 
 // This endpoint should be called by a cron job every 15 minutes
 // Protect with a secret token in production
@@ -84,12 +60,15 @@ export async function GET(request: NextRequest) {
       const departureTime = scheduledDeparture.getTime();
       const nowTime = now.getTime();
       const checkInOpensTime = checkInOpens.getTime();
+      const sixHoursBeforeTime = departureTime - (6 * 60 * 60 * 1000); // 6 hours before
       const threeHoursBeforeTime = departureTime - (3 * 60 * 60 * 1000); // 3 hours before
+      const twoHoursBeforeTime = departureTime - (2 * 60 * 60 * 1000); // 2 hours before (optional)
       const twentyFourHoursBeforeCheckIn = checkInOpensTime - (24 * 60 * 60 * 1000); // 24h before check-in opens
 
       const airlineIata = itemData?.raw?.airline_iata || itemData?.from?.substring(0, 2);
       const flightNumber = itemData?.raw?.flight_number || 'N/A';
-      const checkInUrl = getAirlineCheckInUrl(airlineIata, (booking as any).supplier_reference);
+      const airlineInfo = resolveAirlineCheckinUrl(airlineIata);
+      const checkInUrl = airlineInfo?.url;
 
       // Check-in opens soon (24 hours before check-in opens = 72 hours before departure)
       if (
@@ -162,6 +141,42 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // Reminder 2: 6 hours before departure ("If not checked in yet...")
+      if (
+        nowTime >= sixHoursBeforeTime &&
+        nowTime < threeHoursBeforeTime &&
+        !(booking as any).six_hour_reminder_sent_at
+      ) {
+        try {
+          // Use check-in open notification but with different messaging
+          await notifyCheckInOpen(
+            booking.id,
+            bookingReference,
+            passengerEmail,
+            {
+              airline: airlineIata,
+              flightNumber,
+              departureTime: scheduledDeparture.toISOString(),
+              airport: itemData?.from,
+            },
+            checkInUrl,
+            phoneNumber,
+            smsOptIn
+          );
+
+          // Mark as sent
+          await supabaseAdmin
+            .from('bookings')
+            .update({ six_hour_reminder_sent_at: new Date().toISOString() })
+            .eq('id', booking.id);
+
+          sentCount++;
+        } catch (err) {
+          console.error(`[Cron] Failed to send 6-hour reminder for ${booking.id}:`, err);
+          errorCount++;
+        }
+      }
+
       // Departure reminder (3 hours before)
       if (
         nowTime >= threeHoursBeforeTime &&
@@ -191,6 +206,39 @@ export async function GET(request: NextRequest) {
           sentCount++;
         } catch (err) {
           console.error(`[Cron] Failed to send departure reminder for ${booking.id}:`, err);
+          errorCount++;
+        }
+      }
+
+      // Optional: 2 hours before departure ("Head to airport / documents reminder")
+      if (
+        nowTime >= twoHoursBeforeTime &&
+        nowTime < departureTime &&
+        !(booking as any).two_hour_reminder_sent_at
+      ) {
+        try {
+          await notifyDepartureReminder(
+            booking.id,
+            bookingReference,
+            `${airlineIata} ${flightNumber}`,
+            scheduledDeparture.toISOString(),
+            passengerEmail,
+            itemData?.from,
+            undefined,
+            undefined,
+            phoneNumber,
+            smsOptIn
+          );
+
+          // Mark as sent
+          await supabaseAdmin
+            .from('bookings')
+            .update({ two_hour_reminder_sent_at: new Date().toISOString() })
+            .eq('id', booking.id);
+
+          sentCount++;
+        } catch (err) {
+          console.error(`[Cron] Failed to send 2-hour reminder for ${booking.id}:`, err);
           errorCount++;
         }
       }

@@ -1,19 +1,51 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plane, Search, Calendar, Users } from 'lucide-react';
 import type { TripBooking } from '@/lib/core/trip-types';
 
 export default function MyTrips() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [bookingRef, setBookingRef] = useState('');
   const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [trips, setTrips] = useState<TripBooking[]>([]);
 
-  const handleLookup = async () => {
+  // Check for demo mode query param
+  useEffect(() => {
+    const demo = searchParams.get('demo');
+    if (demo === 'true' || demo === '1') {
+      // Auto-populate test credentials for demo mode
+      setBookingRef('TEST123');
+      setLastName('TEST');
+      // Auto-trigger lookup in demo mode
+      const performDemoLookup = async () => {
+        setLoading(true);
+        setError('');
+        try {
+          const res = await fetch(`/api/trips/lookup?reference=TEST123&lastName=TEST&demo=true`);
+          const data = await res.json();
+          if (data.error) {
+            setError(data.error);
+            setTrips([]);
+          } else {
+            setTrips(data.trips || []);
+          }
+        } catch (err) {
+          setError('We couldn\'t find a booking with those details. Please check your booking reference and last name exactly as on your ticket, or contact your airline if the booking was made directly.');
+          setTrips([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+      setTimeout(performDemoLookup, 100);
+    }
+  }, [searchParams]);
+
+  const handleLookup = async (isDemo = false) => {
     if (!bookingRef.trim() || !lastName.trim()) {
       setError('Please enter both booking reference and last name');
       return;
@@ -23,7 +55,8 @@ export default function MyTrips() {
     setError('');
 
     try {
-      const res = await fetch(`/api/trips/lookup?reference=${encodeURIComponent(bookingRef)}&lastName=${encodeURIComponent(lastName)}`);
+      const demoParam = isDemo || searchParams.get('demo') === 'true' ? '&demo=true' : '';
+      const res = await fetch(`/api/trips/lookup?reference=${encodeURIComponent(bookingRef)}&lastName=${encodeURIComponent(lastName)}${demoParam}`);
       const data = await res.json();
 
       if (data.error) {
@@ -32,11 +65,11 @@ export default function MyTrips() {
       } else {
         setTrips(data.trips || []);
         if (data.trips && data.trips.length === 0) {
-          setError('No trips found with that booking reference and last name');
+          setError('We couldn\'t find a booking with those details. Please check your booking reference and last name exactly as on your ticket, or contact your airline if the booking was made directly.');
         }
       }
     } catch (err) {
-      setError('Unable to retrieve trips. Please try again.');
+      setError('We couldn\'t find a booking with those details. Please check your booking reference and last name exactly as on your ticket, or contact your airline if the booking was made directly.');
       setTrips([]);
     } finally {
       setLoading(false);
@@ -86,7 +119,7 @@ export default function MyTrips() {
           </div>
         </div>
         <button
-          onClick={handleLookup}
+          onClick={() => handleLookup(false)}
           disabled={loading}
           className="ec-btn ec-btn-primary w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -156,15 +189,26 @@ export default function MyTrips() {
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    router.push(`/my-trips/${trip.id}`);
-                  }}
-                  className="ec-btn ec-button-secondary text-white"
-                >
-                  View Details →
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/my-trips/${trip.id}#checkin`);
+                    }}
+                    className="ec-btn ec-btn-primary text-white"
+                  >
+                    Check-In →
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/my-trips/${trip.id}`);
+                    }}
+                    className="ec-btn ec-button-secondary text-white"
+                  >
+                    View Details →
+                  </button>
+                </div>
               </div>
             </div>
           ))}

@@ -1,17 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/core/supabase';
+import { generateMockTrip, isTestMode } from '@/lib/trips/mock-trip';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const reference = searchParams.get('reference');
     const lastName = searchParams.get('lastName');
+    const demo = searchParams.get('demo');
 
     if (!reference || !lastName) {
       return NextResponse.json(
         { error: 'Booking reference and last name are required' },
         { status: 400 }
       );
+    }
+
+    // Check for test/demo mode
+    if (isTestMode(reference, lastName, demo)) {
+      // Generate mock trip for testing
+      const mockTrip = generateMockTrip(72); // 3 days from now (good for check-in testing)
+      return NextResponse.json({ trips: [mockTrip] });
     }
 
     // Look up trips by booking reference and last name
@@ -47,8 +56,16 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('[trips/lookup] Database error:', error);
       return NextResponse.json(
-        { error: 'Unable to retrieve trips' },
-        { status: 500 }
+        { error: 'We couldn\'t find a booking with those details. Please check your booking reference and last name exactly as on your ticket, or contact your airline if the booking was made directly.' },
+        { status: 404 }
+      );
+    }
+
+    // If no trips found, return user-friendly message
+    if (!trips || trips.length === 0) {
+      return NextResponse.json(
+        { error: 'We couldn\'t find a booking with those details. Please check your booking reference and last name exactly as on your ticket, or contact your airline if the booking was made directly.' },
+        { status: 404 }
       );
     }
 
@@ -90,8 +107,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ trips: formattedTrips });
   } catch (error) {
     console.error('[trips/lookup] Error:', error);
+    // Don't expose technical errors to users
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'We couldn\'t find a booking with those details. Please check your booking reference and last name exactly as on your ticket, or contact your airline if the booking was made directly.' },
       { status: 500 }
     );
   }

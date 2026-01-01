@@ -5,10 +5,11 @@ import { X, Send, Bot, MessageCircle } from 'lucide-react';
 import { EcoviraCard } from '../EcoviraCard';
 import { cn } from '../../lib/utils';
 import { useAutoHideOnScroll } from './useAutoHideOnScroll';
+import { resolveAirlineCheckinUrl, getAirlineName } from '@/lib/trips/airline-checkin-resolver';
 
 interface EcoviraChatWidgetProps {
   context?: {
-    page?: 'flights' | 'stays' | 'cars' | 'transfers';
+    page?: 'flights' | 'stays' | 'cars' | 'transfers' | 'my-trips';
     route?: { from?: string; to?: string };
     dates?: { depart?: string; return?: string };
     passengers?: number;
@@ -17,6 +18,17 @@ interface EcoviraChatWidgetProps {
     topFlights?: Array<{ price: string; duration: string; stops: string; from: string; to: string }>;
     selectedFlight?: any;
     results?: any[];
+    // Trip context (when in My Trips)
+    trip?: {
+      bookingId?: string;
+      bookingReference?: string;
+      airlineIata?: string;
+      airlineName?: string;
+      flightNumber?: string;
+      scheduledDeparture?: string;
+      departureAirport?: string;
+      arrivalAirport?: string;
+    };
   };
   isOpen?: boolean;
   onClose?: () => void;
@@ -158,33 +170,6 @@ When refusing:
 - Never shame or judge the user
 - Your role is to protect users, not persuade them.`;
 
-// Airline check-in URLs mapping (official check-in pages)
-const AIRLINE_CHECKIN_URLS: Record<string, string> = {
-  'qantas': 'https://www.qantas.com/au/en/manage-booking/check-in.html',
-  'virgin australia': 'https://www.virginaustralia.com/au/en/bookings/manage/check-in/',
-  'virgin': 'https://www.virginaustralia.com/au/en/bookings/manage/check-in/',
-  'jetstar': 'https://www.jetstar.com/au/en/manage-booking',
-  'tigerair': 'https://www.tigerair.com/au/en/manage-booking',
-  'singapore airlines': 'https://www.singaporeair.com/en_au/us/travel-info/check-in/',
-  'singapore': 'https://www.singaporeair.com/en_au/us/travel-info/check-in/',
-  'emirates': 'https://www.emirates.com/au/english/manage-booking/check-in/',
-  'etihad': 'https://www.etihad.com/en-us/manage/check-in',
-  'qatar': 'https://www.qatarairways.com/en-us/manage-booking.html',
-  'qatar airways': 'https://www.qatarairways.com/en-us/manage-booking.html',
-  'cathay pacific': 'https://www.cathaypacific.com/cx/en_AU/manage-booking/check-in.html',
-  'cathay': 'https://www.cathaypacific.com/cx/en_AU/manage-booking/check-in.html',
-  'british airways': 'https://www.britishairways.com/travel/home/public/en_gb/',
-  'ba': 'https://www.britishairways.com/travel/home/public/en_gb/',
-  'lufthansa': 'https://www.lufthansa.com/xx/en/online-check-in',
-  'air new zealand': 'https://www.airnewzealand.com.au/manage-your-booking',
-  'air nz': 'https://www.airnewzealand.com.au/manage-your-booking',
-  'united': 'https://www.united.com/en/us/checkin',
-  'united airlines': 'https://www.united.com/en/us/checkin',
-  'american airlines': 'https://www.aa.com/reservation/checkInAccess',
-  'american': 'https://www.aa.com/reservation/checkInAccess',
-  'delta': 'https://www.delta.com/us/en/check-in/online',
-  'delta airlines': 'https://www.delta.com/us/en/check-in/online',
-};
 
 // Comprehensive FAQ responses covering all topics
 const FAQ_RESPONSES: Record<string, string> = {
@@ -493,30 +478,72 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
     // Intelligent Check-in Assistance (before FAQ matching to handle context-aware check-in)
     let matched = false;
     if (lowerInput.includes('check-in') || lowerInput.includes('check in') || lowerInput.includes('checkin')) {
-      // First check if airline is mentioned (even in initial query)
-      const airlineMatch = Object.keys(AIRLINE_CHECKIN_URLS).find(airline => 
-        lowerInput.includes(airline)
-      );
+      // Check if we have trip context (user is in My Trips)
+      const hasTripContext = context?.trip && context.trip.airlineIata;
+      const airlineFromContext = hasTripContext ? context.trip.airlineIata : null;
+      const airlineNameFromContext = hasTripContext ? (context.trip.airlineName || getAirlineName(context.trip.airlineIata!)) : null;
+      const departureTime = hasTripContext ? context.trip.scheduledDeparture : null;
       
-      // Check if user has booking reference
-      const hasBookingRef = lowerInput.includes('booking reference') || lowerInput.includes('booking ref') || 
-                            lowerInput.includes('pnr') || lowerInput.includes('reference') || 
+      // Try to detect airline from user input or context
+      let airlineInfo = null;
+      if (airlineFromContext) {
+        airlineInfo = resolveAirlineCheckinUrl(airlineFromContext);
+      } else {
+        // Try to find airline mentioned in user input
+        const airlineKeywords = ['qantas', 'virgin', 'jetstar', 'singapore', 'emirates', 'qatar', 'cathay', 'british airways', 'lufthansa', 'united', 'american', 'delta'];
+        for (const keyword of airlineKeywords) {
+          if (lowerInput.includes(keyword)) {
+            airlineInfo = resolveAirlineCheckinUrl(keyword);
+            if (airlineInfo) break;
+          }
+        }
+      }
+      
+      // Check if user has booking reference (from context or input)
+      const hasBookingRef = context?.trip?.bookingReference || 
+                            lowerInput.includes('booking reference') || 
+                            lowerInput.includes('booking ref') || 
+                            lowerInput.includes('pnr') || 
+                            lowerInput.includes('reference') || 
                             /[A-Z0-9]{6,}/.test(userMessage.toUpperCase());
       
-      if (airlineMatch && (hasBookingRef || lowerInput.includes('have booking') || lowerInput.includes('my booking'))) {
-        // User has booking reference AND mentioned airline - provide link
-        const checkInUrl = AIRLINE_CHECKIN_URLS[airlineMatch];
-        const airlineName = airlineMatch.split(' ').map(word => 
-          word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' ');
+      // Calculate check-in timing if we have departure time
+      let checkInStatus = '';
+      if (departureTime) {
+        const departure = new Date(departureTime);
+        const now = new Date();
+        const opensAt = new Date(departure.getTime() - 48 * 60 * 60 * 1000); // 48h before
+        const closesAt = new Date(departure.getTime() - 60 * 60 * 1000); // 60 mins before
         
-        response = `Great. For check-in you'll usually need your booking reference and last name, exactly as on the ticket.\n\n` +
-          `You'll check in directly with ${airlineName} here:\n${checkInUrl}\n\n` +
+        if (now < opensAt) {
+          const hoursUntil = Math.floor((opensAt.getTime() - now.getTime()) / (1000 * 60 * 60));
+          checkInStatus = `Check-in opens in ${hoursUntil} hour${hoursUntil !== 1 ? 's' : ''}`;
+        } else if (now >= opensAt && now < closesAt) {
+          checkInStatus = 'Check-in is open';
+        } else {
+          checkInStatus = 'Check-in closed (airport check-in only)';
+        }
+      }
+      
+      if (airlineInfo && hasBookingRef) {
+        // User has booking reference AND airline identified - provide link
+        const airlineName = airlineNameFromContext || airlineInfo.name;
+        const checkInUrl = airlineInfo.url;
+        
+        response = `Great. For check-in you'll usually need your booking reference and last name, exactly as on the ticket.\n\n`;
+        if (checkInStatus) {
+          response += `${checkInStatus}.\n\n`;
+        }
+        response += `You'll check in directly with ${airlineName} here:\n${checkInUrl}\n\n` +
           `Once completed, your boarding pass will be available by email or in the airline app.`;
         matched = true;
-      } else if (hasBookingRef || lowerInput.includes('have booking') || lowerInput.includes('my booking')) {
+      } else if (hasBookingRef) {
         // User has booking reference but airline not specified
-        response = `Great. For check-in you'll usually need your booking reference and last name, exactly as on the ticket.\n\nWhich airline are you flying with?`;
+        response = `Great. For check-in you'll usually need your booking reference and last name, exactly as on the ticket.\n\n`;
+        if (checkInStatus) {
+          response += `${checkInStatus}.\n\n`;
+        }
+        response += `Which airline are you flying with?`;
         matched = true;
       } else if (lowerInput.includes('no booking') || lowerInput.includes("don't have") || lowerInput.includes("haven't booked")) {
         // User doesn't have booking yet

@@ -26,7 +26,7 @@ export async function GET(
 
     if (error || !booking) {
       return NextResponse.json(
-        { error: 'Trip not found' },
+        { error: 'We couldn\'t find a booking with those details. Please check your booking reference and last name exactly as on your ticket, or contact your airline if the booking was made directly.' },
         { status: 404 }
       );
     }
@@ -117,7 +117,7 @@ export async function GET(
   } catch (error) {
     console.error('[trips/[bookingId]/status] Error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'We couldn\'t find a booking with those details. Please check your booking reference and last name exactly as on your ticket, or contact your airline if the booking was made directly.' },
       { status: 500 }
     );
   }

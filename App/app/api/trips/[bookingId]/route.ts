@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/core/supabase';
+import { generateMockTrip } from '@/lib/trips/mock-trip';
 
 export async function GET(
   request: NextRequest,
@@ -7,6 +8,12 @@ export async function GET(
 ) {
   try {
     const bookingId = params.bookingId;
+    
+    // Check if this is a test trip ID
+    if (bookingId === 'test-trip-123' || bookingId.startsWith('test-')) {
+      const mockTrip = generateMockTrip(72);
+      return NextResponse.json({ trip: mockTrip });
+    }
 
     const { data: booking, error } = await supabaseAdmin
       .from('bookings')
@@ -22,7 +29,7 @@ export async function GET(
 
     if (error || !booking) {
       return NextResponse.json(
-        { error: 'Trip not found' },
+        { error: 'We couldn\'t find a booking with those details. Please check your booking reference and last name exactly as on your ticket, or contact your airline if the booking was made directly.' },
         { status: 404 }
       );
     }
@@ -63,7 +70,7 @@ export async function GET(
   } catch (error) {
     console.error('[trips/[bookingId]] Error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'We couldn\'t find a booking with those details. Please check your booking reference and last name exactly as on your ticket, or contact your airline if the booking was made directly.' },
       { status: 500 }
     );
   }

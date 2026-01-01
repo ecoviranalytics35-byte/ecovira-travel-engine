@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/core/supabase';
 import type { CheckInInfo } from '@/lib/core/trip-types';
+import { resolveAirlineCheckinUrl } from '@/lib/trips/airline-checkin-resolver';
+import { generateMockTrip } from '@/lib/trips/mock-trip';
 
 export async function GET(
   request: NextRequest,
@@ -8,6 +10,33 @@ export async function GET(
 ) {
   try {
     const bookingId = params.bookingId;
+    
+    // Check if this is a test trip ID - generate mock check-in info
+    if (bookingId === 'test-trip-123' || bookingId.startsWith('test-')) {
+      const mockTrip = generateMockTrip(72);
+      const departure = new Date(mockTrip.flightData!.scheduledDeparture);
+      const now = new Date();
+      const checkInOpens = new Date(departure.getTime() - 48 * 60 * 60 * 1000);
+      const checkInCloses = new Date(departure.getTime() - 60 * 60 * 1000);
+      const isOpen = now >= checkInOpens && now < checkInCloses;
+      
+      const airlineInfo = resolveAirlineCheckinUrl(mockTrip.flightData!.airlineIata);
+      
+      const checkIn: CheckInInfo = {
+        isOpen,
+        opensAt: checkInOpens.toISOString(),
+        closesAt: checkInCloses.toISOString(),
+        airlineCheckInUrl: airlineInfo?.url,
+        requiredInfo: {
+          bookingReference: true,
+          lastName: true,
+          passport: true,
+          ticketNumber: false,
+        },
+      };
+      
+      return NextResponse.json({ checkIn });
+    }
 
     // Get booking and flight data
     const { data: booking, error } = await supabaseAdmin
@@ -24,7 +53,7 @@ export async function GET(
 
     if (error || !booking) {
       return NextResponse.json(
-        { error: 'Trip not found' },
+        { error: 'We couldn\'t find a booking with those details. Please check your booking reference and last name exactly as on your ticket, or contact your airline if the booking was made directly.' },
         { status: 404 }
       );
     }
@@ -52,8 +81,9 @@ export async function GET(
     const now = new Date();
     const isOpen = now >= checkInOpens && now <= checkInCloses;
 
-    // Generate airline check-in URL (deep link if available)
-    const airlineCheckInUrl = getAirlineCheckInUrl(airlineIata, (booking as any).supplier_reference);
+    // Generate airline check-in URL using resolver
+    const airlineInfo = resolveAirlineCheckinUrl(airlineIata);
+    const airlineCheckInUrl = airlineInfo?.url;
 
     const checkIn: CheckInInfo = {
       isOpen,
@@ -72,36 +102,10 @@ export async function GET(
   } catch (error) {
     console.error('[trips/[bookingId]/checkin] Error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'We couldn\'t find a booking with those details. Please check your booking reference and last name exactly as on your ticket, or contact your airline if the booking was made directly.' },
       { status: 500 }
     );
   }
 }
 
-export function getAirlineCheckInUrl(airlineIata: string, pnr?: string): string | undefined {
-  // Map of airline IATA codes to their check-in URLs
-  const airlineUrls: Record<string, string> = {
-    'QF': 'https://www.qantas.com/au/en/manage-booking/check-in.html',
-    'VA': 'https://www.virginaustralia.com/au/en/manage-booking/check-in/',
-    'JQ': 'https://www.jetstar.com/au/en/manage-booking/check-in',
-    'AA': 'https://www.aa.com/reservation/findReservation',
-    'UA': 'https://www.united.com/en/us/checkin',
-    'DL': 'https://www.delta.com/check-in',
-    'BA': 'https://www.britishairways.com/en-gb/information/check-in/online-check-in',
-    'LH': 'https://www.lufthansa.com/online/checkin',
-    'EK': 'https://www.emirates.com/au/english/manage-booking/check-in/',
-    'SQ': 'https://www.singaporeair.com/en_UK/us/travel-info/check-in/',
-  };
-
-  const baseUrl = airlineUrls[airlineIata];
-  if (!baseUrl) return undefined;
-
-  // If we have a PNR, try to append it to the URL (format varies by airline)
-  if (pnr) {
-    // Most airlines accept PNR as a query parameter
-    return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}pnr=${pnr}`;
-  }
-
-  return baseUrl;
-}
 
