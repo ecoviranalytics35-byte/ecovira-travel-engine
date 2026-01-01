@@ -25,10 +25,10 @@ interface EcoviraChatWidgetProps {
 // Dynamic quick chips based on page context
 const getQuickChips = (page?: string) => {
   const baseChips = [
-    { label: 'Best option?', query: 'Which option is best and why?' },
-    { label: 'Fees?', query: 'What is the service fee?' },
-    { label: 'Refunds?', query: 'What is the refund policy?' },
-    { label: 'Currency/Crypto?', query: 'Can I pay with cryptocurrency?' },
+    { label: 'Best option?', query: 'best option' },
+    { label: 'Fees?', query: 'fees' },
+    { label: 'Refunds?', query: 'refunds' },
+    { label: 'Currency/Crypto?', query: 'currency crypto' },
   ];
 
   if (page === 'flights') {
@@ -158,6 +158,34 @@ When refusing:
 - Never shame or judge the user
 - Your role is to protect users, not persuade them.`;
 
+// Airline check-in URLs mapping (official check-in pages)
+const AIRLINE_CHECKIN_URLS: Record<string, string> = {
+  'qantas': 'https://www.qantas.com/au/en/manage-booking/check-in.html',
+  'virgin australia': 'https://www.virginaustralia.com/au/en/bookings/manage/check-in/',
+  'virgin': 'https://www.virginaustralia.com/au/en/bookings/manage/check-in/',
+  'jetstar': 'https://www.jetstar.com/au/en/manage-booking',
+  'tigerair': 'https://www.tigerair.com/au/en/manage-booking',
+  'singapore airlines': 'https://www.singaporeair.com/en_au/us/travel-info/check-in/',
+  'singapore': 'https://www.singaporeair.com/en_au/us/travel-info/check-in/',
+  'emirates': 'https://www.emirates.com/au/english/manage-booking/check-in/',
+  'etihad': 'https://www.etihad.com/en-us/manage/check-in',
+  'qatar': 'https://www.qatarairways.com/en-us/manage-booking.html',
+  'qatar airways': 'https://www.qatarairways.com/en-us/manage-booking.html',
+  'cathay pacific': 'https://www.cathaypacific.com/cx/en_AU/manage-booking/check-in.html',
+  'cathay': 'https://www.cathaypacific.com/cx/en_AU/manage-booking/check-in.html',
+  'british airways': 'https://www.britishairways.com/travel/home/public/en_gb/',
+  'ba': 'https://www.britishairways.com/travel/home/public/en_gb/',
+  'lufthansa': 'https://www.lufthansa.com/xx/en/online-check-in',
+  'air new zealand': 'https://www.airnewzealand.com.au/manage-your-booking',
+  'air nz': 'https://www.airnewzealand.com.au/manage-your-booking',
+  'united': 'https://www.united.com/en/us/checkin',
+  'united airlines': 'https://www.united.com/en/us/checkin',
+  'american airlines': 'https://www.aa.com/reservation/checkInAccess',
+  'american': 'https://www.aa.com/reservation/checkInAccess',
+  'delta': 'https://www.delta.com/us/en/check-in/online',
+  'delta airlines': 'https://www.delta.com/us/en/check-in/online',
+};
+
 // Comprehensive FAQ responses covering all topics
 const FAQ_RESPONSES: Record<string, string> = {
   // Search & Navigation
@@ -174,8 +202,8 @@ const FAQ_RESPONSES: Record<string, string> = {
   'cabin class': "Cabin class determines comfort level. Economy: standard seating, basic amenities. Business: more space, better meals, priority boarding. First: premium experience, most expensive. Prices increase with class. Economy is most common and cost-effective. Business and First offer more comfort but cost significantly more.",
   
   // Search & Results (Flights)
-  'best option': "The best option depends on your priorities. Check the AI Assist widget (bottom-right) for Value Score, Best Options, and actionable tips. Generally: cheapest for budget, fastest for time-sensitive, best value for balance of price, duration, and convenience.",
-  'best value': "Best value means the optimal balance of price, duration, stops, and convenience. Our AI Value Score (0-100) calculates this automatically. Higher scores indicate better overall value, not just the cheapest price.",
+  'best option': "I compare price, duration, stops, and overall value — not just the cheapest fare.\n\nTell me your route and dates, and I'll guide you.",
+  'best value': "I compare price, duration, stops, and overall value — not just the cheapest fare.\n\nTell me your route and dates, and I'll guide you.",
   'cheaper': "Flight prices vary based on airline, route popularity, booking time, and fare class. However, when prices differ across currencies, it's often due to regional pricing models and currency conversion layers (bank FX margins, payment processing fees). This is legal price arbitrage—the base price may be similar, but the cost of converting and processing the payment changes. Ecovira shows multiple currencies so you can see these differences transparently.",
   'stops': "Stops occur when a flight doesn't have a direct route or when connecting is cheaper. Direct flights (0 stops) are fastest but may cost more. 1-stop flights offer a balance. 2+ stops are usually cheapest but take longer.",
   'stopover worth': "A stopover can be worth it if you save significantly on price and don't mind the extra travel time. For short trips, direct flights are usually better. For longer trips, a stopover can break up the journey. Check the AI Value Score for recommendations.",
@@ -184,8 +212,10 @@ const FAQ_RESPONSES: Record<string, string> = {
   'prices change': "Prices can change due to demand, availability, and airline pricing. Once you click 'Select Flight' and proceed to booking, we'll hold the price for a short period. Final pricing is confirmed at payment.",
   
   // Pricing & Fees
+  'fees': "Ecovira shows total prices upfront before you pay. Any airline fees or payment charges are included at checkout — no surprises.\n\nAre you checking fees for a specific booking?",
+  'fee': "Ecovira shows total prices upfront before you pay. Any airline fees or payment charges are included at checkout — no surprises.\n\nAre you checking fees for a specific booking?",
+  'service fee': "Ecovira shows total prices upfront before you pay. Any airline fees or payment charges are included at checkout — no surprises.\n\nAre you checking fees for a specific booking?",
   'included in price': "The displayed price includes the base fare, taxes, and our 4% service fee. For flights, it's typically per person. For stays, it's usually per night. For cars, it's usually per day. Check the AI Assist widget for detailed breakdowns.",
-  'service fee': "We charge a 4% service fee on all bookings. This covers platform maintenance, secure payment processing, 24/7 customer support, and booking management. The fee is transparently displayed in all price breakdowns.",
   'why service fee': "The service fee supports our platform operations, including secure payment processing, customer support, booking management, and continuous platform improvements. It's a standard industry practice for online travel platforms.",
   'fee calculated': "The service fee is 4% of the base fare (before taxes). For example: if a flight costs 100 AUD total, the base is ~96.15 AUD and the fee is ~3.85 AUD. All prices shown include this fee.",
   'fee refundable': "The service fee is generally non-refundable, but if the airline cancels or you're eligible for a full refund, we'll process it accordingly. Refund policies depend on the fare type and airline rules.",
@@ -194,6 +224,9 @@ const FAQ_RESPONSES: Record<string, string> = {
   'price change currency': "When you switch currencies, prices are converted using current exchange rates. However, the actual cost can differ due to regional pricing models and currency conversion layers. Airlines and hotels often price differently by region, and when you view or pay in another currency, you may avoid certain bank FX margins or regional markups. This is legal price arbitrage—not a loophole—where the base price is similar, but the cost of converting and processing the payment changes. Ecovira shows multiple currencies transparently so you can see these differences.",
   
   // Currency & Payments
+  'currency crypto': "Prices can change depending on currency and payment method. In some cases, paying in a different currency or with crypto can reduce costs.\n\nAre you comparing options or ready to book?",
+  'currency': "Prices can change depending on currency and payment method. In some cases, paying in a different currency or with crypto can reduce costs.\n\nAre you comparing options or ready to book?",
+  'crypto': "Prices can change depending on currency and payment method. In some cases, paying in a different currency or with crypto can reduce costs.\n\nAre you comparing options or ready to book?",
   'pay in another currency': "Yes! We support multiple currencies: AUD, USD, EUR, GBP, TRY, AED, SAR, QAR, KWD, INR, THB, MYR, SGD, JPY, KRW. Select your preferred currency in the search panel.",
   'support crypto': "Yes! We accept cryptocurrencies: USDT, USDC, BTC, and ETH. Select your preferred cryptocurrency in the currency selector. All crypto payments are processed securely.",
   'crypto cheaper': "Crypto doesn't change airline prices directly, but it can reduce bank conversion layers. In some international bookings, paying with crypto or stablecoins avoids card FX margins. However, network fees and volatility still apply, so it's not always cheaper. This is part of currency arbitrage—the base price is the same, but the payment processing cost changes. Ecovira's approach is to explain both the benefits and the limits so you can decide safely. Stablecoins (USDT, USDC) reduce volatility risk compared to BTC/ETH, but network fees still apply.",
@@ -211,8 +244,11 @@ const FAQ_RESPONSES: Record<string, string> = {
   'details needed': "We need: passenger names (as on passport/ID), date of birth, contact email and phone, payment details. For international flights, passport information may be required. You can optionally provide phone number and opt-in for SMS updates (booking confirmations, check-in reminders, departure alerts). All information is kept secure and encrypted.",
   
   // Changes, Cancellations & Refunds
+  'refunds': "Refunds depend on the airline and the fare type you choose. Some tickets are fully refundable, others allow changes with a fee, and some are non-refundable.\n\nAre you asking about a booking you already made, or a flight you're planning to book?",
+  'refund': "Refunds depend on the airline and the fare type you choose. Some tickets are fully refundable, others allow changes with a fee, and some are non-refundable.\n\nAre you asking about a booking you already made, or a flight you're planning to book?",
+  'refundable': "Refunds depend on the airline and the fare type you choose. Some tickets are fully refundable, others allow changes with a fee, and some are non-refundable.\n\nAre you asking about a booking you already made, or a flight you're planning to book?",
+  'refund policy': "Refunds depend on the airline and the fare type you choose. Some tickets are fully refundable, others allow changes with a fee, and some are non-refundable.\n\nAre you asking about a booking you already made, or a flight you're planning to book?",
   'change flight': "Flight changes depend on the fare type. Flexible fares usually allow changes (fees may apply). Basic fares may not allow changes. Check your booking confirmation for specific policies. Contact us for assistance.",
-  'refundable': "Refund policies vary by airline and fare type. Flexible fares are usually refundable (minus fees). Basic fares may be non-refundable. Full refunds are typically available if the airline cancels. Check your booking details.",
   'miss flight': "If you miss your flight, contact the airline immediately. Depending on the fare type, you may be able to rebook (fees apply) or use the value toward a future booking. We can help coordinate with the airline.",
   'refunds work': "Refunds are processed back to your original payment method. Processing time: credit/debit cards 5-10 business days, cryptocurrencies vary by network. We'll confirm when the refund is initiated.",
   'refunds take': "Refund processing time: credit/debit cards typically 5-10 business days, cryptocurrencies vary by network (can be faster). The airline must approve the refund first, which can take 1-3 business days.",
@@ -271,14 +307,19 @@ const FAQ_RESPONSES: Record<string, string> = {
   'improve score': "To improve the score: consider alternative dates (prices vary), choose direct flights if time-sensitive, or accept slightly longer duration for better price. The AI Assist widget provides specific tips.",
   
   // After Booking - My Trips & Tracking
-  'my trips': "My Trips is where you access your bookings after confirmation. Go to /my-trips and enter your booking reference (from confirmation email) and last name. You'll see all your trips with flight details, status, and links to track flights and check in.",
-  'access booking': "Access your booking via My Trips (/my-trips). Enter your booking reference (e.g., ECV1A2B3C) and last name (as on booking). You'll see trip details, flight tracking, check-in hub, and booking status. No account login required—just booking reference + last name.",
+  'my trips': "You can view bookings, track flights, and manage details in My Trips once your ticket is confirmed.\n\nDo you already have a booking reference?",
+  'booking': "You can view bookings, track flights, and manage details in My Trips once your ticket is confirmed.\n\nDo you already have a booking reference?",
+  'bookings': "You can view bookings, track flights, and manage details in My Trips once your ticket is confirmed.\n\nDo you already have a booking reference?",
+  'access booking': "You can view bookings, track flights, and manage details in My Trips once your ticket is confirmed.\n\nDo you already have a booking reference?",
   'booking reference': "Your booking reference (e.g., ECV1A2B3C) is sent in your confirmation email. Use it with your last name to access My Trips. The reference is unique to your booking and appears on all communications.",
   'track flight': "Flight tracking shows live status from Amadeus API: on-time/delayed/cancelled, estimated departure/arrival times, gate/terminal info, baggage belt (if available), and last updated timestamp. Access it via My Trips → select your trip → Flight Status section. Status auto-refreshes every 5 minutes, or tap 'Refresh' manually.",
   'flight status': "Flight status shows: departure/arrival airports, scheduled vs estimated times, gate and terminal (when available), baggage belt (arrival), and current status (on-time, delayed, cancelled, boarding, departed, arrived). Status is best-effort and depends on live data availability from Amadeus. If unavailable, we show scheduled times.",
-  'check in': "Check-in hub is in My Trips. It shows: check-in window countdown (usually opens 24-48 hours before departure), 'Check-in Now' button (deep links to airline's official check-in page), and what you'll need (booking reference/PNR, last name, passport for international). We guide you to the airline's check-in page—we don't complete check-in ourselves.",
+  'check in': "Online check-in is done directly with the airline, usually 24–48 hours before departure.\n\nI can guide you to the correct check-in page and help you prepare what you need.\n\nDo you already have a booking reference, or are you checking in for an upcoming flight?",
+  'check-in': "Online check-in is done directly with the airline, usually 24–48 hours before departure.\n\nI can guide you to the correct check-in page and help you prepare what you need.\n\nDo you already have a booking reference, or are you checking in for an upcoming flight?",
   'check in opens': "Check-in usually opens 24-48 hours before departure (varies by airline). The check-in hub in My Trips shows a countdown when you're within the window. When open, tap 'Check-in Now' to go to the airline's official check-in page. You'll need your booking reference (PNR) and last name.",
-  'check in need': "For check-in, you'll need: booking reference (PNR) or ticket number, last name (as on booking), and passport details (for international travel). The airline's check-in page will guide you through seat selection, baggage options, and boarding pass download.",
+  'check in need': "For check-in, you'll usually need your booking reference and last name, exactly as on the ticket. For international flights, passport details may be required. Seat selection and baggage options are usually shown during check-in.",
+  'seat selection': "Seat selection and baggage options are usually shown during check-in. Some airlines charge for seat selection depending on fare type. You'll see available seats and prices when you check in.",
+  'boarding pass': "Once check-in is completed, your boarding pass will be available by email or in the airline app. You can usually choose between mobile boarding passes or printed versions.",
   'notifications': "You'll receive automated emails: 1) Booking confirmed (immediately after payment), 2) Check-in opens soon (24 hours before check-in opens), 3) Check-in open (when check-in becomes available), 4) Departure reminder (3 hours before departure). If you opted in for SMS, you'll also receive text messages for these events. All notifications include links to My Trips.",
   'email notifications': "Email notifications are sent automatically: booking confirmed (immediately), check-in opens soon (24h before check-in opens), check-in open (when available), departure reminder (3h before). All emails include your booking reference and link to My Trips. Check your spam folder if you don't receive them.",
   'sms notifications': "SMS notifications are optional and require opt-in at checkout. If you opted in, you'll receive short text messages for: booking confirmed, check-in opens, check-in open, and departure reminder. SMS includes booking reference and link to My Trips. You can opt out anytime by replying STOP or contacting support.",
@@ -350,9 +391,7 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([
     { 
       role: 'assistant', 
-      content: context 
-        ? `Hi, I'm Ecovira AI 👋\n\nI'm your built-in travel expert. I understand how Ecovira works—search, pricing, currency strategies, booking, My Trips, flight tracking, and check-in.\n\nI can help you:\n• Find the best options and value\n• Understand pricing, fees, and currency arbitrage\n• Navigate the booking process\n• Access My Trips and track flights\n• Get check-in guidance\n\nAsk me anything, or tap one of the quick questions below to get started.`
-        : "Hi, I'm Ecovira AI 👋\n\nI'm your built-in travel expert. I understand how Ecovira works—search, pricing, currency strategies, booking, My Trips, flight tracking, and check-in.\n\nI can help you:\n• Find the best options and value\n• Understand pricing, fees, and currency arbitrage\n• Navigate the booking process\n• Access My Trips and track flights\n• Get check-in guidance\n\nAsk me anything, or tap one of the quick questions below to get started."
+      content: "Hi, I'm Ecovira AI 👋\n\nI help you find the best flights, prices, and booking options.\n\nAsk me anything or choose a quick option below."
     }
   ]);
   const [input, setInput] = useState('');
@@ -371,7 +410,7 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
 
     // Context-aware response generation
     const lowerInput = userMessage.toLowerCase();
-    let response = "I understand you're asking about that. I'll guide you with what's available. For more specific assistance, our human support team is available 24/7 via this chat or email. How else can I help?";
+    let response = "That depends on the airline and fare type — I'll check once you choose a flight.";
     
     // HARD REFUSAL BOUNDARIES - Check for prohibited requests FIRST
     let refused = false;
@@ -379,7 +418,7 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
     // 1. Financial & Investment Advice (STRICT NO)
     const investmentKeywords = ['invest', 'buy crypto', 'sell crypto', 'hold crypto', 'trading', 'price will', 'price prediction', 'crypto will go', 'crypto will rise', 'crypto will fall', 'stake', 'yield', 'speculate', 'should i buy', 'should i sell'];
     if (investmentKeywords.some(keyword => lowerInput.includes(keyword))) {
-      response = "I can explain how crypto works as a payment method, but I can't provide investment or trading advice. For investment decisions, please consult a qualified financial advisor. I'm here to help with travel bookings and payment options.";
+      response = "I can explain how crypto works as a payment method, but I can't provide investment or trading advice. For investment decisions, please consult a qualified financial advisor.";
       refused = true;
     }
     
@@ -394,7 +433,7 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
     // 3. Legal, Immigration & Visa Advice (LIMITED)
     const legalKeywords = ['visa eligibility', 'legal advice', 'immigration law', 'guarantee entry', 'will i get visa', 'can i enter'];
     if (!refused && legalKeywords.some(keyword => lowerInput.includes(keyword))) {
-      response = "I can share general travel information, but for legal or visa matters it's best to check official government sources or consult an immigration lawyer. I can help you find the right resources if needed.";
+      response = "For legal or visa matters, check official government sources or consult an immigration lawyer.";
       refused = true;
     }
     
@@ -405,10 +444,18 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
       refused = true;
     }
     
-    // 5. User Data & Security (ABSOLUTE NO)
+    // 5. User Data & Security (ABSOLUTE NO) - Payment & Wallet
     const sensitiveDataKeywords = ['card number', 'credit card', 'wallet key', 'private key', 'password', 'pin', 'cvv', 'security code'];
     if (!refused && sensitiveDataKeywords.some(keyword => lowerInput.includes(keyword))) {
       response = "For your security, never share sensitive payment or wallet details. We never ask for card numbers, passwords, or private keys. All payments are processed securely through encrypted channels. If you need help with payment, I can explain the secure booking process.";
+      refused = true;
+    }
+    
+    // 5b. Check-in Security (ABSOLUTE NO) - Passport & ID Details
+    const sensitiveCheckinKeywords = ['passport number', 'passport no', 'id number', 'national id', 'drivers license number'];
+    if (!refused && (lowerInput.includes('check') || lowerInput.includes('check-in')) && 
+        sensitiveCheckinKeywords.some(keyword => lowerInput.includes(keyword))) {
+      response = "For security reasons, please don't share passport or ID details here. I'll guide you to the official airline page instead, where you can complete check-in securely.";
       refused = true;
     }
     
@@ -416,14 +463,14 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
     const pressureKeywords = ['book now or', 'limited time', 'last chance', 'hurry', 'urgent', 'act fast', 'don\'t miss'];
     if (!refused && pressureKeywords.some(keyword => lowerInput.includes(keyword)) && 
         lowerInput.includes('book')) {
-      response = "I'm here to help you make informed decisions at your own pace. There's no pressure to book immediately. Take your time to compare options and choose what's best for you. I can help you understand pricing and options whenever you're ready.";
+      response = "There's no pressure to book immediately. Take your time to compare options and choose what's best for you.";
       refused = true;
     }
     
     // 7. Unsafe / Illegal Requests (STANDARD REFUSAL)
     const illegalKeywords = ['fraud', 'chargeback', 'fake', 'bypass', 'exploit', 'hack', 'scam', 'illegal'];
     if (!refused && illegalKeywords.some(keyword => lowerInput.includes(keyword))) {
-      response = "I can't help with that, but I'm happy to guide you with legitimate booking and payment options. If you have concerns about a booking or payment, I can help you contact our support team for assistance.";
+      response = "I can't help with that. For booking or payment concerns, contact our support team for assistance.";
       refused = true;
     }
     
@@ -431,7 +478,7 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
     const medicalKeywords = ['medical advice', 'diagnose', 'treatment', 'prescription', 'medicine', 'sick', 'illness'];
     if (!refused && medicalKeywords.some(keyword => lowerInput.includes(keyword)) && 
         (lowerInput.includes('travel') || lowerInput.includes('flight'))) {
-      response = "I can't provide medical advice. For travel health questions, please consult a healthcare professional or travel medicine clinic. I can help with general travel information and booking assistance.";
+      response = "I can't provide medical advice. For travel health questions, please consult a healthcare professional or travel medicine clinic.";
       refused = true;
     }
     
@@ -443,13 +490,52 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
       return;
     }
 
-    // Enhanced FAQ matching (check for multiple keywords)
+    // Intelligent Check-in Assistance (before FAQ matching to handle context-aware check-in)
     let matched = false;
-    for (const [key, answer] of Object.entries(FAQ_RESPONSES)) {
-      if (lowerInput.includes(key)) {
-        response = answer;
+    if (lowerInput.includes('check-in') || lowerInput.includes('check in') || lowerInput.includes('checkin')) {
+      // First check if airline is mentioned (even in initial query)
+      const airlineMatch = Object.keys(AIRLINE_CHECKIN_URLS).find(airline => 
+        lowerInput.includes(airline)
+      );
+      
+      // Check if user has booking reference
+      const hasBookingRef = lowerInput.includes('booking reference') || lowerInput.includes('booking ref') || 
+                            lowerInput.includes('pnr') || lowerInput.includes('reference') || 
+                            /[A-Z0-9]{6,}/.test(userMessage.toUpperCase());
+      
+      if (airlineMatch && (hasBookingRef || lowerInput.includes('have booking') || lowerInput.includes('my booking'))) {
+        // User has booking reference AND mentioned airline - provide link
+        const checkInUrl = AIRLINE_CHECKIN_URLS[airlineMatch];
+        const airlineName = airlineMatch.split(' ').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+        
+        response = `Great. For check-in you'll usually need your booking reference and last name, exactly as on the ticket.\n\n` +
+          `You'll check in directly with ${airlineName} here:\n${checkInUrl}\n\n` +
+          `Once completed, your boarding pass will be available by email or in the airline app.`;
         matched = true;
-        break;
+      } else if (hasBookingRef || lowerInput.includes('have booking') || lowerInput.includes('my booking')) {
+        // User has booking reference but airline not specified
+        response = `Great. For check-in you'll usually need your booking reference and last name, exactly as on the ticket.\n\nWhich airline are you flying with?`;
+        matched = true;
+      } else if (lowerInput.includes('no booking') || lowerInput.includes("don't have") || lowerInput.includes("haven't booked")) {
+        // User doesn't have booking yet
+        response = `Once your booking is confirmed, you'll receive a reference by email and in My Trips.\n\nCheck-in opens closer to departure — I'll guide you when it's time.`;
+        matched = true;
+      } else {
+        // Initial check-in question - use FAQ response
+        // Will be handled by FAQ matching below
+      }
+    }
+
+    // Enhanced FAQ matching (check for multiple keywords)
+    if (!matched) {
+      for (const [key, answer] of Object.entries(FAQ_RESPONSES)) {
+        if (lowerInput.includes(key)) {
+          response = answer;
+          matched = true;
+          break;
+        }
       }
     }
 
@@ -696,109 +782,50 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
       }
     }
 
-    // Search & Navigation questions - PROACTIVE GUIDANCE
+    // Search & Navigation questions - Direct guidance
     if ((lowerInput.includes('where') || lowerInput.includes('how')) && 
-        (lowerInput.includes('search') || lowerInput.includes('find') || lowerInput.includes('book'))) {
+        (lowerInput.includes('search') || lowerInput.includes('find') || lowerInput.includes('book')) && !matched) {
       const page = context?.page || 'flights';
       if (page === 'flights') {
-        response = "You can search for flights directly on this page. Enter your departure and destination airports (e.g., MEL, SYD), select dates, choose passengers and cabin class, then tap 'Search Flights' at the bottom.\n\n" +
-          "Once results appear, I'll help you compare prices, value, and currency options. The AI Assist widget (bottom-right) shows Value Scores and recommendations.";
+        response = "Enter your departure and destination airports, select dates, choose passengers and cabin class, then tap 'Search Flights'. The AI Assist widget shows Value Scores and recommendations.";
       } else if (page === 'stays') {
-        response = "You can search for stays directly on this page. Enter the city name, check-in date, number of nights, adults, and children (if any), then tap 'Search Stays'.\n\n" +
-          "Once results appear, I'll help you compare prices, total costs, and value. The AI Assist widget shows total trip cost estimates.";
+        response = "Enter the city name, check-in date, number of nights, and guests, then tap 'Search Stays'. The AI Assist widget shows total trip cost estimates.";
       } else if (page === 'cars') {
-        response = "You can search for cars directly on this page. Enter pickup location, pickup date and time, return date and time, and driver age, then tap 'Search Cars'.\n\n" +
-          "Once results appear, I'll help you compare vehicles, prices, and rental terms.";
+        response = "Enter pickup location, pickup and return dates/times, and driver age, then tap 'Search Cars'.";
       } else if (page === 'transfers') {
-        response = "You can search for transfers directly on this page. Enter pickup location, drop-off location, date, time, and passengers, then tap 'Search Transfers'.\n\n" +
-          "Once results appear, I'll help you compare options and prices.";
+        response = "Enter pickup location, drop-off location, date, time, and passengers, then tap 'Search Transfers'.";
       } else {
-        response = "You can search directly on this page. Enter your travel details in the search panel, select your currency, then tap the search button.\n\n" +
-          "Once results appear, I'll help you compare options, prices, and value. The AI Assist widget (bottom-right) provides detailed insights.";
+        response = "Enter your travel details in the search panel, select your currency, then tap the search button.";
       }
       matched = true;
     }
 
-    // Fallback for unmatched queries - PROACTIVE RESPONSES (answer first, don't ask for clarification)
+    // Fallback for unmatched queries - Direct responses without reintroductions
     if (!matched) {
-      // Try to provide helpful guidance based on context
+      // Help/support queries - direct response
       if (lowerInput.includes('help') || lowerInput.includes('support')) {
-        response = "I'm here to help! I'm Ecovira AI, your transparent travel and finance assistant. I can help with:\n\n" +
-          "• Search & Navigation: How to search flights, stays, cars, transfers\n" +
-          "• Best options and honest value assessments\n" +
-          "• Pricing, fees, and currency strategies (including crypto)\n" +
-          "• Booking process and tickets\n" +
-          "• My Trips: Access bookings, track flights, check-in\n" +
-          "• Email & SMS notifications\n" +
-          "• Changes, cancellations, and refunds\n" +
-          "• Baggage, seating, and travel rules\n" +
-          "• AI Value Score and insights\n" +
-          "• Platform security and trust\n\n" +
-          "I'll always be transparent about costs and warn you about poor value—even if it means recommending options that save you money. " +
-          "For complex issues, our human support team is available 24/7. What would you like to know?";
+        response = "For booking assistance or support, our team is available 24/7. What do you need help with?";
       } else if (context && context.results && context.results.length > 0) {
-        // If we have results, provide proactive insight based on the question
+        // If we have results, provide direct insight based on the question
         const page = context.page || 'flights';
         const selected = context.selectedFlight || context.results[0];
         
         if (lowerInput.includes('which') || lowerInput.includes('what') || lowerInput.includes('how')) {
-          // Proactive answer using context
+          // Direct answer using context
           if (page === 'flights' && selected) {
-            response = `Based on your current search results, I can help you understand your options.\n\n` +
-              `You have ${context.results.length} flight option(s) available. ` +
-              `The AI Assist widget (bottom-right) shows Value Scores, Best Options, and actionable tips for each flight.\n\n` +
-              `**Quick insights:**\n` +
-              `• Check the Value Score to see which option offers the best balance of price, duration, and convenience\n` +
-              `• Currency choice can affect the final cost through regional pricing and FX margins\n` +
-              `• Consider alternative dates if prices seem high—prices vary significantly by day\n\n` +
-              `Would you like me to explain the Value Score, compare specific options, or help with currency strategies?`;
+            response = `You have ${context.results.length} flight option(s) available. Check the AI Assist widget for Value Scores and recommendations.`;
           } else if (page === 'stays' && selected) {
-            response = `Based on your current search, I can help you understand your accommodation options.\n\n` +
-              `You have ${context.results.length} stay option(s) available. ` +
-              `The AI Assist widget (bottom-right) shows total trip costs and value insights.\n\n` +
-              `**Quick insights:**\n` +
-              `• Compare total cost (nights × rate + taxes) across options\n` +
-              `• Check cancellation policies—flexible rates may cost more but offer peace of mind\n` +
-              `• Currency choice can reveal regional pricing differences\n\n` +
-              `Would you like me to explain pricing, compare options, or help with currency strategies?`;
+            response = `You have ${context.results.length} stay option(s) available. Check the AI Assist widget for total trip costs.`;
           } else {
-            response = `I can help you understand your ${page} options. ` +
-              `You have ${context.results.length} result(s) available. ` +
-              `The AI Assist widget (bottom-right) provides detailed insights and value scores.\n\n` +
-              `I can explain pricing, compare options, help with currency strategies, or answer questions about fees and booking. What would you like to know?`;
+            response = `You have ${context.results.length} result(s) available. Check the AI Assist widget for details.`;
           }
         } else {
-          // Generic proactive response with context
-          response = `I understand you're asking about your ${page} search. ` +
-            `You have ${context.results.length} option(s) available. ` +
-            `I can help you:\n\n` +
-            `• Compare options and explain value\n` +
-            `• Understand pricing and currency strategies\n` +
-            `• Explain fees and booking process\n` +
-            `• Answer questions about the AI Value Score\n\n` +
-            `What specific aspect would you like me to explain?`;
+          // Generic direct response with context
+          response = `You have ${context.results.length} option(s) available for your ${page} search. What would you like to know?`;
         }
       } else {
-        // No context but still be proactive - DEFAULT RESPONSE PATTERN
-        if (lowerInput.includes('where') || lowerInput.includes('how') || lowerInput.includes('what')) {
-          // Broad question - provide engine-aware guidance
-          response = `I can help you with your travel search. ` +
-            `I understand Ecovira's platform, pricing logic, currency strategies, booking process, My Trips, flight tracking, check-in, and AI Value Score system.\n\n` +
-            `I can explain:\n` +
-            `• How to search flights, stays, cars, or transfers\n` +
-            `• How to find the best options and value\n` +
-            `• Pricing, fees, and currency arbitrage\n` +
-            `• How crypto payments work\n` +
-            `• The booking process (Select → Details → Payment → Confirmation)\n` +
-            `• How to access My Trips and track flights\n` +
-            `• Check-in process and airline links\n` +
-            `• Email and SMS notifications\n` +
-            `• AI Value Score and insights\n\n` +
-            `Are you asking about Flights, Stays, Cars, or Transfers?`;
-        } else {
-          // Fallback Rule: If context is truly missing, use simple response
-          response = `I can help with that. Are you asking about Flights, Stays, Cars, or Transfers?`;
-        }
+        // No context - minimal fallback
+        response = "What would you like to know?";
       }
     }
 
