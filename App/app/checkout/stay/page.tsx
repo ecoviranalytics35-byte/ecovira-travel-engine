@@ -1,83 +1,80 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckoutForm } from '@/components/checkout/CheckoutForm';
-import { EcoviraCard } from '@/components/EcoviraCard';
+import { useSearchParams, useRouter } from "next/navigation";
 
 export default function StayCheckoutPage() {
-  const searchParams = useSearchParams();
+  const sp = useSearchParams();
   const router = useRouter();
-  const [stayId, setStayId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const id = searchParams.get('stayId') || searchParams.get('offerId');
-    if (id) {
-      setStayId(id);
-      console.log("[StayCheckoutPage] Loaded with stayId", id);
-    } else {
-      console.warn("[StayCheckoutPage] No stayId or offerId in query params");
-    }
-  }, [searchParams]);
-
-  const handleSubmit = async (data: {
-    passengerEmail: string;
-    passengerLastName: string;
-    phoneNumber?: string;
-    smsOptIn: boolean;
-  }) => {
-    if (!stayId) {
-      console.error("[StayCheckoutPage] Cannot proceed without stayId");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // TODO: Create itinerary and proceed to payment
-      console.log("[StayCheckoutPage] Submitting checkout", { stayId, ...data });
-      // For now, just redirect back to stays page
-      router.push('/stays');
-    } catch (error) {
-      console.error("[StayCheckoutPage] Error", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!stayId) {
-    return (
-      <div className="max-w-4xl mx-auto py-12 px-4">
-        <EcoviraCard variant="glass" className="p-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-semibold text-ec-text mb-4">Stay Not Found</h1>
-            <p className="text-ec-muted mb-6">No stay selected. Please select a stay from the search results.</p>
-            <button
-              onClick={() => router.push('/stays')}
-              className="px-6 py-3 rounded-full bg-gradient-to-br from-[rgba(28,140,130,0.4)] to-[rgba(28,140,130,0.3)] border border-[rgba(28,140,130,0.5)] text-ec-text font-semibold"
-            >
-              Back to Stays
-            </button>
-          </div>
-        </EcoviraCard>
-      </div>
-    );
-  }
+  const stayId = sp.get("stayId");
+  const checkIn = sp.get("checkIn");
+  const checkOut = sp.get("checkOut");
+  const adults = sp.get("adults");
+  const rooms = sp.get("rooms");
+  const currency = sp.get("currency") ?? "AUD";
 
   return (
-    <div className="max-w-4xl mx-auto py-12 px-4">
-      <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl font-serif font-semibold text-ec-text mb-4">
-          Checkout
-        </h1>
-        <p className="text-ec-muted text-lg">Complete your stay booking</p>
-        <p className="text-sm text-ec-dim mt-2">Stay ID: {stayId}</p>
-      </div>
+    <div className="min-h-screen px-6 py-10 bg-gradient-to-b from-black via-[#0e1116] to-black">
+      <div className="max-w-5xl mx-auto">
 
-      <EcoviraCard variant="glass" className="p-8">
-        <CheckoutForm onSubmit={handleSubmit} loading={loading} />
-      </EcoviraCard>
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white">Stay Checkout</h1>
+          <p className="text-white/60 mt-1">
+            Review your stay details and continue securely
+          </p>
+        </div>
+
+        {/* Main Card */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+          {/* Left details */}
+          <div className="md:col-span-2 rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6">
+            <h2 className="text-sm uppercase tracking-wider text-white/60 mb-4">
+              Stay details
+            </h2>
+
+            <div className="space-y-3 text-white">
+              <div><span className="text-white/60">Stay:</span> {stayId}</div>
+              <div><span className="text-white/60">Check-in:</span> {checkIn}</div>
+              <div><span className="text-white/60">Check-out:</span> {checkOut}</div>
+              {adults && <div><span className="text-white/60">Adults:</span> {adults}</div>}
+              {rooms && <div><span className="text-white/60">Rooms:</span> {rooms}</div>}
+              <div><span className="text-white/60">Currency:</span> {currency}</div>
+            </div>
+          </div>
+
+          {/* Right summary */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6 flex flex-col">
+            <h2 className="text-sm uppercase tracking-wider text-white/60 mb-4">
+              Summary
+            </h2>
+
+            <div className="flex-1 text-white/80 text-sm">
+              Final pricing will be confirmed before payment.
+            </div>
+
+            <div className="mt-6 space-y-3">
+              <button
+                onClick={() => router.back()}
+                className="w-full rounded-full border border-white/20 py-2 text-white/80 hover:bg-white/5 transition"
+              >
+                Back
+              </button>
+
+              <button
+                className="w-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 py-3 font-semibold text-black hover:opacity-90 transition"
+                onClick={() =>
+                  console.log("Proceed to payment", { stayId, checkIn, checkOut })
+                }
+              >
+                Continue →
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 }
-

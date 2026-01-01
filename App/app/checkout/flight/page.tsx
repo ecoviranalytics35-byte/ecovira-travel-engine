@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckoutForm } from '@/components/checkout/CheckoutForm';
-import { EcoviraCard } from '@/components/EcoviraCard';
 
 export default function FlightCheckoutPage() {
   const searchParams = useSearchParams();
@@ -48,7 +47,7 @@ export default function FlightCheckoutPage() {
   if (!offerId) {
     return (
       <div className="max-w-4xl mx-auto py-12 px-4">
-        <EcoviraCard variant="glass" className="p-8">
+        <div className="rounded-ec-lg bg-ec-card border border-[rgba(28,140,130,0.22)] shadow-ec-card p-8">
           <div className="text-center">
             <h1 className="text-2xl font-semibold text-ec-text mb-4">Flight Not Found</h1>
             <p className="text-ec-muted mb-6">No flight selected. Please select a flight from the search results.</p>
@@ -59,7 +58,7 @@ export default function FlightCheckoutPage() {
               Back to Flights
             </button>
           </div>
-        </EcoviraCard>
+        </div>
       </div>
     );
   }
@@ -74,9 +73,9 @@ export default function FlightCheckoutPage() {
         <p className="text-sm text-ec-dim mt-2">Offer ID: {offerId}</p>
       </div>
 
-      <EcoviraCard variant="glass" className="p-8">
+      <div className="rounded-ec-lg bg-ec-card border border-[rgba(28,140,130,0.22)] shadow-ec-card p-8">
         <CheckoutForm onSubmit={handleSubmit} loading={loading} />
-      </EcoviraCard>
+      </div>
     </div>
   );
 }

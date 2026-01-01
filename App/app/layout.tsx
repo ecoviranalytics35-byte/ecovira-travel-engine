@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { PremiumShell } from "../components/layout/PremiumShell";
 import { CurrencyProvider } from "../contexts/CurrencyContext";
+import FloatingActions from "../components/FloatingActions";
 
 export const metadata: Metadata = {
   title: "Ecovira - Luxury Travel Planning",
@@ -24,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <PremiumShell>
             {children}
           </PremiumShell>
-          {/* AIConcierge removed - using EcoviraChatWidget in PremiumShell instead */}
+          <FloatingActions />
         </CurrencyProvider>
       </body>
     </html>

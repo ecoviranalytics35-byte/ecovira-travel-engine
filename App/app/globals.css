@@ -64,11 +64,17 @@ html, body { padding: 0; margin: 0; }
    BASE GLOBAL LOOK (PREMIUM)
 ============================ */
 @layer base {
-  html, body {
+  html {
     height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   body {
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
     background:
       radial-gradient(900px 600px at 20% 10%, rgba(28,140,130,0.16), transparent 55%),
       radial-gradient(900px 600px at 80% 0%, rgba(200,162,77,0.12), transparent 55%),

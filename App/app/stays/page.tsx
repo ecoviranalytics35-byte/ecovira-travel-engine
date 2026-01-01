@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { StayResult } from "@/lib/core/types";
@@ -40,6 +40,7 @@ export default function Stays() {
   const [city, setCity] = useState("Melbourne");
   const [checkIn, setCheckIn] = useState("2025-12-28");
   const [nights, setNights] = useState(2);
+  const [checkOut, setCheckOut] = useState<string>("");
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
   const [roomType, setRoomType] = useState("double");
@@ -49,6 +50,28 @@ export default function Stays() {
   const [error, setError] = useState("");
   const [results, setResults] = useState<StayResult[]>([]);
   const [selectedStay, setSelectedStay] = useState<StayResult | null>(null);
+
+  // Helper function to add days to an ISO date string (client-side safe)
+  const addDays = useCallback((iso: string, days: number): string => {
+    const d = new Date(iso + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  // Calculate checkOut from checkIn + nights
+  useEffect(() => {
+    if (checkIn && nights > 0) {
+      try {
+        const checkOutStr = addDays(checkIn, nights);
+        setCheckOut(checkOutStr);
+      } catch (error) {
+        console.error('Error calculating check-out date:', error);
+        setCheckOut("");
+      }
+    } else {
+      setCheckOut("");
+    }
+  }, [checkIn, nights, addDays]);
 
   const handleSearch = useCallback(async () => {
     console.log("[handleSearch] ENTER", { ts: Date.now(), city, checkIn, nights, adults, children, roomType, classType });
@@ -111,30 +134,41 @@ export default function Stays() {
 
   // Handle stay selection with router navigation
   const handleSelectStay = useCallback((s: StayResult) => {
-    console.log("[onSelectStay] ENTER", { stayId: s.id, ts: Date.now() });
+    // Always compute checkOut from checkIn + nights if not already set
+    const computedCheckOut = checkOut || (checkIn && nights > 0 ? addDays(checkIn, nights) : "");
+    
+    console.log("[onSelectStay] ENTER", { stayId: s.id, checkIn, checkOut: computedCheckOut, nights, adults, currency, ts: Date.now() });
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:113',message:'[onSelectStay] ENTER',data:{stayId:s.id,ts:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:147',message:'[onSelectStay] ENTER',data:{stayId:s.id,checkIn,checkOut:computedCheckOut,nights,adults,currency,ts:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'checkout-compute-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
     // #endregion
     try {
       setSelectedStay(s);
-      const checkoutUrl = `/checkout/stay?stayId=${encodeURIComponent(s.id)}`;
-      console.log("[onSelectStay] Navigating to checkout", { checkoutUrl, stayId: s.id });
+      const params = new URLSearchParams({
+        stayId: s.id,
+        ...(checkIn && { checkIn }),
+        ...(computedCheckOut && { checkOut: computedCheckOut }),
+        ...(adults && { adults: adults.toString() }),
+        ...(nights && { rooms: "1" }), // Default to 1 room
+        ...(currency && { currency }),
+      });
+      const checkoutUrl = `/checkout/stay?${params.toString()}`;
+      console.log("[onSelectStay] Navigating to checkout", { checkoutUrl, stayId: s.id, checkIn, checkOut: computedCheckOut, adults, currency });
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:120',message:'[onSelectStay] Navigating to checkout',data:{checkoutUrl,offerId:s.id},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:161',message:'[onSelectStay] Navigating to checkout',data:{checkoutUrl,stayId:s.id,checkIn,checkOut:computedCheckOut,adults,currency},timestamp:Date.now(),sessionId:'debug-session',runId:'checkout-compute-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
       // #endregion
       router.push(checkoutUrl);
       console.log("[onSelectStay] EXIT - navigated to checkout");
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:125',message:'[onSelectStay] EXIT - navigated',data:{offerId:s.id},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:166',message:'[onSelectStay] EXIT - navigated',data:{stayId:s.id,checkIn,checkOut:computedCheckOut},timestamp:Date.now(),sessionId:'debug-session',runId:'checkout-compute-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
       // #endregion
     } catch (err) {
       console.error("[onSelectStay] ERROR", err);
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:130',message:'[onSelectStay] ERROR',data:{error:err instanceof Error?err.message:'Unknown',errorStack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'click-fix',hypothesisId:'C'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:171',message:'[onSelectStay] ERROR',data:{error:err instanceof Error?err.message:'Unknown',errorStack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'checkout-compute-fix',hypothesisId:'C'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
       // #endregion
       throw err;
     }
-  }, [router]);
+  }, [router, checkIn, checkOut, nights, adults, currency, addDays]);
   
   const onSelectStay = useEvent(handleSelectStay);
 
@@ -156,8 +190,8 @@ export default function Stays() {
         onSearch={onSearch}
         loading={loading}
       >
-        {/* Row 1: City | Check-in */}
-        <div className="ec-grid-2 mb-6">
+        {/* Row 1: City | Check-in | Check-out */}
+        <div className="ec-grid-3 mb-6">
           <div>
             <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
               City
@@ -173,6 +207,12 @@ export default function Stays() {
             onChange={setCheckIn}
             placeholder="Select check-in date"
             label="Check-in"
+          />
+          <DatePicker
+            value={checkOut}
+            onChange={setCheckOut}
+            placeholder="Select check-out date"
+            label="Check-out"
           />
         </div>
 
