@@ -226,7 +226,7 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
   const [messages, setMessages] = useState<ChatMessage[]>([
     { 
       role: 'assistant', 
-      content: "Hi, I'm Ecovira AI 👋\n\nI help you find the best flights, prices, and booking options.\n\nAsk me anything or choose a quick option below."
+      content: "Hi, I'm Ecovira AI ✨ Your travel concierge.\n\nTell me your route + dates and I'll find the best options.\n\nYou can also ask about baggage, refunds, seat selection, or fees."
     }
   ]);
   const [input, setInput] = useState('');
@@ -354,7 +354,7 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
       {isOpen && (
         <div 
           ref={chatPanelRef}
-          className="fixed bottom-6 right-6 z-[999999] w-[420px] max-w-[92vw] pointer-events-auto"
+          className="fixed bottom-6 right-6 z-[999999] w-[420px] max-w-[calc(100vw-32px)] pointer-events-auto"
           style={{
             visibility: 'visible',
             opacity: 1,
@@ -365,12 +365,58 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
             zIndex: 999999
           }}
         >
-          <div className="flex flex-col rounded-2xl border border-white/15 bg-[#0B0D10]/95 shadow-[0_24px_80px_rgba(0,0,0,0.70)] backdrop-blur-xl overflow-hidden">
+          <div 
+            className="flex flex-col overflow-hidden"
+            style={{
+              borderRadius: '20px',
+              background: 'rgba(10, 12, 14, 0.78)',
+              backdropFilter: 'blur(14px)',
+              WebkitBackdropFilter: 'blur(14px)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              boxShadow: '0 18px 55px rgba(0,0,0,0.55)',
+            }}
+          >
             {/* Header */}
-            <div className="px-4 py-3 border-b border-white/10 bg-[#0B0D10]/98 flex items-center justify-between">
-              <div>
-                <div className="text-white font-semibold text-base">24/7 AI Assistant</div>
-                <div className="text-white/60 text-sm">Always here to help</div>
+            <div 
+              className="flex items-center justify-between"
+              style={{
+                padding: '16px 18px',
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <div className="flex items-center">
+                <div 
+                  style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '999px',
+                    background: 'rgba(44, 255, 232, 0.85)',
+                    boxShadow: '0 0 18px rgba(44,255,232,0.35)',
+                    marginRight: '10px',
+                  }}
+                />
+                <div>
+                  <div 
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      color: 'rgba(255,255,255,0.92)',
+                      letterSpacing: '0.2px',
+                    }}
+                  >
+                    Ecovira AI Concierge
+                  </div>
+                  <div 
+                    style={{
+                      fontSize: '12.5px',
+                      color: 'rgba(255,255,255,0.62)',
+                      marginTop: '2px',
+                    }}
+                  >
+                    Always here to help
+                  </div>
+                </div>
               </div>
               <button
                 onClick={() => {
@@ -388,12 +434,13 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
             </div>
 
             {/* BODY – FIXED HEIGHT */}
-            <div className="flex flex-col h-[70vh] max-h-[640px] min-h-[420px]">
+            <div className="flex flex-col" style={{ height: '560px', maxHeight: '70vh' }}>
               {/* SCROLLABLE MESSAGES – ONLY THIS SCROLLS */}
               <div 
                 ref={messagesContainerRef}
-                className="flex-1 overflow-y-auto px-4 py-4 text-white/90 ec-chat-messages-scrollbar bg-gradient-to-b from-[#0B0D10]/40 via-transparent to-transparent"
+                className="flex-1 overflow-y-auto ec-chat-messages-scrollbar"
                 style={{
+                  padding: '16px 18px',
                   overscrollBehavior: 'contain',
                   WebkitOverflowScrolling: 'touch',
                   minHeight: 0,
@@ -408,12 +455,20 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
                     )}
                   >
                     <div
-                      className={cn(
-                        "max-w-[85%] rounded-xl px-4 py-3 text-[13.5px] leading-relaxed",
-                        msg.role === 'user'
-                          ? "bg-[rgba(28,140,130,0.22)] border border-[rgba(28,140,130,0.35)] text-white"
-                          : "bg-[rgba(255,255,255,0.06)] border border-white/10 text-white/90"
-                      )}
+                      style={{
+                        maxWidth: '86%',
+                        padding: msg.role === 'user' ? '12px 14px' : '12px 14px',
+                        borderRadius: '16px',
+                        background: msg.role === 'user'
+                          ? 'rgba(28,140,130,0.22)'
+                          : 'rgba(255,255,255,0.06)',
+                        border: msg.role === 'user'
+                          ? '1px solid rgba(28,140,130,0.35)'
+                          : '1px solid rgba(255,255,255,0.08)',
+                        color: 'rgba(255,255,255,0.86)',
+                        lineHeight: 1.45,
+                        fontSize: '13.5px',
+                      }}
                     >
                       {renderMarkdown(msg.content)}
                     </div>
@@ -425,12 +480,40 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
 
               {/* Chips row */}
               {quickChips.length > 0 && (
-                <div className="px-4 pb-2 overflow-x-auto whitespace-nowrap bg-[#0B0D10]/75">
+                <div 
+                  className="overflow-x-auto whitespace-nowrap"
+                  style={{
+                    display: 'flex',
+                    gap: '10px',
+                    padding: '10px 14px',
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  }}
+                >
                   {quickChips.map((c) => (
                     <button
                       key={c}
                       onClick={() => handleSend(c)}
-                      className="inline-flex mr-2 mt-2 px-3 py-1.5 rounded-full border border-[rgba(28,140,130,0.35)] bg-[rgba(28,140,130,0.12)] text-white text-xs hover:bg-[rgba(28,140,130,0.20)] transition"
+                      style={{
+                        padding: '9px 12px',
+                        borderRadius: '999px',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.09)',
+                        color: 'rgba(255,255,255,0.80)',
+                        fontSize: '12.5px',
+                        whiteSpace: 'nowrap',
+                        transition: 'transform 120ms ease, box-shadow 120ms ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(44,255,232,0.10)';
+                        e.currentTarget.style.borderColor = 'rgba(44,255,232,0.30)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = '';
+                        e.currentTarget.style.boxShadow = '';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)';
+                      }}
                     >
                       {c}
                     </button>
@@ -439,8 +522,14 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
               )}
 
               {/* INPUT – FIXED */}
-              <div className="border-t border-white/10 px-4 py-3 bg-[#0B0D10]/98">
-                <div className="flex items-center gap-2">
+              <div 
+                style={{
+                  padding: '12px 14px',
+                  background: 'rgba(8,10,12,0.65)',
+                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <div className="relative flex items-center">
                   <input
                     type="text"
                     value={input}
@@ -449,15 +538,40 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
                       if (e.key === 'Enter') handleSend();
                     }}
                     placeholder="Ask me anything..."
-                    className="flex-1 h-11 px-4 rounded-lg bg-white/10 border border-white/15 text-white placeholder-white/40 focus:outline-none focus:border-white/30"
                     disabled={sending}
+                    style={{
+                      width: '100%',
+                      padding: '12px 44px 12px 14px',
+                      borderRadius: '14px',
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.10)',
+                      color: 'rgba(255,255,255,0.88)',
+                      outline: 'none',
+                    }}
+                    className="placeholder:text-white/45"
                   />
                   <button
                     onClick={() => handleSend()}
                     disabled={sending || !input.trim()}
-                    className="h-11 px-4 rounded-lg bg-[rgba(28,140,130,0.20)] border border-[rgba(28,140,130,0.35)] text-white hover:bg-[rgba(28,140,130,0.28)] transition disabled:opacity-60"
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '12px',
+                      background: 'rgba(44,255,232,0.16)',
+                      border: '1px solid rgba(44,255,232,0.25)',
+                      boxShadow: '0 0 22px rgba(44,255,232,0.10)',
+                      color: 'rgba(255,255,255,0.92)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'opacity 120ms ease',
+                      opacity: (sending || !input.trim()) ? 0.5 : 1,
+                      cursor: (sending || !input.trim()) ? 'not-allowed' : 'pointer',
+                    }}
                   >
-                    {sending ? "..." : "Send"}
+                    <Send size={16} />
                   </button>
                 </div>
               </div>
