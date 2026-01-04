@@ -4,6 +4,9 @@ export async function createNowPaymentsInvoice(input: {
   payCurrency?: string;
   orderId?: string;
   orderDescription?: string;
+  ipnCallbackUrl?: string;
+  successUrl?: string;
+  cancelUrl?: string;
 }): Promise<{ id: string; invoiceUrl: string; provider: "nowpayments" }> {
   const hasKey = !!process.env.NOWPAYMENTS_API_KEY;
   const hasIpn = !!process.env.NOWPAYMENTS_IPN_SECRET;

@@ -1,13 +1,56 @@
 # devecovira-air-v2
 ## Run
+**IMPORTANT: Run from the App/ directory (where package.json is), NOT from App/app/**
+
+```powershell
+cd App
 npm install
 npm run dev
+```
+
+The dev server should start from `App/` (project root), not `App/app/` (Next.js app directory).
 
 ## Env Setup
-Create .env.local in repo root (same folder as package.json)
-Add DUFFEL_ACCESS_TOKEN="..."
-Add STRIPE_SECRET_KEY="..."
-Restart: npm run dev
+**IMPORTANT: .env.local must be in the project root (same folder as package.json), NOT in app/.env.local**
+
+Create `.env.local` in repo root (same folder as package.json):
+```
+STRIPE_SECRET_KEY=YOUR_STRIPE_SECRET_KEY_<set-in-env>
+STRIPE_WEBHOOK_SECRET=YOUR_STRIPE_WEBHOOK_SECRET_<set-in-env>
+NOWPAYMENTS_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxx
+NOWPAYMENTS_IPN_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+DUFFEL_ACCESS_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+**CRITICAL:**
+- NO quotes around values (or use quotes consistently)
+- NO trailing spaces
+- NO placeholder values like "sk_..." - use REAL full keys
+- Stripe keys must start with `YOUR_STRIPE_SECRET_KEY_` or `sk_test_` and be >30 characters
+- Restart dev server after ANY changes: `npm run dev` (env vars only load on boot)
+
+**If your .env.local is in app/.env.local, move it to the root:**
+```powershell
+# From the App directory (where package.json is)
+Move-Item -Path "app\.env.local" -Destination ".env.local" -Force
+# Then restart: npm run dev
+```
+
+**Troubleshooting:**
+
+**Use the env-check endpoint to diagnose env var loading:**
+Visit `http://localhost:3000/api/env-check` after starting the dev server. This will show:
+- Which env vars exist (exists: true/false)
+- Key length (should be >0 for configured vars)
+- Key prefix (first 10 chars, for verification)
+- CWD (current working directory - should match where package.json is)
+- All env var names containing STRIPE/NOW/AMADEUS patterns
+
+**Common issues:**
+- If Stripe key length shows 11 or <30: Your key is truncated/placeholder. Get full key from Stripe dashboard.
+- If NOWPayments/Amadeus key length shows 0: Check env var names match exactly. Restart dev server.
+- If env-check shows all keys missing: `.env.local` is in wrong location OR dev server wasn't restarted after creating it.
 
 ## Amadeus Setup
 Create .env.local in repo root

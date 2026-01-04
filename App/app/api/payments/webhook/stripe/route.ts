@@ -4,6 +4,8 @@ import { notifyBookingConfirmed } from "@/lib/notifications/trips";
 import { updateBookingStatus, updateItinerary, getBookingByPaymentId } from "@/lib/itinerary";
 import { supabaseAdmin } from "@/lib/core/supabase";
 
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   try {
     const stripe = getStripeClient();
@@ -18,6 +20,28 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, error: 'Webhook signature verification failed' }, { status: 400 });
     }
 
+    // Handle checkout.session.completed (for Checkout Sessions)
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const orderId = session.metadata?.orderId || session.metadata?.bookingData?.offerId;
+      
+      if (orderId) {
+        console.log("[Stripe Webhook] Checkout session completed:", {
+          sessionId: session.id,
+          orderId,
+          paymentStatus: session.payment_status,
+        });
+
+        // TODO: Update booking status in database
+        // await updateBookingStatusByOrderId(orderId, 'paid');
+        // await markItineraryPaid(orderId);
+        
+        // Idempotency: Check if already processed
+        // TODO: Check database to ensure we don't process twice
+      }
+    }
+
+    // Handle payment_intent.succeeded (for Payment Intents)
     if (event.type === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object;
       const itineraryId = paymentIntent.metadata.itineraryId;

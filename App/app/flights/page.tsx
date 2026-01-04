@@ -57,9 +57,17 @@ export default function Flights() {
   const [selectedFlight, setSelectedFlight] = useState<FlightResult | null>(null);
 
   const handleSearch = useCallback(async () => {
+    const DEBUG_INGEST = process.env.NEXT_PUBLIC_DEBUG_INGEST_URL;
     console.log("[handleSearch] ENTER", { ts: Date.now(), from, to, departDate, returnDate, adults, cabinClass, currency, tripType });
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:58',message:'[handleSearch] ENTER',data:{ts:Date.now(),from,to,departDate,returnDate,adults,cabinClass,currency,tripType},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+    if (DEBUG_INGEST) {
+      fetch(`${DEBUG_INGEST}/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({location:'flights/page.tsx:58',message:'[handleSearch] ENTER',data:{ts:Date.now(),from,to,departDate,returnDate,adults,cabinClass,currency,tripType},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'}),
+        keepalive: true,
+      }).catch(() => {});
+    }
     // #endregion
     try {
       setLoading(true);
@@ -69,7 +77,14 @@ export default function Flights() {
       const url = `/api/flights/search?from=${from}&to=${to}&departDate=${departDate}&adults=${adults}&cabinClass=${cabinClass}&currency=${currency}&tripType=${tripType}${tripType === "roundtrip" && returnDate ? `&returnDate=${returnDate}` : ''}`;
       console.log("[handleSearch] Fetching API", { url });
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:65',message:'[handleSearch] Fetching API',data:{url},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      if (DEBUG_INGEST) {
+        fetch(`${DEBUG_INGEST}/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({location:'flights/page.tsx:65',message:'[handleSearch] Fetching API',data:{url},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'}),
+          keepalive: true,
+        }).catch(() => {});
+      }
       // #endregion
       
       const res = await fetch(url);
@@ -77,7 +92,14 @@ export default function Flights() {
       
       console.log("[handleSearch] API response", { status: res.status, ok: res.ok, hasErrors: !!data.errors, resultsCount: data.results?.length || 0 });
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:70',message:'[handleSearch] API response',data:{status:res.status,ok:res.ok,hasErrors:!!data.errors,resultsCount:data.results?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      if (DEBUG_INGEST) {
+        fetch(`${DEBUG_INGEST}/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({location:'flights/page.tsx:70',message:'[handleSearch] API response',data:{status:res.status,ok:res.ok,hasErrors:!!data.errors,resultsCount:data.results?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'A'}),
+          keepalive: true,
+        }).catch(() => {});
+      }
       // #endregion
       
       if (data.errors && data.errors.length > 0) {
@@ -90,7 +112,14 @@ export default function Flights() {
             const fallbackId = `normalized-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`;
             console.warn("[handleSearch] Result missing ID, using fallback", { result, fallbackId, index });
             // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:84',message:'[handleSearch] Result missing ID, using fallback',data:{result,fallbackId,index},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'D'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+            if (DEBUG_INGEST) {
+              fetch(`${DEBUG_INGEST}/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({location:'flights/page.tsx:84',message:'[handleSearch] Result missing ID, using fallback',data:{result,fallbackId,index},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'D'}),
+                keepalive: true,
+              }).catch(() => {});
+            }
             // #endregion
             return { ...result, id: fallbackId };
           }
@@ -102,7 +131,14 @@ export default function Flights() {
     } catch (err) {
       console.error("[handleSearch] ERROR", err);
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:81',message:'[handleSearch] ERROR',data:{error:err instanceof Error?err.message:'Unknown',errorStack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'C'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      if (DEBUG_INGEST) {
+        fetch(`${DEBUG_INGEST}/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({location:'flights/page.tsx:81',message:'[handleSearch] ERROR',data:{error:err instanceof Error?err.message:'Unknown',errorStack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'C'}),
+          keepalive: true,
+        }).catch(() => {});
+      }
       // #endregion
       setError("We encountered a network issue. Please try again.");
       throw err;
@@ -110,7 +146,14 @@ export default function Flights() {
       setLoading(false);
       console.log("[handleSearch] EXIT");
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flights/page.tsx:88',message:'[handleSearch] EXIT',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+      if (DEBUG_INGEST) {
+        fetch(`${DEBUG_INGEST}/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({location:'flights/page.tsx:88',message:'[handleSearch] EXIT',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'}),
+          keepalive: true,
+        }).catch(() => {});
+      }
       // #endregion
     }
   }, [from, to, departDate, returnDate, adults, cabinClass, currency, tripType]);

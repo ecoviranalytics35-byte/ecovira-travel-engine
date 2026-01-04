@@ -7,12 +7,8 @@ import { useBookingStore } from "@/stores/bookingStore";
 import { EcoviraButton } from "@/components/Button";
 import { ArrowLeft, CreditCard, Coins, Lock, Sparkles } from "lucide-react";
 
-// Environment checks (no error banners - graceful handling)
-// Client-side check for Stripe (for UI state). Server-side will validate actual keys.
-const STRIPE_ENABLED = typeof window !== 'undefined' 
-  ? (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY && 
-     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.startsWith('pk_'))
-  : true; // Server-side, let API handle validation
+// Always enable buttons - let server handle validation
+// Server-side will validate actual keys and return appropriate errors
 
 // Visual tokens (chatbot-style)
 const glassPanelStyle: React.CSSProperties = {
@@ -37,6 +33,8 @@ export default function CheckoutPage() {
   
   const [processing, setProcessing] = useState(false);
   const [processingMethod, setProcessingMethod] = useState<"stripe" | "crypto" | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lastClickTime, setLastClickTime] = useState<number>(0);
 
   // Route guard
   useEffect(() => {
@@ -58,6 +56,19 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Debounce: prevent rapid clicks
+    const now = Date.now();
+    if (now - lastClickTime < 1000) {
+      return;
+    }
+    setLastClickTime(now);
+
+    // Prevent if already processing
+    if (processing) {
+      return;
+    }
+
+    setErrorMessage(null);
     setProcessing(true);
     setProcessingMethod("stripe");
     setPayment({ method: "stripe", status: "processing" });
@@ -69,6 +80,8 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           amount: Math.round(pricing.total * 100), // cents
           currency: pricing.currency.toLowerCase(),
+          orderId: `booking-${selectedOffer.id}`,
+          customerEmail: passengers[0]?.email,
           bookingData: {
             offerId: selectedOffer.id,
             passengers,
@@ -81,17 +94,52 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
-      if (!data.ok || !data.url) {
-        throw new Error(data.error || "Failed to create payment session");
+      if (!data.ok) {
+        // Handle specific error codes
+        if (data.code === "STRIPE_NOT_CONFIGURED") {
+          setErrorMessage("Card payments unavailable.");
+          setPayment({ method: "stripe", status: "failed" });
+          setProcessing(false);
+          setProcessingMethod(null);
+          return;
+        }
+        if (data.code === "STRIPE_INVALID_KEY_FORMAT") {
+          setErrorMessage(data.message || "Stripe key format invalid. Please check configuration.");
+          setPayment({ method: "stripe", status: "failed" });
+          setProcessing(false);
+          setProcessingMethod(null);
+          return;
+        }
+        if (data.code === "STRIPE_AUTH_ERROR") {
+          setErrorMessage("Stripe key rejected (live/test mismatch or invalid key).");
+          setPayment({ method: "stripe", status: "failed" });
+          setProcessing(false);
+          setProcessingMethod(null);
+          return;
+        }
+        // Use API message or fallback
+        const errorMessage = data.message || data.error || "Failed to create payment session";
+        setErrorMessage(errorMessage);
+        setPayment({ method: "stripe", status: "failed" });
+        setProcessing(false);
+        setProcessingMethod(null);
+        return;
+      }
+
+      if (!data.url) {
+        throw new Error("No payment URL returned");
       }
 
       // Redirect to Stripe Checkout
       window.location.href = data.url;
     } catch (err) {
       console.error("Stripe payment error:", err);
+      const message = err instanceof Error ? err.message : "Card payment unavailable. Try again or use crypto.";
+      setErrorMessage(message);
       setPayment({ method: "stripe", status: "failed" });
       setProcessing(false);
       setProcessingMethod(null);
+      // Do not throw - show error in UI
     }
   };
 
@@ -100,6 +148,19 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Debounce: prevent rapid clicks
+    const now = Date.now();
+    if (now - lastClickTime < 1000) {
+      return;
+    }
+    setLastClickTime(now);
+
+    // Prevent if already processing
+    if (processing) {
+      return;
+    }
+
+    setErrorMessage(null);
     setProcessing(true);
     setProcessingMethod("crypto");
     setPayment({ method: "crypto", status: "processing" });
@@ -126,28 +187,44 @@ export default function CheckoutPage() {
       const data = await res.json();
 
       if (!data.ok) {
-        // If NOWPayments is not configured, show subtle message (no banner)
-        if (data.error?.includes("not configured") || data.error?.includes("key missing")) {
+        // Handle specific error codes
+        if (data.code === "NOWPAYMENTS_NOT_CONFIGURED") {
+          setErrorMessage("Crypto payments temporarily unavailable.");
           setPayment({ method: "crypto", status: "failed" });
           setProcessing(false);
           setProcessingMethod(null);
-          // Show subtle inline message instead of banner
           return;
         }
-        throw new Error(data.error || "Failed to create crypto invoice");
+        if (data.code === "NOWPAYMENTS_UPSTREAM") {
+          setErrorMessage("Crypto payment service temporarily unavailable.");
+          setPayment({ method: "crypto", status: "failed" });
+          setProcessing(false);
+          setProcessingMethod(null);
+          return;
+        }
+        // Use API message or fallback
+        const errorMessage = data.message || data.error || "Failed to create crypto invoice";
+        setErrorMessage(errorMessage);
+        setPayment({ method: "crypto", status: "failed" });
+        setProcessing(false);
+        setProcessingMethod(null);
+        return;
       }
 
-      if (!data.url) {
+      if (!data.url && !data.invoiceUrl) {
         throw new Error("No payment URL returned");
       }
 
       // Redirect to crypto payment
-      window.location.href = data.url;
+      window.location.href = data.url || data.invoiceUrl;
     } catch (err) {
       console.error("Crypto payment error:", err);
+      const message = err instanceof Error ? err.message : "Crypto payment unavailable. Try again or use card checkout.";
+      setErrorMessage(message);
       setPayment({ method: "crypto", status: "failed" });
       setProcessing(false);
       setProcessingMethod(null);
+      // Do not throw - show error in UI
     }
   };
 
@@ -257,31 +334,43 @@ export default function CheckoutPage() {
             </p>
           </div>
 
+          {/* Error Message Display */}
+          {errorMessage && (
+            <div className="max-w-2xl mx-auto mb-4">
+              <div
+                className="p-4 rounded-lg border text-center"
+                style={{
+                  background: "rgba(239, 68, 68, 0.1)",
+                  borderColor: "rgba(239, 68, 68, 0.3)",
+                  color: "rgba(255, 255, 255, 0.9)",
+                }}
+              >
+                <p className="text-sm font-medium">{errorMessage}</p>
+                <button
+                  onClick={() => setErrorMessage(null)}
+                  className="mt-2 text-xs underline opacity-70 hover:opacity-100"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="max-w-2xl mx-auto space-y-4">
             {/* Stripe Payment - Hero Button */}
             <button
               onClick={handleStripePayment}
-              disabled={!STRIPE_ENABLED || processing}
+              disabled={processing}
               className="w-full p-10 rounded-2xl border transition-all disabled:opacity-60 disabled:cursor-not-allowed group relative overflow-hidden"
-              style={
-                STRIPE_ENABLED
-                  ? {
-                      background: "rgba(10, 12, 14, 0.78)",
-                      backdropFilter: "blur(14px)",
-                      WebkitBackdropFilter: "blur(14px)",
-                      borderColor: "rgba(28, 140, 130, 0.4)",
-                      boxShadow: "0 18px 55px rgba(0,0,0,0.55), 0 0 0 1px rgba(28,140,130,0.25), 0 0 30px rgba(28,140,130,0.2)",
-                    }
-                  : {
-                      background: "rgba(10, 12, 14, 0.78)",
-                      backdropFilter: "blur(14px)",
-                      WebkitBackdropFilter: "blur(14px)",
-                      borderColor: "rgba(255,255,255,0.10)",
-                      boxShadow: "0 18px 55px rgba(0,0,0,0.55)",
-                    }
-              }
+              style={{
+                background: "rgba(10, 12, 14, 0.78)",
+                backdropFilter: "blur(14px)",
+                WebkitBackdropFilter: "blur(14px)",
+                borderColor: "rgba(28, 140, 130, 0.4)",
+                boxShadow: "0 18px 55px rgba(0,0,0,0.55), 0 0 0 1px rgba(28,140,130,0.25), 0 0 30px rgba(28,140,130,0.2)",
+              }}
               onMouseEnter={(e) => {
-                if (STRIPE_ENABLED && !processing) {
+                if (!processing) {
                   e.currentTarget.style.borderColor = "rgba(28, 140, 130, 0.6)";
                   e.currentTarget.style.boxShadow = "0 22px 70px rgba(0,0,0,0.65), 0 0 0 1px rgba(28,140,130,0.35), 0 0 40px rgba(28,140,130,0.3)";
                   e.currentTarget.style.transform = "translateY(-2px)";
@@ -289,26 +378,20 @@ export default function CheckoutPage() {
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "translateY(0)";
-                if (STRIPE_ENABLED) {
-                  e.currentTarget.style.borderColor = "rgba(28, 140, 130, 0.4)";
-                  e.currentTarget.style.boxShadow = "0 18px 55px rgba(0,0,0,0.55), 0 0 0 1px rgba(28,140,130,0.25), 0 0 30px rgba(28,140,130,0.2)";
-                }
+                e.currentTarget.style.borderColor = "rgba(28, 140, 130, 0.4)";
+                e.currentTarget.style.boxShadow = "0 18px 55px rgba(0,0,0,0.55), 0 0 0 1px rgba(28,140,130,0.25), 0 0 30px rgba(28,140,130,0.2)";
               }}
             >
               <div className="flex flex-col items-center gap-4">
                 <div
                   className="w-20 h-20 rounded-full flex items-center justify-center transition-all group-hover:scale-110"
                   style={{
-                    background: STRIPE_ENABLED ? "rgba(28, 140, 130, 0.15)" : "rgba(255, 255, 255, 0.05)",
-                    border: `1px solid ${STRIPE_ENABLED ? "rgba(28, 140, 130, 0.3)" : "rgba(255, 255, 255, 0.10)"}`,
-                    boxShadow: STRIPE_ENABLED ? "0 0 30px rgba(28,140,130,0.3)" : "none",
+                    background: "rgba(28, 140, 130, 0.15)",
+                    border: "1px solid rgba(28, 140, 130, 0.3)",
+                    boxShadow: "0 0 30px rgba(28,140,130,0.3)",
                   }}
                 >
-                  {STRIPE_ENABLED ? (
-                    <CreditCard size={36} className="text-ec-teal" />
-                  ) : (
-                    <Lock size={36} style={{ color: "rgba(255,255,255,0.62)" }} />
-                  )}
+                  <CreditCard size={36} className="text-ec-teal" />
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-white mb-2">
@@ -318,9 +401,9 @@ export default function CheckoutPage() {
                     Stripe • Multi-Currency
                   </div>
                 </div>
-                {!STRIPE_ENABLED && (
+                {processingMethod === "stripe" && processing && (
                   <div className="text-sm mt-2" style={{ color: "rgba(255,255,255,0.55)" }}>
-                    Card payments coming shortly
+                    Creating payment session...
                   </div>
                 )}
               </div>
