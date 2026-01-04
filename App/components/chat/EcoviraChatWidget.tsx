@@ -389,11 +389,11 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
       };
       const handleClose = () => setInternalIsOpen(false);
       
-      window.addEventListener('ecovira-chat-open', handleOpen);
+      window.addEventListener('ecovira:chat:open', handleOpen);
       window.addEventListener('ecovira-chat-close', handleClose);
       
       return () => {
-        window.removeEventListener('ecovira-chat-open', handleOpen);
+        window.removeEventListener('ecovira:chat:open', handleOpen);
         window.removeEventListener('ecovira-chat-close', handleClose);
       };
     }
@@ -415,31 +415,17 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
   ]);
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
-  // Auto-scroll only if user is at bottom
+  // Debug: Log chat state when opened
   useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-    
-    const checkScrollPosition = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px threshold
-      setShouldAutoScroll(isAtBottom);
-    };
-    
-    container.addEventListener('scroll', checkScrollPosition);
-    checkScrollPosition();
-    
-    return () => container.removeEventListener('scroll', checkScrollPosition);
-  }, []);
+    console.log("chat open:", isOpen, "messages:", messages.length);
+  }, [isOpen, messages.length]);
 
-  // Auto-scroll when new messages arrive (only if user is at bottom)
+  // Auto-scroll to latest message when new messages arrive
   useEffect(() => {
-    if (shouldAutoScroll && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, shouldAutoScroll]);
+    if (!isOpen) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [isOpen, messages.length]);
 
   const handleSend = (query?: string) => {
     const userMessage = query || input.trim();
@@ -535,9 +521,9 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
     if (lowerInput.includes('check-in') || lowerInput.includes('check in') || lowerInput.includes('checkin')) {
       // Check if we have trip context (user is in My Trips)
       const hasTripContext = context?.trip && context.trip.airlineIata;
-      const airlineFromContext = hasTripContext ? context.trip.airlineIata : null;
-      const airlineNameFromContext = hasTripContext ? (context.trip.airlineName || getAirlineName(context.trip.airlineIata!)) : null;
-      const departureTime = hasTripContext ? context.trip.scheduledDeparture : null;
+      const airlineFromContext = hasTripContext ? context.trip?.airlineIata : null;
+      const airlineNameFromContext = hasTripContext ? (context.trip?.airlineName || (context.trip?.airlineIata ? getAirlineName(context.trip.airlineIata) : null)) : null;
+      const departureTime = hasTripContext ? context.trip?.scheduledDeparture : null;
       
       // Try to detect airline from user input or context
       let airlineInfo = null;
@@ -624,15 +610,18 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
     // Context-specific intelligent responses
     if (context) {
       const page = context.page || 'flights';
-      const hasResults = context.results && context.results.length > 0;
-      const selected = context.selectedFlight || (hasResults ? context.results[0] : null);
+      const results = context.results ?? [];
+      const hasResults = results.length > 0;
+      const selected = context.selectedFlight || (hasResults ? results[0] : null);
 
       // Best option with context - PROACTIVE ECOVIRA-STYLE ANSWER
       if ((lowerInput.includes('best') || lowerInput.includes('recommend') || lowerInput.includes('which option')) && hasResults) {
         if (page === 'flights' && context.topFlights && context.topFlights.length > 0) {
-          const cheapest = context.topFlights.reduce((min, f) => 
-            parseFloat(f.price || 0) < parseFloat(min.price || 0) ? f : min, context.topFlights[0]
-          );
+          const cheapest = context.topFlights.reduce((min, f) => {
+            const fPrice = parseFloat(String(f.price || '0'));
+            const minPrice = parseFloat(String(min.price || '0'));
+            return fPrice < minPrice ? f : min;
+          }, context.topFlights[0]);
           const fastest = context.topFlights.reduce((min, f) => {
             const minDur = parseFloat(min.duration || '999') || 999;
             const fDur = parseFloat(f.duration || '999') || 999;
@@ -666,11 +655,11 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
             `If you want, I can also compare it against the cheapest option or check how currency choice affects the total.`;
           matched = true;
         } else if (page === 'stays' && hasResults) {
-          const bestValue = context.results.reduce((best, s) => {
+          const bestValue = results.reduce((best, s) => {
             const bestPrice = parseFloat(best.total || '0');
             const sPrice = parseFloat(s.total || '0');
             return sPrice < bestPrice ? s : best;
-          }, context.results[0]);
+          }, results[0]);
           response = `Based on your search, ${bestValue.name || 'this option'} offers the best value at ${bestValue.currency || context.currency || 'USD'} ${bestValue.total || '0'} per night. Check the AI Assist widget for total trip cost and detailed insights.`;
           matched = true;
         }
@@ -752,7 +741,7 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
           `${context.dates?.return ? `Return: ${context.dates.return}` : ''}. ` +
           `${context.passengers ? `${context.passengers} passenger(s)` : ''} ` +
           `${context.cabin ? `, ${context.cabin} class` : ''}. ` +
-          `${hasResults ? `You have ${context.results.length} result(s) available.` : 'Search to see available options.'}`;
+          `${hasResults ? `You have ${results.length} result(s) available.` : 'Search to see available options.'}`;
         matched = true;
       }
 
@@ -832,10 +821,10 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
       
       // Proactive currency advice when user asks about price
       if ((lowerInput.includes('price') || lowerInput.includes('expensive') || lowerInput.includes('cost')) && context.currency && !matched && hasResults) {
-        const selected = context.selectedFlight || (hasResults ? context.results[0] : null);
+        const selected = context.selectedFlight || (hasResults ? results[0] : null);
         if (selected && page === 'flights') {
           const price = parseFloat(selected.price || '0');
-          const allPrices = context.results.map((r: any) => parseFloat(r.price || '0')).filter((p: number) => p > 0);
+          const allPrices = results.map((r: any) => parseFloat(r.price || '0')).filter((p: number) => p > 0);
           const avgPrice = allPrices.reduce((a: number, b: number) => a + b, 0) / allPrices.length;
           const minPrice = Math.min(...allPrices);
           const isExpensive = price > avgPrice * 1.2;
@@ -919,39 +908,46 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
 
   // Removed debug logging to prevent hydration warnings
 
+  // #region agent log
+  useEffect(() => {
+    const panel = chatPanelRef.current;
+    if (panel) {
+      const rect = panel.getBoundingClientRect();
+      const style = window.getComputedStyle(panel);
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EcoviraChatWidget.tsx:912',message:'Chat panel DOM state - detailed positioning',data:{isOpen,shouldShow,panelExists:!!panel,rect:{top:rect.top,left:rect.left,right:rect.right,bottom:rect.bottom,width:rect.width,height:rect.height},style:{position:style.position,right:style.right,bottom:style.bottom,left:style.left,top:style.top,visibility:style.visibility,opacity:style.opacity,display:style.display,pointerEvents:style.pointerEvents,transform:style.transform},inlineStyle:panel.style.cssText,viewportWidth,viewportHeight,expectedRight:viewportWidth-420-24,expectedBottom:viewportHeight-24},timestamp:Date.now(),sessionId:'debug-session',runId:'chat-button-fix-v2',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+    } else {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EcoviraChatWidget.tsx:912',message:'Chat panel DOM state - panel not found',data:{isOpen,shouldShow,panelExists:false},timestamp:Date.now(),sessionId:'debug-session',runId:'chat-button-fix-v2',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+    }
+  }, [isOpen, shouldShow]);
+  // #endregion
+
   return (
     <>
-      {/* Chat Panel */}
+      {/* Chat Panel - Exact Structure */}
       {isOpen && (
         <div 
-          className="fixed z-[100] flex flex-col transition-all duration-300 ease-out" 
+          className="fixed bottom-6 right-6 z-[60] w-[420px] max-w-[92vw]"
           style={{ 
-            display: 'block', 
-            visibility: shouldShow ? 'visible' : 'hidden',
-            opacity: shouldShow ? 1 : 0,
-            transform: shouldShow ? 'translateY(0)' : 'translateY(calc(100% + 24px))',
-            zIndex: 100,
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            width: '420px',
-            height: '600px',
-            maxWidth: 'calc(100vw - 48px)',
-            maxHeight: 'calc(100vh - 48px)',
-            pointerEvents: shouldShow ? 'auto' : 'none'
+            opacity: 1,
+            transform: 'translateY(0)',
+            transition: 'all 300ms ease-out',
           }}
           ref={chatPanelRef}
         >
-          <EcoviraCard variant="glass" className="flex-1 flex flex-col p-0 shadow-[0_20px_60px_rgba(0,0,0,0.55)] overflow-hidden bg-[rgba(15,17,20,0.92)] backdrop-blur-xl">
+          <div className="flex flex-col rounded-2xl border border-white/10 bg-black/60 backdrop-blur-md shadow-2xl">
             {/* Header */}
-            <div className="p-4 border-b border-[rgba(28,140,130,0.22)] flex items-center justify-between bg-[rgba(21,24,29,0.98)]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[rgba(28,140,130,0.3)] to-[rgba(28,140,130,0.2)] flex items-center justify-center">
-                  <Bot size={20} className="text-ec-teal" />
-                </div>
+            <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bot size={20} className="text-ec-teal" />
                 <div>
-                  <h3 className="text-lg font-semibold text-ec-text">24/7 AI Assistant</h3>
-                  <p className="text-xs text-ec-muted">Always here to help</p>
+                  <div className="text-white font-semibold text-lg">24/7 AI Assistant</div>
+                  <div className="text-white/60 text-sm">Always here to help</div>
                 </div>
               </div>
               <button
@@ -964,100 +960,70 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
                     setInternalIsOpen(false);
                   }
                 }}
-                className="w-8 h-8 flex items-center justify-center text-ec-muted hover:text-ec-text hover:bg-[rgba(28,140,130,0.15)] rounded-ec-sm transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 rounded transition-colors"
                 aria-label="Close"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Messages */}
-            <div 
-              ref={messagesContainerRef}
-              className="overflow-y-auto p-4 space-y-4 bg-[rgba(15,17,20,0.75)]"
-              style={{
-                height: '400px',
-                maxHeight: '400px',
-                overflowY: 'auto',
-                overscrollBehavior: 'contain',
-                WebkitOverflowScrolling: 'touch',
-              }}
-              onWheel={(e) => {
-                // Prevent scroll chaining - stop propagation if at scroll boundaries
-                const el = messagesContainerRef.current;
-                if (!el) return;
-                
-                const { scrollTop, scrollHeight, clientHeight } = el;
-                const isAtTop = scrollTop === 0;
-                const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
-                
-                // If scrolling up at top or down at bottom, prevent page scroll
-                if ((e.deltaY < 0 && isAtTop) || (e.deltaY > 0 && isAtBottom)) {
-                  e.stopPropagation();
-                }
-              }}
-            >
-              {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "flex",
-                    msg.role === 'user' ? 'justify-end' : 'justify-start'
-                  )}
-                >
+            {/* BODY – FIXED HEIGHT */}
+            <div className="flex flex-col" style={{ height: '70vh', maxHeight: '640px', minHeight: '420px' }}>
+              {/* SCROLLABLE MESSAGES – ONLY THIS SCROLLS */}
+              <div 
+                ref={messagesContainerRef}
+                className="flex-1 overflow-y-auto px-4 py-4 text-white/90 ec-chat-messages-scrollbar"
+                style={{
+                  overscrollBehavior: 'contain',
+                  WebkitOverflowScrolling: 'touch',
+                  minHeight: 0,
+                }}
+              >
+                {messages.map((msg, i) => (
                   <div
+                    key={i}
                     className={cn(
-                      "max-w-[80%] rounded-ec-md p-3 text-sm",
-                      msg.role === 'user'
-                        ? "bg-[rgba(28,140,130,0.25)] text-ec-text"
-                        : "bg-[rgba(15,17,20,0.6)] text-ec-text border border-[rgba(28,140,130,0.15)]"
+                      "flex mb-4",
+                      msg.role === 'user' ? 'justify-end' : 'justify-start'
                     )}
                   >
-                    {msg.content}
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Quick Chips - Dynamic based on page context */}
-            {messages.length <= 2 && (
-              <div className="px-4 pb-2 border-t border-[rgba(28,140,130,0.15)] bg-[rgba(15,17,20,0.75)]">
-                <div className="flex flex-wrap gap-2 pt-3">
-                  {getQuickChips(context?.page).map((chip, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleSend(chip.query)}
-                      className="ec-chat-quick-chip px-4 py-2 text-sm font-semibold bg-[rgba(28,140,130,0.25)] hover:bg-[rgba(28,140,130,0.4)] border-2 border-[rgba(28,140,130,0.5)] rounded-full text-white hover:text-white transition-all shadow-[0_0_12px_rgba(28,140,130,0.4),0_0_20px_rgba(28,140,130,0.25)] hover:shadow-[0_0_18px_rgba(28,140,130,0.6),0_0_30px_rgba(28,140,130,0.4)] hover:border-[rgba(28,140,130,0.7)] hover:scale-105 active:scale-95"
-                      style={{ color: '#FFFFFF' }}
+                    <div
+                      className={cn(
+                        "max-w-[80%] rounded-lg p-3 text-sm",
+                        msg.role === 'user'
+                          ? "bg-white/20 text-white/90"
+                          : "bg-white/10 text-white/90 border border-white/20"
+                      )}
                     >
-                      {chip.label}
-                    </button>
-                  ))}
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+                {/* Auto-scroll target */}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* INPUT – FIXED */}
+              <div className="border-t border-white/10 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                    placeholder="Ask me anything..."
+                    className="flex-1 h-10 px-4 bg-white/10 border border-white/20 rounded-lg text-white text-sm placeholder-white/50 focus:outline-none focus:border-white/40"
+                  />
+                  <button
+                    onClick={() => handleSend()}
+                    className="w-10 h-10 bg-white/20 hover:bg-white/30 border border-white/30 rounded-lg text-white flex items-center justify-center transition-all"
+                  >
+                    <Send size={18} />
+                  </button>
                 </div>
               </div>
-            )}
-
-            {/* Input */}
-            <div className="p-4 border-t border-[rgba(28,140,130,0.22)] bg-[rgba(21,24,29,0.98)]">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="Ask me anything..."
-                  className="flex-1 h-11 px-4 bg-[rgba(15,17,20,0.55)] border border-[rgba(28,140,130,0.22)] rounded-ec-md text-ec-text text-sm placeholder-[rgba(237,237,237,0.45)] focus:outline-none focus:border-[rgba(28,140,130,0.55)] focus:shadow-[0_0_0_4px_rgba(28,140,130,0.18)]"
-                />
-                <button
-                  onClick={() => handleSend()}
-                  className="w-11 h-11 bg-gradient-to-br from-[rgba(28,140,130,0.8)] to-[rgba(28,140,130,0.6)] border border-[rgba(200,162,77,0.3)] rounded-ec-md text-ec-text flex items-center justify-center hover:shadow-[0_0_12px_rgba(28,140,130,0.4)] transition-all"
-                >
-                  <Send size={18} />
-                </button>
-              </div>
             </div>
-          </EcoviraCard>
+          </div>
         </div>
       )}
 
@@ -1070,11 +1036,11 @@ export function EcoviraChatWidget({ context, isOpen: controlledIsOpen, onClose }
             if (controlledIsOpen === undefined) {
               setInternalIsOpen(true);
             } else {
-              // Trigger parent to open via custom event
-              window.dispatchEvent(new CustomEvent('ecovira-chat-open'));
+              // Trigger parent to open via custom event (must match PremiumShell listener)
+              window.dispatchEvent(new CustomEvent('ecovira:chat:open'));
             }
           }}
-          className="fixed z-[99] bottom-6 right-6 w-14 h-14 md:w-16 md:h-16 flex items-center justify-center text-ec-text rounded-full transition-all duration-300 bg-gradient-to-br from-[rgba(28,140,130,0.35)] to-[rgba(28,140,130,0.25)] border-2 border-[rgba(28,140,130,0.5)] shadow-[0_0_12px_rgba(28,140,130,0.4),0_0_24px_rgba(28,140,130,0.25),0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_0_18px_rgba(28,140,130,0.6),0_0_32px_rgba(28,140,130,0.4),0_6px_24px_rgba(0,0,0,0.4)] hover:border-[rgba(28,140,130,0.7)] hover:from-[rgba(28,140,130,0.45)] hover:to-[rgba(28,140,130,0.35)] hover:scale-105 active:scale-95"
+          className="fixed z-[999] bottom-6 right-6 w-14 h-14 md:w-16 md:h-16 flex items-center justify-center text-ec-text rounded-full transition-all duration-300 bg-gradient-to-br from-[rgba(28,140,130,0.35)] to-[rgba(28,140,130,0.25)] border-2 border-[rgba(28,140,130,0.5)] shadow-[0_0_12px_rgba(28,140,130,0.4),0_0_24px_rgba(28,140,130,0.25),0_4px_16px_rgba(0,0,0,0.3)] hover:shadow-[0_0_18px_rgba(28,140,130,0.6),0_0_32px_rgba(28,140,130,0.4),0_6px_24px_rgba(0,0,0,0.4)] hover:border-[rgba(28,140,130,0.7)] hover:from-[rgba(28,140,130,0.45)] hover:to-[rgba(28,140,130,0.35)] hover:scale-105 active:scale-95"
           aria-label="Open 24/7 AI Assistant"
           type="button"
         >

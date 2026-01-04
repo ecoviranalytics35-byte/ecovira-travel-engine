@@ -65,15 +65,22 @@ html, body { padding: 0; margin: 0; }
 ============================ */
 @layer base {
   html {
-    height: 100%;
     overflow-x: hidden;
+    /* Ensure html doesn't create scroll container - critical for sticky */
+    height: auto;
+    /* Prevent html from becoming scroll container */
+    overflow-y: visible;
   }
 
   body {
-    height: auto;
-    min-height: 100%;
+    /* Body MUST be the scroll container for sticky to work */
     overflow-x: hidden;
     overflow-y: auto;
+    /* Remove height constraints that could break sticky */
+    height: auto;
+    min-height: 100vh;
+    /* Ensure body is the scroll container, not any wrapper */
+    position: relative;
     background:
       radial-gradient(900px 600px at 20% 10%, rgba(28,140,130,0.16), transparent 55%),
       radial-gradient(900px 600px at 80% 0%, rgba(200,162,77,0.12), transparent 55%),
@@ -83,6 +90,13 @@ html, body { padding: 0; margin: 0; }
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+  }
+
+  /* Ensure no Next.js or other wrappers break sticky */
+  /* Direct children of body should not create scroll containers */
+  body > div:not([class*="fixed"]):not([class*="absolute"]) {
+    /* Only prevent overflow on non-positioned divs that could break sticky */
+    overflow: visible;
   }
 
   /* Typography hierarchy (stops “wikipedia” feel) */
@@ -331,6 +345,27 @@ html, body { padding: 0; margin: 0; }
   }
   .ec-currency-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(28, 140, 130, 0.6);
+  }
+
+  /* Custom scrollbar for chat messages */
+  .ec-chat-messages-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(28, 140, 130, 0.5) rgba(15, 17, 20, 0.3);
+  }
+  .ec-chat-messages-scrollbar::-webkit-scrollbar {
+    width: 10px;
+  }
+  .ec-chat-messages-scrollbar::-webkit-scrollbar-track {
+    background: rgba(15, 17, 20, 0.3);
+    border-radius: 5px;
+  }
+  .ec-chat-messages-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(28, 140, 130, 0.5);
+    border-radius: 5px;
+    border: 1px solid rgba(28, 140, 130, 0.2);
+  }
+  .ec-chat-messages-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(28, 140, 130, 0.7);
   }
 
   /* --- Ecovira: Currency dropdown panel --- */

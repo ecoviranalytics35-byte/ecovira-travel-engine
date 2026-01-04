@@ -7,6 +7,7 @@ import { EcoviraChatWidget } from '../chat/EcoviraChatWidget';
 import { Footer } from './Footer';
 import { useTripContext } from '@/contexts/TripContext';
 import { getAirlineName } from '@/lib/trips/airline-checkin-resolver';
+import Image from "next/image";
 
 interface PremiumShellProps {
   children: ReactNode;
@@ -46,7 +47,7 @@ export function PremiumShell({ children, rightPanel, chatContext: baseChatContex
         bookingId: trip.id,
         bookingReference: trip.bookingReference,
         airlineIata: trip.flightData.airlineIata,
-        airlineName: trip.flightData.airlineName || getAirlineName(trip.flightData.airlineIata),
+        airlineName: getAirlineName(trip.flightData.airlineIata),
         flightNumber: trip.flightData.flightNumber,
         scheduledDeparture: trip.flightData.scheduledDeparture,
         departureAirport: trip.flightData.departureAirport,
@@ -75,50 +76,33 @@ export function PremiumShell({ children, rightPanel, chatContext: baseChatContex
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_45%,rgba(200,162,77,0.10),transparent_40%)]"></div>
       </div>
 
-      {/* Fixed Header + Navigation Container - matches floating buttons behavior */}
-      <div 
-        className="fixed top-0 left-0 right-0 z-50 border-b border-white/10" 
-        style={{ 
-          pointerEvents: 'auto'
-        }}
-      >
-        {/* Background with backdrop filter */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            zIndex: -1
-          }}
-        />
-        
-        {/* Header Bar */}
-        <header className="relative">
-          <div className="ec-container">
-            {/* Main Header Row - Logo Only */}
-            <div className="flex items-center justify-between h-20 md:h-24 lg:h-28">
-              {/* Left: Logo */}
-              <a href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-                <div 
-                  className="text-transparent bg-clip-text bg-gradient-to-r from-[#C8A24D] via-[#E3C77A] to-[#C8A24D] font-serif font-bold tracking-tight leading-tight drop-shadow-[0_0_12px_rgba(200,162,77,0.5)]"
-                  style={{
-                    fontSize: 'clamp(2rem, 5vw, 4rem)',
-                    lineHeight: '1.1',
-                    fontWeight: '700'
-                  }}
-                >
-                  Ecovira Air
-                </div>
-              </a>
-
-              {/* Right: Empty space (buttons moved to floating FABs) */}
-              <div className="flex items-center gap-4 relative">
-                {/* Empty space - buttons are now floating FABs */}
+      {/* Sticky Header - Exact Structure */}
+      <header className="sticky top-0 z-[100] w-full border-b border-white/10 bg-black/40 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-7xl items-center px-6">
+          <div className="flex items-center gap-4">
+            <a href="/" className="flex items-center gap-4 hover:opacity-90 transition-opacity">
+              {/* Logo next to title */}
+              <Image
+                src="/brand/ecovira-logo-transparent.png"
+                alt="Ecovira"
+                width={240}
+                height={96}
+                priority
+                className="h-12 w-auto opacity-90 hover:opacity-100 transition-opacity"
+              />
+              <div 
+                className="text-transparent bg-clip-text bg-gradient-to-r from-[#C8A24D] via-[#E3C77A] to-[#C8A24D] font-serif font-bold tracking-tight leading-tight drop-shadow-[0_0_12px_rgba(200,162,77,0.5)]"
+                style={{
+                  fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+                  lineHeight: '1.1',
+                  fontWeight: '700'
+                }}
+              >
+                Ecovira Air
               </div>
-            </div>
+            </a>
           </div>
-        </header>
+        </div>
 
         {/* Tabs Bar - Desktop */}
         <div 
@@ -147,15 +131,15 @@ export function PremiumShell({ children, rightPanel, chatContext: baseChatContex
         >
           <div className="ec-container">
             <div className="flex items-center gap-4 py-3">
-              <EcoviraTabs tabs={tabs} className="overflow-x-auto flex-1" />
+              <EcoviraTabs tabs={tabs} className="flex-1" />
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Main Container - with padding-top to account for fixed header (h-20 + tabs on mobile, h-24/28 + tabs on desktop) */}
-      <div className="relative z-10 pt-[160px] md:pt-[176px] lg:pt-[192px]">
-        <main className={`ec-container ec-page ${rightPanel ? 'grid grid-cols-1 lg:grid-cols-12 gap-12' : ''}`}>
+      {/* Main Content */}
+      <main className="min-h-screen">
+        <div className={`ec-container ec-page ${rightPanel ? 'grid grid-cols-1 lg:grid-cols-12 gap-12' : ''}`}>
           {rightPanel ? (
             <>
               <div className="lg:col-span-8">
@@ -170,8 +154,8 @@ export function PremiumShell({ children, rightPanel, chatContext: baseChatContex
           ) : (
             children
           )}
-        </main>
-      </div>
+        </div>
+      </main>
 
       {/* Global Footer */}
       <Footer />

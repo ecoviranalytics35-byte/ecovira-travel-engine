@@ -28,9 +28,9 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label }: Ai
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Debounce search
+  // Debounce search - trigger on any query length (not just >= 2) to show results immediately
   useEffect(() => {
-    if (query.length < 2) {
+    if (query.length < 1) {
       setResults([]);
       setIsOpen(false);
       return;
@@ -41,15 +41,18 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label }: Ai
       try {
         const res = await fetch(`/api/airports/search?q=${encodeURIComponent(query)}`);
         const data = await res.json();
-        setResults(data.results || []);
-        setIsOpen(true);
+        const results = data.results || [];
+        setResults(results);
+        // Only open dropdown if we have results
+        setIsOpen(results.length > 0);
       } catch (error) {
         console.error('[AirportInput] Search error:', error);
         setResults([]);
+        setIsOpen(false);
       } finally {
         setLoading(false);
       }
-    }, 300);
+    }, 200); // Reduced debounce for faster response
 
     return () => clearTimeout(timeoutId);
   }, [query]);
@@ -77,9 +80,7 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label }: Ai
     const newValue = e.target.value.toUpperCase();
     setQuery(newValue);
     onChange(newValue);
-    if (newValue.length >= 2) {
-      setIsOpen(true);
-    }
+    // Don't force open here - let the search effect handle it based on results
   };
 
   return (
@@ -98,7 +99,11 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label }: Ai
           type="text"
           value={query}
           onChange={handleInputChange}
-          onFocus={() => query.length >= 2 && setIsOpen(true)}
+          onFocus={() => {
+            if (query.length >= 1 && results.length > 0) {
+              setIsOpen(true);
+            }
+          }}
           placeholder={placeholder}
           className="w-full pl-12 pr-4 bg-[rgba(15,17,20,0.55)] border border-[rgba(255,255,255,0.10)] rounded-ec-md text-ec-text placeholder-[rgba(237,237,237,0.45)] focus:outline-none focus:border-[rgba(28,140,130,0.55)] focus:shadow-[0_0_0_4px_rgba(28,140,130,0.18)] transition-all h-[48px] md:h-[52px]"
           style={{ color: '#EDEDED' }}
@@ -110,32 +115,28 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label }: Ai
         )}
       </div>
 
-      {/* Dropdown Results */}
+      {/* Dropdown Results - Chip/Bubble Style */}
       {isOpen && results.length > 0 && (
         <div className="absolute z-50 w-full mt-2 bg-[rgba(15,17,20,0.95)] backdrop-blur-xl border border-[rgba(28,140,130,0.3)] rounded-ec-md shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden">
-          <div className="max-h-64 overflow-y-auto">
-            {results.map((airport, index) => (
-              <button
-                key={`${airport.iataCode}-${index}`}
-                type="button"
-                onClick={() => handleSelect(airport)}
-                className="w-full px-4 py-3 text-left hover:bg-[rgba(28,140,130,0.15)] transition-colors border-b border-[rgba(28,140,130,0.1)] last:border-b-0"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="text-ec-text font-semibold text-sm mb-1">
-                      {airport.name}
-                    </div>
-                    <div className="text-ec-muted text-xs">
-                      {airport.city}, {airport.country}
-                    </div>
-                  </div>
-                  <div className="ml-4 px-3 py-1 bg-[rgba(28,140,130,0.2)] border border-[rgba(28,140,130,0.4)] rounded text-ec-teal font-bold text-sm">
-                    {airport.iataCode}
-                  </div>
-                </div>
-              </button>
-            ))}
+          <div className="max-h-64 overflow-y-auto p-2">
+            <div className="flex flex-wrap gap-2">
+              {results.map((airport, index) => (
+                <button
+                  key={`${airport.iataCode}-${index}`}
+                  type="button"
+                  onClick={() => handleSelect(airport)}
+                  className="px-4 py-2 bg-[rgba(28,140,130,0.15)] hover:bg-[rgba(28,140,130,0.25)] border border-[rgba(28,140,130,0.3)] hover:border-[rgba(28,140,130,0.5)] rounded-full text-ec-text transition-all flex items-center gap-2 group"
+                >
+                  <span className="font-semibold text-sm">{airport.iataCode}</span>
+                  <span className="text-ec-muted text-xs hidden sm:inline">
+                    {airport.city}
+                  </span>
+                  <span className="text-ec-muted text-xs opacity-75 hidden md:inline">
+                    {airport.name}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
