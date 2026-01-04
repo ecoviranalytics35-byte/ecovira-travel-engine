@@ -1,12 +1,13 @@
 "use client";
 
-import { ReactNode, useState, useEffect, useMemo } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { EcoviraTabs } from '../EcoviraTabs';
 import { Plane, Hotel, Car, CarTaxiFront } from 'lucide-react';
 import { EcoviraChatWidget } from '../chat/EcoviraChatWidget';
 import { Footer } from './Footer';
 import { useTripContext } from '@/contexts/TripContext';
 import { getAirlineName } from '@/lib/trips/airline-checkin-resolver';
+import { useUIStore } from '@/stores/uiStore';
 import Image from "next/image";
 
 interface PremiumShellProps {
@@ -31,8 +32,9 @@ const tabs = [
 ];
 
 export function PremiumShell({ children, rightPanel, chatContext: baseChatContext }: PremiumShellProps) {
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const { trip } = useTripContext();
+  const chatOpen = useUIStore((s) => s.chatOpen);
+  const closeChat = useUIStore((s) => s.closeChat);
   
   // Merge trip context with base chat context
   const chatContext = useMemo(() => {
@@ -55,17 +57,6 @@ export function PremiumShell({ children, rightPanel, chatContext: baseChatContex
       },
     };
   }, [trip, baseChatContext]);
-  
-  // Listen for chat open events from FloatingActions component
-  useEffect(() => {
-    const handleChatOpen = () => {
-      setIsChatOpen(true);
-    };
-    window.addEventListener('ecovira:chat:open', handleChatOpen as any);
-    return () => window.removeEventListener('ecovira:chat:open', handleChatOpen as any);
-  }, []);
-
-  // Removed debug logging to prevent hydration warnings
 
   return (
     <>
@@ -76,8 +67,8 @@ export function PremiumShell({ children, rightPanel, chatContext: baseChatContex
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_45%,rgba(200,162,77,0.10),transparent_40%)]"></div>
       </div>
 
-      {/* Sticky Header - Exact Structure */}
-      <header className="sticky top-0 z-[100] w-full border-b border-white/10 bg-black/40 backdrop-blur-md">
+      {/* Fixed Header - Guaranteed to stay at top */}
+      <header className="fixed top-0 left-0 right-0 z-[9999] w-full border-b border-white/10 bg-black/40 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center px-6">
           <div className="flex items-center gap-4">
             <a href="/" className="flex items-center gap-4 hover:opacity-90 transition-opacity">
@@ -137,8 +128,8 @@ export function PremiumShell({ children, rightPanel, chatContext: baseChatContex
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="min-h-screen">
+      {/* Main Content - Add top padding to account for fixed header */}
+      <main className="min-h-screen pt-[152px] md:pt-[168px]">
         <div className={`ec-container ec-page ${rightPanel ? 'grid grid-cols-1 lg:grid-cols-12 gap-12' : ''}`}>
           {rightPanel ? (
             <>
@@ -160,8 +151,8 @@ export function PremiumShell({ children, rightPanel, chatContext: baseChatContex
       {/* Global Footer */}
       <Footer />
 
-      {/* 24/7 AI Chat Widget - Controlled by PremiumShell state */}
-      <EcoviraChatWidget context={chatContext} isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      {/* 24/7 AI Chat Widget - Controlled by Zustand store */}
+      <EcoviraChatWidget context={chatContext} isOpen={chatOpen} onClose={closeChat} />
     </>
   );
 }

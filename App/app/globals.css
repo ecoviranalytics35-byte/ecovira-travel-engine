@@ -5,7 +5,10 @@
 /* ============================
    RESET
 ============================ */
-html, body { padding: 0; margin: 0; }
+html, body { 
+  padding: 0 !important; 
+  margin: 0 !important; 
+}
 * { box-sizing: border-box; }
 
 /* ============================
@@ -64,22 +67,22 @@ html, body { padding: 0; margin: 0; }
    BASE GLOBAL LOOK (PREMIUM)
 ============================ */
 @layer base {
+  /* CRITICAL: html must NOT be a scroll container for sticky to work */
   html {
     overflow-x: hidden;
-    /* Ensure html doesn't create scroll container - critical for sticky */
-    height: auto;
-    /* Prevent html from becoming scroll container */
-    overflow-y: visible;
+    overflow-y: visible; /* Prevent html from becoming scroll container */
+    height: auto; /* No height constraint */
   }
 
+  /* CRITICAL: body MUST be the scroll container for sticky positioning */
   body {
-    /* Body MUST be the scroll container for sticky to work */
+    /* Body is the scroll container - this is required for sticky */
     overflow-x: hidden;
     overflow-y: auto;
-    /* Remove height constraints that could break sticky */
+    /* No height constraint that could break sticky */
     height: auto;
     min-height: 100vh;
-    /* Ensure body is the scroll container, not any wrapper */
+    /* Ensure body is the positioning context */
     position: relative;
     background:
       radial-gradient(900px 600px at 20% 10%, rgba(28,140,130,0.16), transparent 55%),
@@ -92,12 +95,22 @@ html, body { padding: 0; margin: 0; }
     text-rendering: optimizeLegibility;
   }
 
-  /* Ensure no Next.js or other wrappers break sticky */
-  /* Direct children of body should not create scroll containers */
-  body > div:not([class*="fixed"]):not([class*="absolute"]) {
-    /* Only prevent overflow on non-positioned divs that could break sticky */
-    overflow: visible;
+  /* CRITICAL: Prevent any wrapper divs from creating scroll containers */
+  /* React Context.Provider components don't render divs, but this ensures no wrappers break sticky */
+  /* Only target potential wrapper divs, not all elements */
+  body > div:not([class*="fixed"]):not([class*="absolute"]):not([id*="__next"]) {
+    /* Prevent non-positioned divs from creating scroll containers */
+    overflow: visible !important;
   }
+
+  /* CRITICAL: Ensure Next.js root div doesn't create scroll container or transform context */
+  body > div#__next,
+  body > div[id*="__next"] {
+    overflow: visible !important;
+    transform: none !important;
+    height: auto !important;
+  }
+
 
   /* Typography hierarchy (stops “wikipedia” feel) */
   h1 { font-size: 44px; line-height: 1.05; font-weight: 700; letter-spacing: -0.02em; }

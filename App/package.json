@@ -19,7 +19,8 @@
     "react-dom": "latest",
     "stripe": "latest",
     "tailwind-merge": "^3.4.0",
-    "twilio": "^5.11.1"
+    "twilio": "^5.11.1",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
