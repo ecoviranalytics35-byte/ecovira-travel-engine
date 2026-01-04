@@ -17,11 +17,6 @@ export function SearchPanelShell({
   loading = false,
   disabled = false,
 }: SearchPanelShellProps) {
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SearchPanelShell.tsx:13',message:'SearchPanelShell rendered',data:{ctaLabel,hasOnSearch:!!onSearch,loading,disabled},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'D'})}).catch(()=>{});
-  }, [ctaLabel, onSearch, loading, disabled]);
-  // #endregion
 
   return (
     <div className="ec-card mb-20" suppressHydrationWarning>
@@ -33,7 +28,7 @@ export function SearchPanelShell({
           onClick={(e) => {
             console.log('[DEBUG] Search button clicked', { ctaLabel, loading, disabled, hasOnSearch: !!onSearch, onSearchType: typeof onSearch });
             // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SearchPanelShell.tsx:26',message:'Search button clicked',data:{ctaLabel,loading,disabled,hasOnSearch:!!onSearch,onSearchType:typeof onSearch},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+            fetch('/api/debug/ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SearchPanelShell.tsx:26',message:'Search button clicked',data:{ctaLabel,loading,disabled,hasOnSearch:!!onSearch,onSearchType:typeof onSearch},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'A'})}).catch(()=>{});
             // #endregion
             e.preventDefault();
             e.stopPropagation();
@@ -41,26 +36,26 @@ export function SearchPanelShell({
             if (onSearch && !loading && !disabled) {
               console.log('[SearchPanelShell] Calling onSearch', { onSearchName: onSearch.name, onSearchType: typeof onSearch });
               // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SearchPanelShell.tsx:32',message:'[SearchPanelShell] Calling onSearch',data:{ctaLabel,onSearchType:typeof onSearch,onSearchName:onSearch.name},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+              fetch('/api/debug/ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SearchPanelShell.tsx:32',message:'[SearchPanelShell] Calling onSearch',data:{ctaLabel,onSearchType:typeof onSearch,onSearchName:onSearch.name},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch(()=>{});
               // #endregion
               (async () => {
                 try {
                   await onSearch();
                   console.log('[SearchPanelShell] onSearch completed');
                   // #region agent log
-                  fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SearchPanelShell.tsx:40',message:'[SearchPanelShell] onSearch completed',data:{ctaLabel},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+                  fetch('/api/debug/ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SearchPanelShell.tsx:40',message:'[SearchPanelShell] onSearch completed',data:{ctaLabel},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch(()=>{});
                   // #endregion
                 } catch (err) {
                   console.error('[SearchPanelShell] onSearch error', err);
                   // #region agent log
-                  fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SearchPanelShell.tsx:45',message:'[SearchPanelShell] onSearch error',data:{ctaLabel,error:err instanceof Error?err.message:'Unknown',errorStack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'E'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+                  fetch('/api/debug/ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SearchPanelShell.tsx:45',message:'[SearchPanelShell] onSearch error',data:{ctaLabel,error:err instanceof Error?err.message:'Unknown',errorStack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'E'})}).catch(()=>{});
                   // #endregion
                 }
               })();
             } else {
               console.warn('[DEBUG] onSearch blocked', { hasOnSearch: !!onSearch, loading, disabled });
               // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SearchPanelShell.tsx:51',message:'onSearch blocked',data:{hasOnSearch:!!onSearch,loading,disabled},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'B'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
+              fetch('/api/debug/ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SearchPanelShell.tsx:51',message:'onSearch blocked',data:{hasOnSearch:!!onSearch,loading,disabled},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'B'})}).catch(()=>{});
               // #endregion
               console.warn('SearchPanelShell: onSearch blocked', { hasOnSearch: !!onSearch, loading, disabled });
             }

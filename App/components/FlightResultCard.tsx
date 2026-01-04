@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from 'react';
 import { FlightResult } from '@/lib/core/types';
 import { EcoviraCard } from './EcoviraCard';
 import { track } from '@/lib/analytics/track';
@@ -9,17 +10,22 @@ interface FlightResultCardProps {
   onSelect?: (flight: FlightResult) => void;
 }
 
+// Global dedupe guard - shared across all component instances
+// Prevents multiple fires even if component remounts or React Strict Mode double-invokes
+const globalClickGuard = new Map<string, number>();
+
 export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
-  // Ensure offer has a valid ID
-  const offerId = flight.id || `fallback-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  const hasValidId = !!flight.id;
+  // Per-component click guard (backup to global guard)
+  const lastClickRef = useRef(0);
   
-  // Log error if ID is missing
+  // Ensure offer has a valid ID - use fallback if missing
+  const offerId = flight.id || `fallback-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  // Allow fallback IDs - don't disable button if fallback is used
+  const hasValidId = !!offerId;
+  
+  // Log warning if using fallback ID (but don't block selection)
   if (!flight.id) {
-    console.error("[FlightResultCard] MISSING OFFER ID", { flight, offerId });
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FlightResultCard.tsx:15',message:'[FlightResultCard] MISSING OFFER ID',data:{flight,offerId},timestamp:Date.now(),sessionId:'debug-session',runId:'select-fix',hypothesisId:'D'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-    // #endregion
+    console.warn("[FlightResultCard] Using fallback ID", { flight, offerId });
   }
 
   // Mock additional data for display
@@ -81,28 +87,43 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
           <button
             type="button"
             onClick={(e) => {
+              // CRITICAL: Stop all event propagation immediately
               e.preventDefault();
               e.stopPropagation();
               
-              // STEP 1: PROVE CLICK FIRES (MANDATORY)
-              console.log("[SELECT_FLIGHT_CLICK]", offerId);
-              alert("clicked");
+              // Dual dedupe guards: per-component ref + global map
+              const now = Date.now();
               
-              // If we get here, click works - proceed with logic
+              // Per-component guard (500ms)
+              if (now - lastClickRef.current < 500) {
+                console.log("[SelectFlight] Component dedupe guard blocked duplicate click", { offerId });
+                return;
+              }
+              lastClickRef.current = now;
+              
+              // Global dedupe guard: prevent multiple fires within 500ms per offerId
+              const lastClick = globalClickGuard.get(offerId) || 0;
+              if (now - lastClick < 500) {
+                console.log("[SelectFlight] Global dedupe guard blocked duplicate click", { offerId, timeSinceLastClick: now - lastClick });
+                return;
+              }
+              globalClickGuard.set(offerId, now);
+              
+              // Validate handler
               if (!onSelect) {
-                console.error("[SELECT_FLIGHT] ERROR - onSelect handler missing", { offerId, flight });
+                console.error("[SelectFlight] ERROR - onSelect handler missing", { offerId });
+                globalClickGuard.delete(offerId); // Reset guard on error
                 return;
               }
               
-              if (!hasValidId) {
-                console.error("[SELECT_FLIGHT] ERROR - Missing offer ID", { offerId, flight });
+              // Validate ID (allow fallback IDs)
+              if (!hasValidId || !offerId) {
+                console.error("[SelectFlight] ERROR - Invalid offer ID", { offerId, flight });
+                globalClickGuard.delete(offerId); // Reset guard on error
                 return;
               }
               
-              // REQUIRED: Instrumentation log
-              console.log("[select_flight]", offerId, flight);
-              
-              // REQUIRED: Analytics tracking
+              // Analytics tracking - only once per click (guaranteed by dedupe guard)
               track({
                 event: 'select_flight',
                 category: 'flights',
@@ -115,38 +136,7 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
                 currency: flight.currency,
               });
               
-              console.log("[SelectFlight] BUTTON CLICKED", { 
-                offerId, 
-                hasValidId, 
-                hasOnSelect: !!onSelect,
-                flight: { id: flight.id, from: flight.from, to: flight.to, price: flight.price }
-              });
-              
-              if (!onSelect) {
-                console.error("[SelectFlight] ERROR - onSelect handler missing", { offerId, flight });
-                track({
-                  event: 'select_flight_error',
-                  category: 'flights',
-                  error: 'handler_missing',
-                  offerId: offerId,
-                });
-                alert("Selection handler not available. Please refresh the page.");
-                return;
-              }
-              
-              if (!hasValidId) {
-                console.error("[SelectFlight] ERROR - Missing offer ID", { offerId, flight });
-                track({
-                  event: 'select_flight_error',
-                  category: 'flights',
-                  error: 'missing_offer_id',
-                  offerId: offerId,
-                });
-                alert("Cannot select flight: missing offer ID. Please try another option.");
-                return;
-              }
-              
-              // REQUIRED: Persist flight data BEFORE navigation
+              // Persist flight data to sessionStorage (backup)
               const flightData = {
                 id: offerId,
                 from: flight.from,
@@ -160,26 +150,54 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
               
               try {
                 sessionStorage.setItem('selectedFlight', JSON.stringify(flightData));
-                console.log("[SelectFlight] Flight data persisted to sessionStorage", flightData);
               } catch (err) {
                 console.warn("[SelectFlight] Failed to persist to sessionStorage", err);
-                track({
-                  event: 'select_flight_error',
-                  category: 'flights',
-                  error: 'storage_failed',
-                  offerId: offerId,
-                });
               }
               
+              // Call handler - this will trigger navigation
               const normalizedFlight = { ...flight, id: offerId };
-              console.log("[SelectFlight] Calling onSelect handler", { offerId, normalizedFlight });
-              
               try {
-                // Call handler - this should trigger navigation
+                console.log("[SelectFlight] Calling onSelect handler", { 
+                  offerId, 
+                  hasOnSelect: !!onSelect,
+                  onSelectType: typeof onSelect,
+                  onSelectName: onSelect?.name,
+                  flightId: normalizedFlight.id 
+                });
+                
+                if (!onSelect) {
+                  console.error("[SelectFlight] FATAL: onSelect is null/undefined!");
+                  // Fallback: navigate directly
+                  if (typeof window !== 'undefined') {
+                    window.location.href = '/book/passengers';
+                  }
+                  return;
+                }
+                
+                // Call the handler
                 onSelect(normalizedFlight);
-                console.log("[SelectFlight] onSelect handler called successfully");
+                console.log("[SelectFlight] onSelect handler completed");
+                
+                // Verify navigation after delay - if not navigated, use fallback
+                setTimeout(() => {
+                  if (typeof window !== 'undefined') {
+                    const currentUrl = window.location.href;
+                    console.log("[SelectFlight] Post-navigation check - URL:", currentUrl);
+                    if (!currentUrl.includes('/book/passengers')) {
+                      console.warn("[SelectFlight] Navigation failed, using direct fallback");
+                      // Save to sessionStorage as backup
+                      try {
+                        sessionStorage.setItem('selectedFlight', JSON.stringify(normalizedFlight));
+                      } catch (e) {
+                        console.warn("[SelectFlight] Failed to save to sessionStorage", e);
+                      }
+                      window.location.href = '/book/passengers';
+                    }
+                  }
+                }, 300);
               } catch (err) {
                 console.error("[SelectFlight] ERROR calling onSelect", err);
+                globalClickGuard.delete(offerId); // Reset guard on error
                 track({
                   event: 'select_flight_error',
                   category: 'flights',
@@ -187,10 +205,13 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
                   offerId: offerId,
                   errorMessage: err instanceof Error ? err.message : 'Unknown error',
                 });
-                alert(`Failed to select flight: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                // Fallback navigation on error
+                if (typeof window !== 'undefined') {
+                  window.location.href = '/book/passengers';
+                }
               }
             }}
-            disabled={!hasValidId || !onSelect}
+            disabled={!onSelect}
             style={{ 
               position: 'relative',
               zIndex: 1000,
@@ -198,7 +219,7 @@ export function FlightResultCard({ flight, onSelect }: FlightResultCardProps) {
               cursor: (!hasValidId || !onSelect) ? 'not-allowed' : 'pointer',
             }}
             className="px-6 py-3 min-w-[180px] rounded-full bg-gradient-to-br from-[rgba(28,140,130,0.4)] to-[rgba(28,140,130,0.3)] border border-[rgba(28,140,130,0.5)] text-ec-text font-semibold text-sm shadow-[0_0_8px_rgba(28,140,130,0.3),0_0_16px_rgba(28,140,130,0.2)] hover:shadow-[0_0_12px_rgba(28,140,130,0.4),0_0_24px_rgba(28,140,130,0.3)] hover:border-[rgba(28,140,130,0.7)] hover:from-[rgba(28,140,130,0.5)] hover:to-[rgba(28,140,130,0.4)] transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            title={!hasValidId ? "Missing offer ID - cannot select this flight" : !onSelect ? "Selection handler not available" : "Select this flight"}
+            title={!onSelect ? "Selection handler not available" : "Select this flight"}
           >
             Select Flight →
           </button>

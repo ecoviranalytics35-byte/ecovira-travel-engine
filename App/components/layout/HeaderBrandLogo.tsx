@@ -11,7 +11,8 @@ export function EcoviraHeaderLogo() {
         width={240}
         height={96}
         priority
-        className="h-12 w-auto opacity-90 hover:opacity-100 transition-opacity"
+        className="h-8 w-auto opacity-90 hover:opacity-100 transition-opacity"
+        style={{ width: "auto" }}
       />
     </a>
   );

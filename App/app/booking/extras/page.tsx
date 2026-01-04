@@ -17,8 +17,33 @@ export default function BookingExtrasPage() {
   const [baggageExpanded, setBaggageExpanded] = useState(true);
   const [insuranceExpanded, setInsuranceExpanded] = useState(true);
   
-  // Get flight data from query params or sessionStorage
-  const flightId = searchParams.get('flightId');
+  // Log when page loads to confirm navigation worked
+  useEffect(() => {
+    console.log("[BookingExtras] Page loaded", { 
+      flightId: searchParams.get('flightId'),
+      pathname: typeof window !== 'undefined' ? window.location.pathname : 'server'
+    });
+  }, [searchParams]);
+  
+  // Get flight data from query params or sessionStorage (fallback)
+  const [flightIdFromStorage, setFlightIdFromStorage] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Fallback to sessionStorage if flightId not in query params
+    if (!searchParams.get('flightId') && typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem('selectedFlight');
+        if (stored) {
+          const flightData = JSON.parse(stored);
+          setFlightIdFromStorage(flightData.id);
+        }
+      } catch (err) {
+        console.warn('[BookingExtras] Failed to read from sessionStorage', err);
+      }
+    }
+  }, [searchParams]);
+  
+  const flightId = searchParams.get('flightId') || flightIdFromStorage;
   const cabinClass = (searchParams.get('cabinClass') || 'economy') as 'economy' | 'business' | 'first';
   const passengerCount = parseInt(searchParams.get('passengers') || '1');
   const currency = searchParams.get('currency') || 'AUD';

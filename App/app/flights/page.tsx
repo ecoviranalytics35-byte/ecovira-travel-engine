@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { FlightResult } from "@/lib/core/types";
 import { useEvent } from "@/lib/hooks/useEvent";
+import { useBookingStore } from "@/stores/bookingStore";
 import { EcoviraButton } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { AirportInput } from "../../components/search/AirportInput";
@@ -41,6 +42,7 @@ function SkeletonLoader() {
 
 export default function Flights() {
   const router = useRouter();
+  const setSelectedOffer = useBookingStore((state) => state.setSelectedOffer);
   const [tripType, setTripType] = useState("roundtrip");
   const [from, setFrom] = useState("MEL");
   const [to, setTo] = useState("SYD");
@@ -116,67 +118,61 @@ export default function Flights() {
   // Use stable event handler for dynamic import compatibility
   const onSearch = useEvent(handleSearch);
 
-  // Handle flight selection with router navigation - route to Extras first
+  // Handle flight selection with router navigation - route to passengers page
   const handleSelectFlight = useCallback((f: FlightResult) => {
-    console.log("[SELECT_FLIGHT_PUSH] ENTER", { 
-      offerId: f.id,
-      flightId: f.id, 
-      from: f.from,
-      to: f.to,
-      price: f.price,
-      currency: f.currency,
-    });
+    console.log("🔵 [handleSelectFlight] FUNCTION CALLED", { flightId: f?.id, flight: f });
+    console.log("[onSelect] received flight", f?.id);
     
     // Validate offer ID
     if (!f.id) {
-      console.error("[SELECT_FLIGHT_PUSH] ERROR - Missing offer ID", { flight: f });
+      console.error("[onSelect] ERROR - Missing offer ID", { flight: f });
       setError("Cannot select flight: missing offer ID. Please try another option.");
       return;
     }
     
+    // Persist selected flight to state
+    setSelectedFlight(f);
+    
+    // Save to booking store (this also persists to sessionStorage)
+    setSelectedOffer(f);
+    console.log("[onSelect] Flight saved to booking store", { offerId: f.id });
+    
+    // Navigate to booking flow - start with passengers
+    const passengersUrl = `/book/passengers`;
+    console.log('[onSelect] Navigating to:', passengersUrl);
+    console.log('[onSelect] Current URL:', typeof window !== 'undefined' ? window.location.href : 'server');
+    
+    // Use router.push for Next.js App Router navigation
+    // This must happen synchronously after state persistence
     try {
-      // REQUIRED: Persist selected flight to state FIRST
-      setSelectedFlight(f);
-      console.log("[SELECT_FLIGHT_PUSH] Flight set in state", f);
+      router.push(passengersUrl);
+      console.log("[onSelect] router.push called successfully");
       
-      // REQUIRED: Persist flight data to sessionStorage BEFORE navigation
-      const flightData = {
-        id: f.id,
-        from: f.from,
-        to: f.to,
-        departDate: f.departDate,
-        price: f.price,
-        currency: f.currency,
-        provider: f.provider,
-        cabinClass,
-        passengers: adults,
-        raw: f.raw,
-      };
-      
-      try {
-        sessionStorage.setItem('selectedFlight', JSON.stringify(flightData));
-        console.log("[SELECT_FLIGHT_PUSH] Flight data persisted to sessionStorage", flightData);
-      } catch (err) {
-        console.warn("[SELECT_FLIGHT_PUSH] Failed to persist to sessionStorage", err);
-      }
-      
-      // STEP 3: FIX NAVIGATION - Use correct route
-      const extrasUrl = `/booking/extras?flightId=${encodeURIComponent(f.id)}&cabinClass=${encodeURIComponent(cabinClass)}&passengers=${encodeURIComponent(adults)}&currency=${encodeURIComponent(currency)}`;
-      console.log("[SELECT_FLIGHT_PUSH] Navigating to:", extrasUrl);
-      
-      // Use router.push (Next.js App Router)
-      router.push(extrasUrl);
-      
-      console.log("[SELECT_FLIGHT_PUSH] Navigation initiated successfully");
+      // Verify navigation after a short delay
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          console.log("[onSelect] Navigation check - Current URL:", window.location.href);
+          if (!window.location.href.includes('/book/passengers')) {
+            console.warn("[onSelect] Navigation may have failed, using fallback");
+            window.location.href = passengersUrl;
+          }
+        }
+      }, 100);
     } catch (err) {
-      console.error("[SELECT_FLIGHT_PUSH] ERROR", err);
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(`Failed to select flight: ${errorMessage}`);
-      alert(`Failed to select flight: ${errorMessage}`);
+      console.error("[onSelect] router.push failed", err);
+      // Fallback: direct navigation if router.push fails
+      if (typeof window !== 'undefined') {
+        console.log("[onSelect] Using fallback navigation");
+        window.location.href = passengersUrl;
+      }
     }
-  }, [router, cabinClass, adults, currency]);
+  }, [router, setSelectedOffer]);
   
-  const onSelectFlight = useEvent(handleSelectFlight);
+  // Use stable handler - wrap in a function to ensure it's always called
+  const onSelectFlight = useCallback((f: FlightResult) => {
+    console.log("🔵 [onSelectFlight wrapper] Called", { flightId: f?.id });
+    handleSelectFlight(f);
+  }, [handleSelectFlight]);
 
   return (
     <>
@@ -378,11 +374,6 @@ export default function Flights() {
                 }}
               >
                 {results.map((flight, i) => {
-                  console.log("[Flights] Rendering flight card", { 
-                    index: i, 
-                    flightId: flight.id, 
-                    hasOnSelect: !!onSelectFlight 
-                  });
                   return (
                     <FlightResultCard 
                       key={flight.id || i} 

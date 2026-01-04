@@ -79,12 +79,13 @@ export function PremiumShell({ children, rightPanel, chatContext: baseChatContex
                 width={240}
                 height={96}
                 priority
-                className="h-12 w-auto opacity-90 hover:opacity-100 transition-opacity"
+                className="h-8 w-auto opacity-90 hover:opacity-100 transition-opacity"
+                style={{ width: "auto" }}
               />
               <div 
                 className="text-transparent bg-clip-text bg-gradient-to-r from-[#C8A24D] via-[#E3C77A] to-[#C8A24D] font-serif font-bold tracking-tight leading-tight drop-shadow-[0_0_12px_rgba(200,162,77,0.5)]"
                 style={{
-                  fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+                  fontSize: 'clamp(1.25rem, 3vw, 2rem)',
                   lineHeight: '1.1',
                   fontWeight: '700'
                 }}
