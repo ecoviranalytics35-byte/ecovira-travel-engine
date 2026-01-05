@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plane, ArrowLeft, ArrowRight, UserRound } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Plane, ArrowLeft, ArrowRight, UserRound, Loader2, AlertCircle } from "lucide-react";
 
 import { BookingShell } from "@/components/booking/BookingShell";
 import { EcoviraButton } from "@/components/Button";
 import { useBookingStore } from "@/stores/bookingStore";
 
-import { buildMockSeatMap, type SeatLetter, type SeatStatus } from "@/lib/seatmap/mockSeatMap";
+import type { NormalizedSeat, NormalizedSeatMap } from "@/lib/flights/seatmap";
 
 type Passenger = {
   id: string;
@@ -20,14 +20,29 @@ function cn(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
 
-function seatNumber(row: number, letter: SeatLetter) {
-  return `${row}${letter}`;
-}
+type SeatLetter = "A" | "B" | "C" | "D" | "E" | "F" | string;
 
-function seatTypeFromLetter(letter: SeatLetter) {
+function seatTypeFromLetter(letter: string) {
+  // Handle standard 6-seat configuration
   if (letter === "A" || letter === "F") return "Window";
   if (letter === "C" || letter === "D") return "Aisle";
   return "Middle";
+}
+
+function getSeatCharacteristicsLabel(characteristics: string[]): string {
+  const labels: Record<string, string> = {
+    EXIT_ROW: "Exit Row",
+    LEGROOM: "Extra Legroom",
+    BULKHEAD: "Bulkhead",
+    PAID: "Paid Seat",
+    WINDOW: "Window",
+    AISLE: "Aisle",
+  };
+  
+  return characteristics
+    .map((c) => labels[c] || c)
+    .filter(Boolean)
+    .join(", ");
 }
 
 function formatMoney(currency: string, amount: number) {
@@ -45,6 +60,7 @@ const glassPanelStyle: React.CSSProperties = {
 
 export default function SeatsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const selectedOffer = useBookingStore((s) => s.selectedOffer);
   const stepCompletion = useBookingStore((s) => s.stepCompletion);
@@ -53,6 +69,9 @@ export default function SeatsPage() {
   const pricing = useBookingStore((s) => s.pricing) as { currency: string };
   const addSeat = useBookingStore((s) => s.addSeat);
   const completeStep = useBookingStore((s) => s.completeStep);
+
+  // Read flightOfferId from URL params (source of truth)
+  const flightOfferIdFromUrl = searchParams.get("flightOfferId");
 
   // Route guard
   useEffect(() => {
@@ -67,8 +86,166 @@ export default function SeatsPage() {
 
   const currency = pricing?.currency || "AUD";
 
-  const map = useMemo(() => buildMockSeatMap(30), []);
+  // Seat map state
+  const [seatMap, setSeatMap] = useState<NormalizedSeatMap | null>(null);
+  const [loadingSeatMap, setLoadingSeatMap] = useState(true);
+  const [seatMapError, setSeatMapError] = useState<string | null>(null);
+  const [selectedCabin, setSelectedCabin] = useState<string>("");
   const [activePassengerId, setActivePassengerId] = useState<string>("");
+
+  // Fetch seat map from Amadeus API
+  useEffect(() => {
+    // HARD GUARD: Do NOT fetch if flightOfferId is missing
+    if (!flightOfferIdFromUrl) {
+      setLoadingSeatMap(false);
+      setSeatMapError("Missing flight offer. Please reselect your flight.");
+      console.error("[SeatsPage] Missing flightOfferId in URL");
+      return;
+    }
+
+    const fetchSeatMap = async (flightOfferId: string) => {
+      setLoadingSeatMap(true);
+      setSeatMapError(null);
+
+      try {
+        // Validate flightOfferId is defined
+        if (!flightOfferId || typeof flightOfferId !== "string") {
+          throw new Error(`Invalid flightOfferId: ${flightOfferId}`);
+        }
+
+        // Get full flight offer from store (required by Amadeus API)
+        // CRITICAL: We MUST use selectedOffer.raw - this is the complete Amadeus object
+        // selectedOffer itself is normalized and won't work with Seat Map API
+        const flightOffer = selectedOffer?.raw;
+        
+        if (!flightOffer) {
+          console.error("[SeatsPage] Missing raw flight offer", {
+            hasSelectedOffer: !!selectedOffer,
+            hasRaw: !!selectedOffer?.raw,
+            selectedOfferKeys: selectedOffer ? Object.keys(selectedOffer) : [],
+            flightOfferId,
+          });
+          throw new Error(`Raw flight offer not found in store. Please reselect your flight.`);
+        }
+
+        // Validate flightOffer has required Amadeus fields
+        const offerId = flightOffer.id || flightOffer.flightOfferId;
+        if (!offerId) {
+          console.error("[SeatsPage] Flight offer missing ID", {
+            flightOfferKeys: Object.keys(flightOffer),
+            flightOfferId,
+          });
+          throw new Error(`Flight offer object missing ID. flightOfferId from URL: ${flightOfferId}`);
+        }
+
+        // Validate required Amadeus structure
+        const hasItineraries = !!flightOffer.itineraries && Array.isArray(flightOffer.itineraries);
+        const hasPrice = !!flightOffer.price && typeof flightOffer.price === 'object';
+        const hasType = !!flightOffer.type;
+
+        if (!hasItineraries || !hasPrice) {
+          console.error("[SeatsPage] Flight offer missing required Amadeus fields", {
+            hasType,
+            hasItineraries,
+            hasPrice,
+            flightOfferKeys: Object.keys(flightOffer),
+            flightOfferId,
+          });
+          throw new Error(`Flight offer is incomplete. Missing: ${!hasItineraries ? 'itineraries' : ''} ${!hasPrice ? 'price' : ''}. Please reselect your flight.`);
+        }
+
+        console.log("[SeatsPage] Flight offer validated", {
+          type: flightOffer.type,
+          id: flightOffer.id,
+          hasItineraries,
+          itinerariesCount: flightOffer.itineraries?.length,
+          hasPrice,
+          priceTotal: flightOffer.price?.total,
+        });
+
+        console.log("[SeatsPage] Fetching seat map", {
+          flightOfferId,
+          offerId,
+          hasRaw: !!selectedOffer?.raw,
+        });
+
+        const response = await fetch(
+          `/api/flights/seat-map?flightOfferId=${encodeURIComponent(flightOfferId)}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              flightOffer, // Full offer object required by Amadeus
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          let errorMessage = errorData.error || `HTTP ${response.status}`;
+          
+          // Handle rate limiting (429) with user-friendly message
+          if (response.status === 429) {
+            errorMessage = "Seat map service is temporarily busy. Please wait a moment and try again.";
+          } else if (response.status === 400 && errorData.errors) {
+            // Handle Amadeus API errors
+            const amadeusError = errorData.errors[0];
+            if (amadeusError.code === 38194) {
+              errorMessage = "Seat map service is temporarily busy. Please wait a moment and try again.";
+            } else if (amadeusError.code === 477) {
+              errorMessage = "Seat selection is not available for this flight. You can select seats during check-in.";
+            } else {
+              errorMessage = amadeusError.detail || amadeusError.title || errorMessage;
+            }
+          }
+          
+          console.error("[SeatsPage] API error response", {
+            status: response.status,
+            error: errorMessage,
+            errorData,
+            flightOfferId,
+          });
+          throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+
+        if (!data.ok) {
+          const errorMessage = data.error || "Failed to fetch seat map";
+          console.error("[SeatsPage] API returned not ok", {
+            error: errorMessage,
+            flightOfferId,
+          });
+          throw new Error(errorMessage);
+        }
+
+        if (!data.available || !data.seatMap) {
+          // Seat map not available - this is not an error, just unavailable
+          setSeatMapError(
+            data.seatMap?.error || "Seat selection will be available at check-in"
+          );
+          setSeatMap(null);
+        } else {
+          setSeatMap(data.seatMap);
+          // Select first cabin by default
+          if (data.seatMap.cabins && data.seatMap.cabins.length > 0) {
+            setSelectedCabin(data.seatMap.cabins[0].name);
+          }
+        }
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        console.error("[SeatsPage] Error fetching seat map:", message);
+        setSeatMapError(message);
+        setSeatMap(null);
+      } finally {
+        setLoadingSeatMap(false);
+      }
+    };
+
+    fetchSeatMap(flightOfferIdFromUrl);
+  }, [flightOfferIdFromUrl, selectedOffer]);
 
   useEffect(() => {
     if (!activePassengerId && passengers?.length) {
@@ -100,17 +277,76 @@ export default function SeatsPage() {
     seats.some((s) => s.seatNumber === seatNo && s.passengerId === passengerId);
 
   const assignSeat = (passengerId: string, seatNo: string, price: number) => {
-    // If your store supports "replace seat for passenger", addSeat should overwrite or you should implement replace logic in store.
-    // Here we assume addSeat overwrites passenger seat (common pattern).
     addSeat({ passengerId, seatNumber: seatNo, price });
   };
 
-  const statusToUI = (status: SeatStatus, isSelected: boolean) => {
+  // Transform normalized seat to UI status
+  const seatToUIStatus = (seat: NormalizedSeat, isSelected: boolean): "available" | "selected" | "unavailable" | "premium" => {
     if (isSelected) return "selected";
-    if (status === "unavailable") return "unavailable";
-    if (status === "premium") return "premium";
+    if (seat.availability === "occupied" || seat.availability === "blocked") return "unavailable";
+    // Premium if has PAID characteristic or is in premium cabin
+    if (seat.characteristics.includes("PAID") || seat.price) return "premium";
     return "available";
   };
+
+  // Get seats for current cabin, organized by row
+  const seatsByRow = useMemo(() => {
+    if (!seatMap || !selectedCabin) return new Map<number, NormalizedSeat[]>();
+
+    const cabin = seatMap.cabins.find((c) => c.name === selectedCabin);
+    if (!cabin) return new Map<number, NormalizedSeat[]>();
+
+    const map = new Map<number, NormalizedSeat[]>();
+    for (const seat of cabin.seats) {
+      if (!map.has(seat.row)) {
+        map.set(seat.row, []);
+      }
+      map.get(seat.row)!.push(seat);
+    }
+
+    return map;
+  }, [seatMap, selectedCabin]);
+
+  // Get all unique columns (seat letters) from the seat map
+  const seatColumns = useMemo(() => {
+    const columns = new Set<string>();
+    seatsByRow.forEach((seats) => {
+      seats.forEach((seat) => columns.add(seat.column));
+    });
+    return Array.from(columns).sort();
+  }, [seatsByRow]);
+
+  // Determine seat layout (left, center, right blocks)
+  const getSeatBlocks = () => {
+    // Standard 6-seat economy: A-B | aisle | C-D | aisle | E-F
+    // Business/First: A-B | aisle | C-D (or similar)
+    const allColumns = seatColumns;
+    
+    // Try to detect layout from columns
+    if (allColumns.length === 6 && allColumns.join("") === "ABCDEF") {
+      return {
+        left: ["A", "B"],
+        center: ["C", "D"],
+        right: ["E", "F"],
+      };
+    } else if (allColumns.length === 4 && allColumns.join("") === "ABCD") {
+      return {
+        left: ["A", "B"],
+        right: ["C", "D"],
+        center: [],
+      };
+    } else {
+      // Fallback: split columns into thirds
+      const third = Math.ceil(allColumns.length / 3);
+      return {
+        left: allColumns.slice(0, third),
+        center: allColumns.slice(third, third * 2),
+        right: allColumns.slice(third * 2),
+      };
+    }
+  };
+
+  const seatBlocks = getSeatBlocks();
 
   const seatStyle = (ui: "available" | "selected" | "unavailable" | "premium") => {
     switch (ui) {
@@ -215,158 +451,230 @@ export default function SeatsPage() {
             <LegendChip label="Premium" variant="premium" />
           </div>
 
-          {/* REAL AIRCRAFT CABIN */}
-          <div className="overflow-x-auto pb-2">
-            <div
-              className="p-8 rounded-2xl min-w-[860px]"
-              style={{
-                background: "rgba(15, 17, 20, 0.50)",
-                border: "2px solid rgba(28, 140, 130, 0.25)",
-                boxShadow: "inset 0 0 50px rgba(0,0,0,0.40), 0 0 30px rgba(28,140,130,0.10)",
-              }}
-            >
-              {/* Cabin badge */}
-              <div className="text-center mb-6">
-                <span
-                  className="inline-block px-6 py-2 rounded-full text-sm font-semibold text-white"
-                  style={{
-                    background: "rgba(28, 140, 130, 0.20)",
-                    border: "1px solid rgba(28, 140, 130, 0.40)",
-                    boxShadow: "0 0 15px rgba(28,140,130,0.18)",
-                  }}
-                >
-                  Economy Cabin
-                </span>
-              </div>
+          {/* Loading State */}
+          {loadingSeatMap && (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 text-ec-teal animate-spin" />
+              <span className="ml-3 text-white/80">Loading seat map...</span>
+            </div>
+          )}
 
-              {/* Seat letters header */}
-              <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: "56px 1fr" }}>
-                <div />
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-2 items-center">
-                    <HeaderSeatLetter letter="A" />
-                    <HeaderSeatLetter letter="B" />
-                    <div className="w-10" />
-                    <HeaderSeatLetter letter="C" />
-                    <HeaderSeatLetter letter="D" />
-                    <div className="w-10" />
-                    <HeaderSeatLetter letter="E" />
-                    <HeaderSeatLetter letter="F" />
-                  </div>
-                  <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>
-                    {activePassenger ? `Assigning for: ${activePassenger.firstName} ${activePassenger.lastName}` : ""}
-                  </div>
+          {/* Error State - Seat Map Not Available */}
+          {!loadingSeatMap && seatMapError && (
+            <div className="p-8 rounded-2xl border border-[rgba(200,162,77,0.3)] bg-[rgba(200,162,77,0.08)]">
+              <div className="flex items-start gap-4">
+                <AlertCircle className="w-6 h-6 text-[#E3C77A] flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    {seatMapError.includes("rate limit") || seatMapError.includes("temporarily busy")
+                      ? "Service Temporarily Unavailable"
+                      : "Seat Selection Not Available"}
+                  </h3>
+                  <p className="text-white/80 mb-4">{seatMapError}</p>
+                  {!seatMapError.includes("rate limit") && !seatMapError.includes("temporarily busy") && (
+                    <p className="text-sm text-white/60">
+                      You can select your seats during online check-in or at the airport. This will not affect your booking.
+                    </p>
+                  )}
+                  {(seatMapError.includes("rate limit") || seatMapError.includes("temporarily busy")) && (
+                    <p className="text-sm text-white/60">
+                      The seat map service is experiencing high traffic. Please wait a moment and refresh the page, or continue to the next step and select seats during check-in.
+                    </p>
+                  )}
                 </div>
               </div>
+            </div>
+          )}
 
-              {/* Rows: Row number on left, seats across */}
-              <div className="space-y-2">
-                {map.map((r) => {
-                  const row = r.row;
-                  const left: SeatLetter[] = ["A", "B"];
-                  const center: SeatLetter[] = ["C", "D"];
-                  const right: SeatLetter[] = ["E", "F"];
+          {/* Real Aircraft Cabin from Amadeus API */}
+          {!loadingSeatMap && seatMap && seatMap.available && (
+            <div className="overflow-x-auto pb-2">
+              <div
+                className="p-8 rounded-2xl min-w-[860px]"
+                style={{
+                  background: "rgba(15, 17, 20, 0.50)",
+                  border: "2px solid rgba(28, 140, 130, 0.25)",
+                  boxShadow: "inset 0 0 50px rgba(0,0,0,0.40), 0 0 30px rgba(28,140,130,0.10)",
+                }}
+              >
+                {/* Cabin Selector (if multiple cabins) */}
+                {seatMap.cabins.length > 1 && (
+                  <div className="mb-6">
+                    <div className="flex flex-wrap gap-2">
+                      {seatMap.cabins.map((cabin) => (
+                        <button
+                          key={cabin.name}
+                          type="button"
+                          onClick={() => setSelectedCabin(cabin.name)}
+                          className="px-4 py-2 rounded-full text-sm font-semibold transition-all"
+                          style={{
+                            background: selectedCabin === cabin.name
+                              ? "rgba(28,140,130,0.25)"
+                              : "rgba(255,255,255,0.06)",
+                            border: selectedCabin === cabin.name
+                              ? "1px solid rgba(28,140,130,0.50)"
+                              : "1px solid rgba(255,255,255,0.12)",
+                            color: "rgba(255,255,255,0.90)",
+                          }}
+                        >
+                          {cabin.name} ({cabin.seats.length} seats)
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                  const renderSeat = (letter: SeatLetter) => {
-                    const cell = r.seats[letter];
-                    const seatNo = seatNumber(row, letter);
+                {/* Cabin badge */}
+                <div className="text-center mb-6">
+                  <span
+                    className="inline-block px-6 py-2 rounded-full text-sm font-semibold text-white"
+                    style={{
+                      background: "rgba(28, 140, 130, 0.20)",
+                      border: "1px solid rgba(28, 140, 130, 0.40)",
+                      boxShadow: "0 0 15px rgba(28,140,130,0.18)",
+                    }}
+                  >
+                    {selectedCabin || seatMap.cabins[0]?.name || "Cabin"}
+                    {seatMap.aircraft?.code && ` • ${seatMap.aircraft.code}`}
+                  </span>
+                </div>
 
-                    const selected = activePassengerId ? isSeatSelectedByPassenger(seatNo, activePassengerId) : false;
-                    const takenByOther = activePassengerId ? seatTakenByOtherPassenger(seatNo, activePassengerId) : false;
-
-                    const effectiveStatus: SeatStatus =
-                      takenByOther ? "unavailable" : cell.status;
-
-                    const ui = statusToUI(effectiveStatus, selected);
-
-                    const disabled = ui === "unavailable" || !activePassengerId;
-
-                    return (
-                      <button
-                        key={seatNo}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => {
-                          if (!activePassengerId) return;
-                          if (disabled) return;
-                          assignSeat(activePassengerId, seatNo, cell.price);
-                        }}
-                        className="w-10 h-10 rounded-xl text-[11px] font-extrabold transition-all relative"
-                        style={seatStyle(ui)}
-                        onMouseEnter={(e) => {
-                          if (disabled) return;
-                          if (selected) return;
-                          e.currentTarget.style.transform = "scale(1.10)";
-                          e.currentTarget.style.boxShadow =
-                            ui === "premium"
-                              ? "0 0 22px rgba(200,162,77,0.35)"
-                              : "0 0 22px rgba(28,140,130,0.45)";
-                        }}
-                        onMouseLeave={(e) => {
-                          if (selected) return;
-                          e.currentTarget.style.transform = "scale(1)";
-                        }}
-                        aria-label={`Seat ${seatNo}`}
-                        title={`${seatNo} • ${seatTypeFromLetter(letter)} • ${cell.price ? formatMoney(currency, cell.price) : "Free"}`}
-                      >
-                        {ui === "premium" && !selected ? (
-                          <span className="absolute -top-1 -right-1 text-[9px]" style={{ color: "#E3C77A" }}>
-                            ★
-                          </span>
-                        ) : null}
-                        {letter}
-                      </button>
-                    );
-                  };
-
-                  return (
-                    <div key={row} className="grid gap-2 items-center" style={{ gridTemplateColumns: "56px 1fr" }}>
-                      {/* Row number */}
-                      <div
-                        className="text-center text-xs font-bold rounded-lg py-2"
-                        style={{
-                          background: "rgba(255,255,255,0.04)",
-                          border: "1px solid rgba(255,255,255,0.10)",
-                          color: "rgba(255,255,255,0.78)",
-                        }}
-                      >
-                        {row}
+                {/* Seat letters header */}
+                {seatColumns.length > 0 && (
+                  <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: "56px 1fr" }}>
+                    <div />
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-2 items-center">
+                        {seatBlocks.left.map((col) => (
+                          <HeaderSeatLetter key={col} letter={col} />
+                        ))}
+                        {seatBlocks.center.length > 0 && <div className="w-10" />}
+                        {seatBlocks.center.map((col) => (
+                          <HeaderSeatLetter key={col} letter={col} />
+                        ))}
+                        {seatBlocks.right.length > 0 && <div className="w-10" />}
+                        {seatBlocks.right.map((col) => (
+                          <HeaderSeatLetter key={col} letter={col} />
+                        ))}
                       </div>
-
-                      {/* Seats line */}
-                      <div className="flex items-center gap-2">
-                        {/* Left block */}
-                        <div className="flex items-center gap-2">
-                          {left.map(renderSeat)}
-                        </div>
-
-                        {/* Aisle gap */}
-                        <div className="w-10" />
-
-                        {/* Center block */}
-                        <div className="flex items-center gap-2">
-                          {center.map(renderSeat)}
-                        </div>
-
-                        {/* Aisle gap */}
-                        <div className="w-10" />
-
-                        {/* Right block */}
-                        <div className="flex items-center gap-2">
-                          {right.map(renderSeat)}
-                        </div>
-
-                        {/* Row price hint (optional, subtle) */}
-                        <div className="ml-auto text-xs font-semibold" style={{ color: "rgba(255,255,255,0.45)" }}>
-                          {row <= 3 ? "Premium zone" : row === 14 || row === 15 ? "Extra legroom" : ""}
-                        </div>
+                      <div className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>
+                        {activePassenger ? `Assigning for: ${activePassenger.firstName} ${activePassenger.lastName}` : ""}
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                )}
+
+                {/* Rows: Row number on left, seats across */}
+                <div className="space-y-2">
+                  {Array.from(seatsByRow.entries())
+                    .sort(([a], [b]) => a - b)
+                    .map(([row, seats]) => {
+                      const getSeatByColumn = (col: string) =>
+                        seats.find((s) => s.column === col);
+
+                      const renderSeat = (col: string) => {
+                        const seat = getSeatByColumn(col);
+                        if (!seat) {
+                          // Seat doesn't exist in this row (e.g., different cabin configuration)
+                          return <div key={col} className="w-10 h-10" />;
+                        }
+
+                        const selected = activePassengerId
+                          ? isSeatSelectedByPassenger(seat.seatNumber, activePassengerId)
+                          : false;
+                        const takenByOther = activePassengerId
+                          ? seatTakenByOtherPassenger(seat.seatNumber, activePassengerId)
+                          : false;
+
+                        const ui = seatToUIStatus(seat, selected);
+                        const disabled = seat.availability === "occupied" || seat.availability === "blocked" || takenByOther || !activePassengerId;
+
+                        const seatPrice = seat.price?.amount || 0;
+                        const seatPriceCurrency = seat.price?.currency || currency;
+                        const characteristics = getSeatCharacteristicsLabel(seat.characteristics);
+
+                        return (
+                          <button
+                            key={seat.seatNumber}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => {
+                              if (!activePassengerId || disabled) return;
+                              assignSeat(activePassengerId, seat.seatNumber, seatPrice);
+                            }}
+                            className="w-10 h-10 rounded-xl text-[11px] font-extrabold transition-all relative"
+                            style={seatStyle(ui)}
+                            onMouseEnter={(e) => {
+                              if (disabled || selected) return;
+                              e.currentTarget.style.transform = "scale(1.10)";
+                              e.currentTarget.style.boxShadow =
+                                ui === "premium"
+                                  ? "0 0 22px rgba(200,162,77,0.35)"
+                                  : "0 0 22px rgba(28,140,130,0.45)";
+                            }}
+                            onMouseLeave={(e) => {
+                              if (selected) return;
+                              e.currentTarget.style.transform = "scale(1)";
+                            }}
+                            aria-label={`Seat ${seat.seatNumber}`}
+                            title={`${seat.seatNumber} • ${seatTypeFromLetter(seat.column)}${characteristics ? ` • ${characteristics}` : ""}${seatPrice > 0 ? ` • ${formatMoney(seatPriceCurrency, seatPrice)}` : " • Free"}`}
+                          >
+                            {(ui === "premium" || seat.characteristics.length > 0) && !selected && (
+                              <span className="absolute -top-1 -right-1 text-[9px]" style={{ color: "#E3C77A" }}>
+                                {seat.characteristics.includes("EXIT_ROW") ? "🚪" : "★"}
+                              </span>
+                            )}
+                            {seat.column}
+                          </button>
+                        );
+                      };
+
+                      return (
+                        <div key={row} className="grid gap-2 items-center" style={{ gridTemplateColumns: "56px 1fr" }}>
+                          {/* Row number */}
+                          <div
+                            className="text-center text-xs font-bold rounded-lg py-2"
+                            style={{
+                              background: "rgba(255,255,255,0.04)",
+                              border: "1px solid rgba(255,255,255,0.10)",
+                              color: "rgba(255,255,255,0.78)",
+                            }}
+                          >
+                            {row}
+                          </div>
+
+                          {/* Seats line */}
+                          <div className="flex items-center gap-2">
+                            {/* Left block */}
+                            <div className="flex items-center gap-2">
+                              {seatBlocks.left.map(renderSeat)}
+                            </div>
+
+                            {/* Aisle gap */}
+                            {seatBlocks.center.length > 0 && <div className="w-10" />}
+
+                            {/* Center block */}
+                            {seatBlocks.center.length > 0 && (
+                              <div className="flex items-center gap-2">
+                                {seatBlocks.center.map(renderSeat)}
+                              </div>
+                            )}
+
+                            {/* Aisle gap */}
+                            {seatBlocks.right.length > 0 && <div className="w-10" />}
+
+                            {/* Right block */}
+                            <div className="flex items-center gap-2">
+                              {seatBlocks.right.map(renderSeat)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Selected Seats Chips */}
           <div className="mt-8 pt-8" style={{ borderTop: "1px solid rgba(28,140,130,0.20)" }}>
@@ -377,8 +685,17 @@ export default function SeatsPage() {
               <div className="flex flex-wrap gap-3">
                 {seats.map((s) => {
                   const passenger = passengers.find((p) => p.id === s.passengerId);
-                  const letter = s.seatNumber.slice(-1) as SeatLetter;
+                  const letter = s.seatNumber.slice(-1);
                   const type = seatTypeFromLetter(letter);
+                  
+                  // Find seat characteristics from seat map if available
+                  const seatData = seatMap?.cabins
+                    .flatMap((c) => c.seats)
+                    .find((seat) => seat.seatNumber === s.seatNumber);
+                  const characteristics = seatData
+                    ? getSeatCharacteristicsLabel(seatData.characteristics)
+                    : "";
+
                   return (
                     <div
                       key={`${s.passengerId}-${s.seatNumber}`}
@@ -403,7 +720,9 @@ export default function SeatsPage() {
                           {passenger ? `${passenger.firstName} ${passenger.lastName}` : "Passenger"}
                         </div>
                         <div className="text-xs" style={{ color: "rgba(255,255,255,0.65)" }}>
-                          {type} • {s.price > 0 ? formatMoney(currency, s.price) : "Free"}
+                          {type}
+                          {characteristics && ` • ${characteristics}`}
+                          {` • ${s.price > 0 ? formatMoney(currency, s.price) : "Free"}`}
                         </div>
                       </div>
                     </div>
@@ -431,9 +750,19 @@ export default function SeatsPage() {
             onClick={handleContinue}
             className="flex items-center gap-2 rounded-full px-8 py-4"
             style={{ boxShadow: "0 0 25px rgba(28,140,130,0.28), 0 0 0 1px rgba(200,162,77,0.18)" }}
+            disabled={loadingSeatMap}
           >
-            Continue
-            <ArrowRight size={18} />
+            {loadingSeatMap ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Loading...
+              </>
+            ) : (
+              <>
+                Continue
+                <ArrowRight size={18} />
+              </>
+            )}
           </EcoviraButton>
         </div>
       </div>

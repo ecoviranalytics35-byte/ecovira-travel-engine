@@ -25,7 +25,13 @@ export default function InsurancePage() {
       return;
     }
     if (!stepCompletion.seats) {
-      router.push("/book/seats");
+      // Preserve flightOfferId when navigating back
+      const flightOfferId = selectedOffer?.id;
+      if (flightOfferId) {
+        router.push(`/book/seats?flightOfferId=${encodeURIComponent(flightOfferId)}`);
+      } else {
+        router.push("/book/seats");
+      }
     }
   }, [selectedOffer, stepCompletion.seats, router]);
 
@@ -35,7 +41,13 @@ export default function InsurancePage() {
   };
 
   const handleBack = () => {
-    router.push("/book/seats");
+    // Preserve flightOfferId when navigating back
+    const flightOfferId = selectedOffer?.id;
+    if (flightOfferId) {
+      router.push(`/book/seats?flightOfferId=${encodeURIComponent(flightOfferId)}`);
+    } else {
+      router.push("/book/seats");
+    }
   };
 
   if (!selectedOffer || !stepCompletion.seats) {

@@ -30,7 +30,14 @@ export default function BaggagePage() {
 
   const handleContinue = () => {
     completeStep("baggage");
-    router.push("/book/seats");
+    // Pass flightOfferId in URL for seat map API
+    const flightOfferId = selectedOffer?.id;
+    if (flightOfferId) {
+      router.push(`/book/seats?flightOfferId=${encodeURIComponent(flightOfferId)}`);
+    } else {
+      console.error("[BaggagePage] Missing flightOfferId, cannot navigate to seats");
+      router.push("/book/seats");
+    }
   };
 
   const handleBack = () => {
