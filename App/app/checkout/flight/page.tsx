@@ -1,15 +1,28 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckoutForm } from '@/components/checkout/CheckoutForm';
-import { PaymentOptions, type PaymentMethod } from '@/components/checkout/PaymentOptions';
-import type { BookingExtras } from '@/lib/core/booking-extras';
-import { Plane, Luggage, Shield } from 'lucide-react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
+/**
+ * DEPRECATED: This checkout page has been replaced by the unified checkout at /book/checkout
+ * All products (flights, stays, cars, transfers) now use the unified checkout page.
+ * This page redirects to maintain backward compatibility.
+ */
 export default function FlightCheckoutPage() {
-  const searchParams = useSearchParams();
   const router = useRouter();
+  
+  useEffect(() => {
+    // Redirect to unified checkout page
+    router.replace('/book/checkout');
+  }, [router]);
+  
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-ec-night">
+      <div className="text-white text-center">
+        <p className="text-lg mb-4">Redirecting to checkout...</p>
+      </div>
+    </div>
+  );
   const [flightId, setFlightId] = useState<string | null>(null);
   const [cabinClass, setCabinClass] = useState<string>('economy');
   const [passengers, setPassengers] = useState<number>(1);

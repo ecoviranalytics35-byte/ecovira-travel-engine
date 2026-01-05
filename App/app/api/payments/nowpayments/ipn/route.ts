@@ -78,8 +78,12 @@ export async function POST(request: NextRequest) {
 
     // Handle different payment statuses
     // Statuses: waiting, confirming, confirmed, finished, failed, expired, refunded
-    if (payment_status === "finished" || payment_status === "confirmed") {
-      // Payment successful - update booking status and issue ticket
+    // CRITICAL SECURITY: Booking is unlocked ONLY after payment_status = "finished"
+    // "confirmed" means payment is confirmed but may still be processing
+    // "finished" means payment is complete and funds are settled
+    // This prevents premature booking unlock before funds are actually received
+    if (payment_status === "finished") {
+      // Payment finished - funds are settled, safe to unlock booking
       if (order_id) {
         const booking = await getBookingByOrderId(order_id);
         
@@ -90,20 +94,33 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ ok: true, received: true });
           }
 
-          console.log("[NOWPayments IPN] Payment confirmed for order:", order_id, "booking:", booking.id);
+          console.log("[NOWPayments IPN] Payment finished for order:", order_id, "booking:", booking.id, {
+            payment_id,
+            invoice_id,
+            pay_amount,
+            pay_currency,
+            price_amount,
+            price_currency,
+          });
           
-          // Update booking status
+          // Update booking status to paid (unlock booking)
           await updateBookingStatus(booking.id, "paid");
           
           // Update itinerary status
           await updateItinerary(booking.itinerary_id, { status: 'paid' });
           
-          // Issue ticket
+          // Issue ticket (unlock booking)
           await issueTicket(booking.id);
         } else {
           console.warn("[NOWPayments IPN] Booking not found for order_id:", order_id);
         }
       }
+    } else if (payment_status === "confirmed") {
+      // Payment confirmed but not finished - log but don't unlock booking yet
+      // This is normal - payment is confirmed but funds may still be settling
+      console.log("[NOWPayments IPN] Payment confirmed (not finished) for order:", order_id, {
+        note: "Booking will be unlocked when payment_status = finished",
+      });
     } else if (payment_status === "failed" || payment_status === "expired") {
       // Payment failed - log but don't update booking
       console.log("[NOWPayments IPN] Payment failed/expired for order:", order_id);
