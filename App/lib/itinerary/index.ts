@@ -138,3 +138,40 @@ export async function getBookingByPaymentId(paymentId: string): Promise<Booking 
   if (error) return null;
   return data as Booking;
 }
+
+/**
+ * Get booking by ID
+ */
+export async function getBookingById(bookingId: string): Promise<Booking | null> {
+  const { data, error } = await supabaseAdmin
+    .from('bookings')
+    .select('*')
+    .eq('id', bookingId)
+    .single();
+
+  if (error) return null;
+  return data as Booking;
+}
+
+/**
+ * Get booking by order ID (extracted from metadata)
+ * For Stripe checkout sessions, orderId format is typically "booking-<bookingId>" or similar
+ */
+export async function getBookingByOrderId(orderId: string): Promise<Booking | null> {
+  // Try to extract booking ID from orderId (format: "booking-<id>")
+  const bookingIdMatch = orderId.match(/^booking-(.+)$/);
+  if (bookingIdMatch) {
+    const bookingId = bookingIdMatch[1];
+    return await getBookingById(bookingId);
+  }
+  
+  // Fallback: try to find by booking_reference
+  const { data, error } = await supabaseAdmin
+    .from('bookings')
+    .select('*')
+    .eq('booking_reference', orderId)
+    .single();
+
+  if (error) return null;
+  return data as Booking;
+}

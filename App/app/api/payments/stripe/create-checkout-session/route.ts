@@ -1,5 +1,6 @@
 import { getStripeClient } from "@/lib/payments/stripe";
 import { NextRequest, NextResponse } from "next/server";
+import { STRIPE_SUPPORTED_CURRENCIES, toStripeUnitAmount } from "@/lib/payments/stripe-currencies";
 
 export const runtime = "nodejs";
 
@@ -42,28 +43,40 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { amount, currency, bookingData, customerEmail, orderId } = body;
+    const { amount, currency, chargeCurrency, unitAmount, bookingData, customerEmail, orderId, baseAmount, baseCurrency, fxRate, fxTimestamp } = body;
 
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stripe/create-checkout-session/route.ts:31',message:'[POST] Request body parsed',data:{hasAmount:!!amount,amount:amount,hasCurrency:!!currency,currency:currency,hasBookingData:!!bookingData,hasOrderId:!!orderId},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'C'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stripe/create-checkout-session/route.ts:31',message:'[POST] Request body parsed',data:{hasAmount:!!amount,amount:amount,hasCurrency:!!currency,currency:currency,hasChargeCurrency:!!chargeCurrency,chargeCurrency:chargeCurrency,hasBookingData:!!bookingData,hasOrderId:!!orderId},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
 
-    // Validate request body - ensure required fields exist
-    if (!amount || typeof amount !== 'number' || amount <= 0) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stripe/create-checkout-session/route.ts:35',message:'[POST] Amount validation failed',data:{error:'Invalid amount',amount:amount},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
+    // Determine charge currency - prefer chargeCurrency, fallback to currency
+    const chargeCurrencyCode = (chargeCurrency || currency || "AUD").toUpperCase();
+    const normalizedChargeCurrency = chargeCurrencyCode.toLowerCase();
+    
+    // Validate currency is supported by Stripe
+    if (!STRIPE_SUPPORTED_CURRENCIES.includes(chargeCurrencyCode)) {
       return NextResponse.json(
-        { error: "Invalid amount" },
+        { error: `Currency ${chargeCurrencyCode} is not supported by Stripe` },
         { status: 400 }
       );
     }
-    if (!currency || typeof currency !== 'string') {
+
+    // Determine unit amount
+    // If unitAmount is provided (already converted), use it
+    // Otherwise, convert amount using minor units
+    let finalUnitAmount: number;
+    if (unitAmount && typeof unitAmount === 'number' && unitAmount > 0) {
+      finalUnitAmount = Math.round(unitAmount);
+    } else if (amount && typeof amount === 'number' && amount > 0) {
+      // Convert amount to Stripe unit_amount using minor units
+      finalUnitAmount = toStripeUnitAmount(amount, normalizedChargeCurrency);
+    } else {
       return NextResponse.json(
-        { error: "Currency is required" },
+        { error: "amount or unitAmount is required" },
         { status: 400 }
       );
     }
+
     if (!bookingData && !orderId) {
       return NextResponse.json(
         { error: "Booking data or order ID is required" },
@@ -71,14 +84,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-
     // Construct URLs
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    const normalizedCurrency = currency.toLowerCase();
-    
-    // Validate currency is supported by Stripe
-    const supportedCurrencies = ['usd', 'eur', 'gbp', 'aud', 'cad', 'nzd', 'jpy', 'chf', 'hkd', 'sgd', 'sek', 'nok', 'dkk'];
-    const finalCurrency = supportedCurrencies.includes(normalizedCurrency) ? normalizedCurrency : 'aud';
 
     const stripe = getStripeClient();
 
@@ -88,12 +95,12 @@ export async function POST(request: NextRequest) {
       line_items: [
         {
           price_data: {
-            currency: finalCurrency,
+            currency: normalizedChargeCurrency,
             product_data: {
               name: `Flight Booking ${bookingData?.offerId || orderId || ""}`,
               description: `Flight booking ${bookingData?.offerId ? `from ${bookingData.offerId}` : ""}`,
             },
-            unit_amount: amount, // already in cents
+            unit_amount: finalUnitAmount,
           },
           quantity: 1,
         },
@@ -105,6 +112,10 @@ export async function POST(request: NextRequest) {
       metadata: {
         orderId: orderId || bookingData?.offerId || "",
         bookingData: JSON.stringify(bookingData || {}),
+        chargeCurrency: chargeCurrencyCode,
+        ...(baseAmount && { baseAmount: baseAmount.toString(), baseCurrency: baseCurrency || "AUD" }),
+        ...(fxRate && { fxRate: fxRate.toString() }),
+        ...(fxTimestamp && { fxTimestamp }),
       },
     });
 

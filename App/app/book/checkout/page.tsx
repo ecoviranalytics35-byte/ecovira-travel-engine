@@ -6,6 +6,9 @@ import { BookingShell } from "@/components/booking/BookingShell";
 import { useBookingStore } from "@/stores/bookingStore";
 import { EcoviraButton } from "@/components/Button";
 import { ArrowLeft, CreditCard, Coins, Lock, Sparkles } from "lucide-react";
+import { CryptoSelector } from "@/components/checkout/CryptoSelector";
+import { CurrencySelector } from "@/components/checkout/CurrencySelector";
+import { getCurrencyFromLocale } from "@/lib/payments/currency-defaults";
 
 // Always enable buttons - let server handle validation
 // Server-side will validate actual keys and return appropriate errors
@@ -28,6 +31,8 @@ export default function CheckoutPage() {
   const seats = useBookingStore((state) => state.seats);
   const insurance = useBookingStore((state) => state.insurance);
   const pricing = useBookingStore((state) => state.pricing);
+  const currency = useBookingStore((state) => state.currency);
+  const setCurrency = useBookingStore((state) => state.setCurrency);
   const setPayment = useBookingStore((state) => state.setPayment);
   const completeStep = useBookingStore((state) => state.completeStep);
   
@@ -35,6 +40,10 @@ export default function CheckoutPage() {
   const [processingMethod, setProcessingMethod] = useState<"stripe" | "crypto" | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastClickTime, setLastClickTime] = useState<number>(0);
+  const [selectedCrypto, setSelectedCrypto] = useState<string>("");
+  const [fxData, setFxData] = useState<{ convertedAmount: number; rate: number; timestamp: string } | null>(null);
+  const [fxLoading, setFxLoading] = useState(false);
+  const [currencyInitialized, setCurrencyInitialized] = useState(false);
 
   // Route guard
   useEffect(() => {
@@ -46,6 +55,77 @@ export default function CheckoutPage() {
       router.push("/book/insurance");
     }
   }, [selectedOffer, stepCompletion.insurance, router]);
+
+  // Auto-default currency (only once, before user manually changes it)
+  useEffect(() => {
+    if (currencyInitialized) return;
+    
+    const initializeCurrency = async () => {
+      // 1. Check localStorage first
+      const storedCurrency = localStorage.getItem("ecovira_currency");
+      if (storedCurrency) {
+        setCurrency(storedCurrency);
+        setCurrencyInitialized(true);
+        return;
+      }
+
+      // 2. Try geo API (server-side country detection)
+      try {
+        const geoRes = await fetch("/api/geo");
+        const geoData = await geoRes.json();
+        if (geoData.ok && geoData.country) {
+          const { getCurrencyForCountry } = await import("@/lib/payments/currency-defaults");
+          const geoCurrency = getCurrencyForCountry(geoData.country);
+          if (geoCurrency && geoCurrency !== currency) {
+            setCurrency(geoCurrency);
+            localStorage.setItem("ecovira_currency", geoCurrency);
+            setCurrencyInitialized(true);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("[Checkout] Geo API error:", err);
+      }
+
+      // 3. Fallback to browser locale
+      const localeCurrency = getCurrencyFromLocale();
+      if (localeCurrency && localeCurrency !== currency) {
+        setCurrency(localeCurrency);
+        localStorage.setItem("ecovira_currency", localeCurrency);
+      }
+      
+      setCurrencyInitialized(true);
+    };
+
+    initializeCurrency();
+  }, [currency, setCurrency, currencyInitialized]);
+
+  // Fetch FX conversion when currency changes
+  useEffect(() => {
+    if (!currency || currency === pricing.currency || !pricing.total) return;
+    
+    const fetchFX = async () => {
+      setFxLoading(true);
+      try {
+        const res = await fetch(`/api/fx?from=${pricing.currency}&to=${currency}&amount=${pricing.total}`);
+        const data = await res.json();
+        if (data.ok) {
+          setFxData({
+            convertedAmount: data.convertedAmount,
+            rate: data.rate,
+            timestamp: data.timestamp,
+          });
+        }
+      } catch (err) {
+        console.error("[Checkout] FX conversion error:", err);
+        setFxData(null);
+      } finally {
+        setFxLoading(false);
+      }
+    };
+
+    fetchFX();
+  }, [currency, pricing.currency, pricing.total]);
 
   const handleBack = () => {
     router.push("/book/insurance");
@@ -74,25 +154,41 @@ export default function CheckoutPage() {
     setPayment({ method: "stripe", status: "processing" });
 
     try {
+      // Determine charge amount - use FX converted amount if available, otherwise base amount
+      const chargeAmount = fxData && currency !== pricing.currency 
+        ? fxData.convertedAmount 
+        : pricing.total;
+      
+      const requestBody: any = {
+        chargeCurrency: currency,
+        amount: chargeAmount,
+        baseAmount: pricing.total,
+        baseCurrency: pricing.currency,
+        orderId: `booking-${selectedOffer.id}`,
+        customerEmail: passengers[0]?.email,
+        bookingData: {
+          offerId: selectedOffer.id,
+          passengers,
+          baggage,
+          seats,
+          insurance,
+        },
+      };
+
+      // Add FX data if conversion was done
+      if (fxData && currency !== pricing.currency) {
+        requestBody.fxRate = fxData.rate;
+        requestBody.fxTimestamp = fxData.timestamp;
+      }
+
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'book/checkout/page.tsx:76',message:'[handleStripePayment] Fetching API',data:{amount:Math.round(pricing.total * 100),currency:pricing.currency.toLowerCase(),hasOrderId:!!selectedOffer.id,hasEmail:!!passengers[0]?.email},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'B'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'book/checkout/page.tsx:100',message:'[handleStripePayment] Fetching API',data:{chargeCurrency:currency,chargeAmount:chargeAmount,baseAmount:pricing.total,baseCurrency:pricing.currency,hasFxData:!!fxData,hasOrderId:!!selectedOffer.id},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
+      
       const res = await fetch("/api/payments/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: Math.round(pricing.total * 100), // cents
-          currency: pricing.currency.toLowerCase(),
-          orderId: `booking-${selectedOffer.id}`,
-          customerEmail: passengers[0]?.email,
-          bookingData: {
-            offerId: selectedOffer.id,
-            passengers,
-            baggage,
-            seats,
-            insurance,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await res.json();
@@ -155,6 +251,12 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Validate crypto selection
+    if (!selectedCrypto) {
+      setErrorMessage("Please select a cryptocurrency to continue");
+      return;
+    }
+
     // Debounce: prevent rapid clicks
     const now = Date.now();
     if (now - lastClickTime < 1000) {
@@ -179,6 +281,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           priceAmount: pricing.total,
           priceCurrency: pricing.currency,
+          payCurrency: selectedCrypto,
           orderId: `booking-${selectedOffer.id}`,
           orderDescription: `Flight booking ${selectedOffer.from} → ${selectedOffer.to}`,
           bookingData: {
@@ -333,6 +436,43 @@ export default function CheckoutPage() {
           </div>
         </section>
 
+        {/* Currency Selector Section */}
+        <section className="p-8 rounded-2xl mb-6" style={glassPanelStyle}>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-1 h-8 rounded-full bg-gradient-to-b from-ec-teal to-ec-teal/50"></div>
+            <h2 className="text-2xl font-serif font-semibold text-white">Pay in</h2>
+          </div>
+          <div className="max-w-md">
+            <CurrencySelector
+              value={currency}
+              onChange={(newCurrency) => {
+                setCurrency(newCurrency);
+                localStorage.setItem("ecovira_currency", newCurrency);
+              }}
+              disabled={processing}
+            />
+          </div>
+          {/* FX Conversion Display */}
+          {fxData && currency !== pricing.currency && (
+            <div className="mt-4 p-4 rounded-lg" style={{ background: "rgba(28, 140, 130, 0.1)", border: "1px solid rgba(28, 140, 130, 0.2)" }}>
+              <div className="text-sm text-white/90">
+                <div className="font-semibold mb-1">
+                  {currency} {fxData.convertedAmount.toFixed(2)}
+                </div>
+                <div className="text-xs text-white/70">
+                  Rate: 1 {pricing.currency} = {fxData.rate.toFixed(5)} {currency}
+                </div>
+                <div className="text-xs text-white/60 mt-1">
+                  Final amount may vary slightly due to FX rounding.
+                </div>
+              </div>
+            </div>
+          )}
+          {fxLoading && currency !== pricing.currency && (
+            <div className="mt-4 text-sm text-white/70">Converting currency...</div>
+          )}
+        </section>
+
         {/* Payment Hero Section - Two Big Centered Buttons */}
         <section className="space-y-6">
           <div className="text-center mb-8">
@@ -420,11 +560,9 @@ export default function CheckoutPage() {
               </div>
             </button>
 
-            {/* Crypto Payment - Hero Button */}
-            <button
-              onClick={handleCryptoPayment}
-              disabled={processing}
-              className="w-full p-10 rounded-2xl border transition-all disabled:opacity-60 disabled:cursor-not-allowed group relative overflow-hidden"
+            {/* Crypto Payment - Hero Section with Selector */}
+            <div
+              className="w-full p-8 rounded-2xl border"
               style={{
                 background: "rgba(10, 12, 14, 0.78)",
                 backdropFilter: "blur(14px)",
@@ -432,22 +570,10 @@ export default function CheckoutPage() {
                 borderColor: "rgba(200, 162, 77, 0.5)",
                 boxShadow: "0 18px 55px rgba(0,0,0,0.55), 0 0 0 1px rgba(200,162,77,0.3), 0 0 35px rgba(200,162,77,0.25)",
               }}
-              onMouseEnter={(e) => {
-                if (!processing) {
-                  e.currentTarget.style.borderColor = "rgba(200, 162, 77, 0.7)";
-                  e.currentTarget.style.boxShadow = "0 22px 70px rgba(0,0,0,0.65), 0 0 0 1px rgba(200,162,77,0.4), 0 0 50px rgba(200,162,77,0.35)";
-                  e.currentTarget.style.transform = "translateY(-2px)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.borderColor = "rgba(200, 162, 77, 0.5)";
-                e.currentTarget.style.boxShadow = "0 18px 55px rgba(0,0,0,0.55), 0 0 0 1px rgba(200,162,77,0.3), 0 0 35px rgba(200,162,77,0.25)";
-              }}
             >
-              <div className="flex flex-col items-center gap-4">
+              <div className="flex flex-col items-center gap-6">
                 <div
-                  className="w-20 h-20 rounded-full flex items-center justify-center transition-all group-hover:scale-110 relative"
+                  className="w-20 h-20 rounded-full flex items-center justify-center transition-all"
                   style={{
                     background: "rgba(200, 162, 77, 0.15)",
                     border: "1px solid rgba(200, 162, 77, 0.3)",
@@ -458,14 +584,27 @@ export default function CheckoutPage() {
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-white mb-2">
-                    Pay by Crypto
+                    Pay with Crypto
                   </div>
                   <div className="text-base font-medium" style={{ color: "rgba(255,255,255,0.70)" }}>
-                    NOWPayments • 10% OFF
+                    NOWPayments • Select your cryptocurrency
                   </div>
                 </div>
+
+                {/* Crypto Selector */}
+                <div className="w-full max-w-md">
+                  <label className="block text-sm font-medium text-white/80 mb-2">
+                    Select Cryptocurrency
+                  </label>
+                  <CryptoSelector
+                    value={selectedCrypto}
+                    onChange={setSelectedCrypto}
+                    disabled={processing}
+                  />
+                </div>
+
                 <div
-                  className="px-5 py-2 rounded-full text-sm font-bold mt-2"
+                  className="px-5 py-2 rounded-full text-sm font-bold"
                   style={{
                     background: "linear-gradient(135deg, rgba(200,162,77,0.5), rgba(200,162,77,0.3))",
                     border: "1px solid rgba(200,162,77,0.5)",
@@ -475,13 +614,28 @@ export default function CheckoutPage() {
                 >
                   10% DISCOUNT
                 </div>
-                {processingMethod === "crypto" && processing && (
-                  <div className="text-sm mt-2" style={{ color: "rgba(255,255,255,0.55)" }}>
-                    Creating payment invoice...
-                  </div>
-                )}
+
+                {/* Pay Button */}
+                <button
+                  onClick={handleCryptoPayment}
+                  disabled={processing || !selectedCrypto}
+                  className="w-full max-w-md px-8 py-4 rounded-xl border font-semibold text-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{
+                    background: selectedCrypto && !processing
+                      ? "linear-gradient(135deg, rgba(200,162,77,0.2), rgba(200,162,77,0.1))"
+                      : "rgba(255,255,255,0.05)",
+                    borderColor: selectedCrypto && !processing
+                      ? "rgba(200, 162, 77, 0.6)"
+                      : "rgba(255,255,255,0.1)",
+                    color: "#E3C77A",
+                  }}
+                >
+                  {processingMethod === "crypto" && processing
+                    ? "Creating payment invoice..."
+                    : "Continue to Payment"}
+                </button>
               </div>
-            </button>
+            </div>
           </div>
         </section>
 
@@ -500,8 +654,13 @@ export default function CheckoutPage() {
             <div className="space-y-2">
               <div className="text-lg font-semibold" style={{ color: "rgba(255,255,255,0.92)" }}>Total</div>
               <div className="text-5xl font-bold text-ec-teal">
-                {pricing.currency} {pricing.total.toFixed(2)}
+                {currency} {(fxData && currency !== pricing.currency ? fxData.convertedAmount : pricing.total).toFixed(2)}
               </div>
+              {currency !== pricing.currency && fxData && (
+                <div className="text-sm" style={{ color: "rgba(255,255,255,0.62)" }}>
+                  ≈ {pricing.currency} {pricing.total.toFixed(2)}
+                </div>
+              )}
               <div className="text-sm" style={{ color: "rgba(255,255,255,0.62)" }}>Including all fees</div>
             </div>
           </div>

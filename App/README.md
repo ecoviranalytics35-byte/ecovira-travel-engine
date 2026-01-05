@@ -23,6 +23,14 @@ STRIPE_WEBHOOK_SECRET=YOUR_STRIPE_WEBHOOK_SECRET_<set-in-env>
 # NOWPayments Configuration
 NOWPAYMENTS_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxx
 NOWPAYMENTS_IPN_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
+NOWPAYMENTS_MODE=live
+# NOWPAYMENTS_MODE can be "live" (default when API key exists) or "mock" (for testing)
+
+# Admin/Debug Configuration (optional)
+ADMIN_ISSUE_KEY=your-admin-key-here
+# Used for debug endpoints like /api/debug/issue-ticket (requires X-ADMIN-KEY header)
+SUPPORT_EMAIL=support@ecovira.air
+# Support email address for tickets and customer service
 
 # Application Configuration
 NEXT_PUBLIC_SITE_URL=http://localhost:3000

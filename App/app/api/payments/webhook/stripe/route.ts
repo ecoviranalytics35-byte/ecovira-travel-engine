@@ -1,7 +1,8 @@
 import { getStripeClient } from "@/lib/payments/stripe";
 import { sendConfirmation } from "@/lib/notifications";
 import { notifyBookingConfirmed } from "@/lib/notifications/trips";
-import { updateBookingStatus, updateItinerary, getBookingByPaymentId } from "@/lib/itinerary";
+import { updateBookingStatus, updateItinerary, getBookingByPaymentId, getBookingByOrderId } from "@/lib/itinerary";
+import { issueTicket } from "@/lib/tickets/issuance";
 import { supabaseAdmin } from "@/lib/core/supabase";
 
 export const runtime = "nodejs";
@@ -23,21 +24,48 @@ export async function POST(request: Request) {
     // Handle checkout.session.completed (for Checkout Sessions)
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      const orderId = session.metadata?.orderId || session.metadata?.bookingData?.offerId;
       
-      if (orderId) {
-        console.log("[Stripe Webhook] Checkout session completed:", {
-          sessionId: session.id,
-          orderId,
-          paymentStatus: session.payment_status,
-        });
+      // Only process if payment was successful
+      if (session.payment_status !== 'paid') {
+        console.log("[Stripe Webhook] Payment not completed, status:", session.payment_status);
+        return Response.json({ ok: true, received: true });
+      }
 
-        // TODO: Update booking status in database
-        // await updateBookingStatusByOrderId(orderId, 'paid');
-        // await markItineraryPaid(orderId);
-        
+      const orderId = session.metadata?.orderId;
+      const sessionId = session.id;
+      
+      console.log("[Stripe Webhook] Checkout session completed:", {
+        sessionId,
+        orderId,
+        paymentStatus: session.payment_status,
+      });
+
+      // Find booking by orderId or sessionId (payment_id)
+      let booking = null;
+      if (orderId) {
+        booking = await getBookingByOrderId(orderId);
+      }
+      if (!booking && sessionId) {
+        booking = await getBookingByPaymentId(sessionId);
+      }
+
+      if (booking) {
         // Idempotency: Check if already processed
-        // TODO: Check database to ensure we don't process twice
+        if (booking.status === 'paid' || booking.status === 'issued' || booking.status === 'confirmed') {
+          console.log("[Stripe Webhook] Booking already processed:", booking.id);
+          return Response.json({ ok: true, received: true });
+        }
+
+        // Mark booking as PAID
+        await updateBookingStatus(booking.id, 'paid');
+        
+        // Update itinerary status
+        await updateItinerary(booking.itinerary_id, { status: 'paid' });
+
+        // Issue ticket
+        await issueTicket(booking.id);
+      } else {
+        console.warn("[Stripe Webhook] Booking not found for orderId:", orderId, "sessionId:", sessionId);
       }
     }
 
@@ -49,12 +77,19 @@ export async function POST(request: Request) {
       if (itineraryId) {
         const booking = await getBookingByPaymentId(paymentIntent.id);
         if (booking) {
+          // Idempotency: Check if already processed
+          if (booking.status === 'paid' || booking.status === 'issued' || booking.status === 'confirmed') {
+            console.log("[Stripe Webhook] Booking already processed:", booking.id);
+            return Response.json({ ok: true, received: true });
+          }
+
           // Update booking status
           await updateBookingStatus(booking.id, 'paid');
           // Update itinerary status
           await updateItinerary(itineraryId, { status: 'paid' });
-          // Trigger booking worker
-          await processBooking(itineraryId);
+          
+          // Issue ticket
+          await issueTicket(booking.id);
         }
       }
     }

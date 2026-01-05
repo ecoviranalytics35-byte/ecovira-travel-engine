@@ -141,31 +141,33 @@ export const useBookingStore = create<BookingState>()(
       insurance: null,
       currency: "AUD",
       pricing: defaultPricing,
-      payment: {
-        method: null,
-        status: "pending",
-      },
-      booking: null,
-      stepCompletion: defaultStepCompletion,
+        payment: {
+          method: null,
+          status: "pending",
+        },
+        booking: null,
+        stepCompletion: defaultStepCompletion,
 
-      setSelectedOffer: (offer) => {
-        set({ selectedOffer: offer });
-        // Recalculate pricing when offer changes
-        const base = typeof offer.price === "string" 
-          ? parseFloat(offer.price.replace(/[^0-9.]/g, "")) 
-          : typeof offer.price === "number" 
-          ? offer.price 
-          : 0;
-        set({
-          pricing: {
-            ...defaultPricing,
-            base,
-            currency: offer.currency || "AUD",
-            total: base,
-          },
-          currency: offer.currency || "AUD",
-        });
-      },
+        setSelectedOffer: (offer) => {
+          set({ selectedOffer: offer });
+          // Recalculate pricing when offer changes
+          const base = typeof offer.price === "string" 
+            ? parseFloat(offer.price.replace(/[^0-9.]/g, "")) 
+            : typeof offer.price === "number" 
+            ? offer.price 
+            : 0;
+          const currentState = get();
+          set({
+            pricing: {
+              ...defaultPricing,
+              base,
+              currency: offer.currency || currentState.currency || "AUD",
+              total: base,
+            },
+            // Don't override currency if user has already selected one
+            currency: currentState.currency || offer.currency || "AUD",
+          });
+        },
 
       addPassenger: (passenger) => {
         set((state) => ({
@@ -255,6 +257,10 @@ export const useBookingStore = create<BookingState>()(
 
       setCurrency: (currency) => {
         set({ currency });
+        // Persist to localStorage
+        if (typeof window !== "undefined") {
+          localStorage.setItem("ecovira_currency", currency);
+        }
       },
 
       updatePricing: (updates) => {

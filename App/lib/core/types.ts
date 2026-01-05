@@ -68,6 +68,6 @@ export type Booking = {
   id: string;
   itineraryId: string;
   paymentId: string;
-  status: 'pending' | 'paid' | 'confirmed' | 'failed';
+  status: 'pending' | 'paid' | 'confirmed' | 'issued' | 'failed';
   createdAt: string;
 };

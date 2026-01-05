@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     // Search airports using Amadeus Airport & City Search
     // Use URLSearchParams for proper query string construction
     const searchUrl = new URL('https://test.api.amadeus.com/v1/reference-data/locations');
-    searchUrl.searchParams.set('subType', 'AIRPORT,CITY');
+    searchUrl.searchParams.set('subType', 'AIRPORT');
     searchUrl.searchParams.set('keyword', query);
     searchUrl.searchParams.set('max', '10');
     

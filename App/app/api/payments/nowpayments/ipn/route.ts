@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { getBookingByOrderId, updateBookingStatus, updateItinerary } from "@/lib/itinerary";
+import { issueTicket } from "@/lib/tickets/issuance";
 
 export const runtime = "nodejs";
 
@@ -77,19 +79,30 @@ export async function POST(request: NextRequest) {
     // Handle different payment statuses
     // Statuses: waiting, confirming, confirmed, finished, failed, expired, refunded
     if (payment_status === "finished" || payment_status === "confirmed") {
-      // Payment successful - update booking status
+      // Payment successful - update booking status and issue ticket
       if (order_id) {
-        // Extract booking ID from order_id (format: booking-<id>)
-        const bookingId = order_id.replace(/^booking-/, "");
+        const booking = await getBookingByOrderId(order_id);
         
-        // TODO: Update booking status in database
-        // await updateBookingStatus(bookingId, "paid");
-        // await markItineraryPaid(bookingId);
-        
-        console.log("[NOWPayments IPN] Payment confirmed for order:", order_id);
-        
-        // Idempotency: Check if already processed
-        // TODO: Check database to ensure we don't process twice
+        if (booking) {
+          // Idempotency: Check if already processed
+          if (booking.status === 'paid' || booking.status === 'issued' || booking.status === 'confirmed') {
+            console.log("[NOWPayments IPN] Booking already processed:", booking.id);
+            return NextResponse.json({ ok: true, received: true });
+          }
+
+          console.log("[NOWPayments IPN] Payment confirmed for order:", order_id, "booking:", booking.id);
+          
+          // Update booking status
+          await updateBookingStatus(booking.id, "paid");
+          
+          // Update itinerary status
+          await updateItinerary(booking.itinerary_id, { status: 'paid' });
+          
+          // Issue ticket
+          await issueTicket(booking.id);
+        } else {
+          console.warn("[NOWPayments IPN] Booking not found for order_id:", order_id);
+        }
       }
     } else if (payment_status === "failed" || payment_status === "expired") {
       // Payment failed - log but don't update booking

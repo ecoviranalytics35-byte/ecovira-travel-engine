@@ -71,15 +71,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!payCurrency || typeof payCurrency !== 'string') {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'nowpayments/create-invoice/route.ts:57',message:'[POST] payCurrency validation failed',data:{error:'pay_currency is required',payCurrency:payCurrency},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      return NextResponse.json(
-        { error: "pay_currency is required" },
-        { status: 400 }
-      );
-    }
     if (!orderId || typeof orderId !== 'string') {
       return NextResponse.json(
         { error: "order_id is required" },
@@ -92,6 +83,15 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    
+    // payCurrency is REQUIRED - validate it exists
+    if (!payCurrency || typeof payCurrency !== 'string') {
+      return NextResponse.json(
+        { error: "pay_currency is required. Please select a cryptocurrency." },
+        { status: 400 }
+      );
+    }
+    const finalPayCurrency = payCurrency.toLowerCase();
 
     // Construct callback URLs (these are built from env vars, not from request)
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     const invoice = await createNowPaymentsInvoice({
       priceAmount,
       priceCurrency,
-      payCurrency,
+      payCurrency: finalPayCurrency,
       orderId,
       orderDescription,
       ipnCallbackUrl,
