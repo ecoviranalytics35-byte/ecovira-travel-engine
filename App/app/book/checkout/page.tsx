@@ -74,6 +74,9 @@ export default function CheckoutPage() {
     setPayment({ method: "stripe", status: "processing" });
 
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'book/checkout/page.tsx:76',message:'[handleStripePayment] Fetching API',data:{amount:Math.round(pricing.total * 100),currency:pricing.currency.toLowerCase(),hasOrderId:!!selectedOffer.id,hasEmail:!!passengers[0]?.email},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       const res = await fetch("/api/payments/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -93,6 +96,10 @@ export default function CheckoutPage() {
       });
 
       const data = await res.json();
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'book/checkout/page.tsx:95',message:'[handleStripePayment] API response',data:{status:res.status,ok:res.ok,dataOk:data.ok,hasError:!!data.error,error:data.error,hasUrl:!!data.url,hasCode:!!data.code},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
 
       if (!data.ok) {
         // Handle specific error codes
@@ -185,6 +192,10 @@ export default function CheckoutPage() {
       });
 
       const data = await res.json();
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'book/checkout/page.tsx:194',message:'[handleCryptoPayment] API response',data:{status:res.status,ok:res.ok,dataOk:data.ok,hasError:!!data.error,error:data.error,hasUrl:!!data.url,hasInvoiceId:!!data.invoiceId},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
 
       if (!data.ok) {
         // Handle specific error codes

@@ -18,8 +18,15 @@ export async function POST(request: NextRequest) {
     const nowpaymentsEnvKeys = Object.keys(process.env).filter(k => k.includes("NOW") || k.includes("now"));
     console.log("[ENV] keys sample (NOW*):", nowpaymentsEnvKeys.slice(0, 10));
 
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'nowpayments/create-invoice/route.ts:6',message:'[POST] ENTER',data:{ts:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     const body = await request.json();
     const { priceAmount, priceCurrency, payCurrency, orderId, orderDescription, bookingData } = body;
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'nowpayments/create-invoice/route.ts:21',message:'[POST] Request body parsed',data:{hasPriceAmount:!!priceAmount,priceAmount:priceAmount,hasPriceCurrency:!!priceCurrency,priceCurrency:priceCurrency,hasPayCurrency:!!payCurrency,payCurrency:payCurrency,hasOrderId:!!orderId,hasOrderDescription:!!orderDescription},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
 
     // Log environment variable status
     const hasKey = !!process.env.NOWPAYMENTS_API_KEY;
@@ -32,36 +39,61 @@ export async function POST(request: NextRequest) {
       ipnLength: process.env.NOWPAYMENTS_IPN_SECRET?.length || 0,
     });
 
-    // Check for NOWPayments API key - return 400 with clear error code
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'nowpayments/create-invoice/route.ts:26',message:'[POST] Env check',data:{hasKey,hasIpn,keyLength:process.env.NOWPAYMENTS_API_KEY?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+
+    // Check for NOWPayments API key - return 500 with clear error
     if (!hasKey) {
       console.error("[NOWPayments API] Missing NOWPAYMENTS_API_KEY");
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'nowpayments/create-invoice/route.ts:36',message:'[POST] Key missing error',data:{error:'Missing NOWPAYMENTS_API_KEY'},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       return NextResponse.json(
-        { ok: false, code: "NOWPAYMENTS_NOT_CONFIGURED", message: "Crypto payments temporarily unavailable." },
+        { error: "Missing NOWPAYMENTS_API_KEY" },
+        { status: 500 }
+      );
+    }
+
+    // Validate request body - ensure required fields exist
+    if (!priceAmount || typeof priceAmount !== 'number' || priceAmount <= 0) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'nowpayments/create-invoice/route.ts:45',message:'[POST] priceAmount validation failed',data:{error:'Invalid price_amount',priceAmount:priceAmount},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      return NextResponse.json(
+        { error: "Invalid price_amount" },
+        { status: 400 }
+      );
+    }
+    if (!priceCurrency || typeof priceCurrency !== 'string') {
+      return NextResponse.json(
+        { error: "price_currency is required" },
+        { status: 400 }
+      );
+    }
+    if (!payCurrency || typeof payCurrency !== 'string') {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'nowpayments/create-invoice/route.ts:57',message:'[POST] payCurrency validation failed',data:{error:'pay_currency is required',payCurrency:payCurrency},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      return NextResponse.json(
+        { error: "pay_currency is required" },
+        { status: 400 }
+      );
+    }
+    if (!orderId || typeof orderId !== 'string') {
+      return NextResponse.json(
+        { error: "order_id is required" },
+        { status: 400 }
+      );
+    }
+    if (!orderDescription || typeof orderDescription !== 'string') {
+      return NextResponse.json(
+        { error: "order_description is required" },
         { status: 400 }
       );
     }
 
-    // Validate input
-    if (!priceAmount || priceAmount <= 0) {
-      return NextResponse.json(
-        { ok: false, code: "INVALID_AMOUNT", message: "Invalid payment amount" },
-        { status: 400 }
-      );
-    }
-    if (!priceCurrency) {
-      return NextResponse.json(
-        { ok: false, code: "INVALID_CURRENCY", message: "Currency is required" },
-        { status: 400 }
-      );
-    }
-    if (!orderId) {
-      return NextResponse.json(
-        { ok: false, code: "INVALID_ORDER_ID", message: "Order ID is required" },
-        { status: 400 }
-      );
-    }
-
-    // Construct callback URLs
+    // Construct callback URLs (these are built from env vars, not from request)
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
     const ipnCallbackUrl = `${siteUrl}/api/payments/nowpayments/ipn`;
     const successUrl = process.env.NOWPAYMENTS_SUCCESS_URL || `${siteUrl}/book/success?provider=nowpayments&orderId=${encodeURIComponent(orderId)}`;

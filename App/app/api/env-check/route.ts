@@ -10,6 +10,8 @@ export const runtime = "nodejs";
 export async function GET() {
   const envVars = [
     "STRIPE_SECRET_KEY",
+    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+    "STRIPE_WEBHOOK_SECRET",
     "NOWPAYMENTS_API_KEY",
     "NOWPAYMENTS_IPN_SECRET",
     "AMADEUS_API_KEY",

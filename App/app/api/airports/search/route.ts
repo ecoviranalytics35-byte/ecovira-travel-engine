@@ -27,26 +27,43 @@ export async function GET(request: NextRequest) {
     });
 
     if (!tokenResponse.ok) {
-      console.error('[airports/search] Failed to get Amadeus token');
-      // Fallback to static airport list
-      return NextResponse.json({ results: getStaticAirports(query) });
+      const errorData = await tokenResponse.json().catch(() => ({}));
+      console.error('[airports/search] Failed to get Amadeus token:', errorData);
+      return NextResponse.json(
+        { error: 'Amadeus API authentication failed' },
+        { status: 502 }
+      );
     }
 
     const { access_token } = await tokenResponse.json();
     
     // Search airports using Amadeus Airport & City Search
-    const searchResponse = await fetch(
-      `https://test.api.amadeus.com/v1/reference-data/locations?subType=AIRPORT&keyword=${encodeURIComponent(query)}&max=10`,
-      {
-        headers: {
-          'Authorization': `Bearer ${access_token}`,
-        },
-      }
-    );
+    // Use URLSearchParams for proper query string construction
+    const searchUrl = new URL('https://test.api.amadeus.com/v1/reference-data/locations');
+    searchUrl.searchParams.set('subType', 'AIRPORT,CITY');
+    searchUrl.searchParams.set('keyword', query);
+    searchUrl.searchParams.set('max', '10');
+    
+    const finalUrl = searchUrl.toString();
+    
+    // Log the final URL in development (safe - no secrets)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[airports/search] Amadeus request URL:', finalUrl.replace(/Bearer\s+\w+/g, 'Bearer [REDACTED]'));
+    }
+    
+    const searchResponse = await fetch(finalUrl, {
+      headers: {
+        'Authorization': `Bearer ${access_token}`,
+      },
+    });
 
     if (!searchResponse.ok) {
-      console.error('[airports/search] Amadeus API error');
-      return NextResponse.json({ results: getStaticAirports(query) });
+      const errorData = await searchResponse.json().catch(() => ({}));
+      console.error('[airports/search] Amadeus API error:', errorData);
+      return NextResponse.json(
+        { error: 'Amadeus API request failed' },
+        { status: 502 }
+      );
     }
 
     const data = await searchResponse.json();
@@ -66,10 +83,14 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ results });
-  } catch (error) {
+  } catch (error: any) {
     console.error('[airports/search] Error:', error);
-    // Fallback to static airport list
-    return NextResponse.json({ results: getStaticAirports(query) });
+    // Log actual error payload if available
+    console.error('[airports/search] Error details:', error.response?.data || error);
+    return NextResponse.json(
+      { error: 'Amadeus API error' },
+      { status: 502 }
+    );
   }
 }
 

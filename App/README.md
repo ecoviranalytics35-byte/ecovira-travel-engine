@@ -15,19 +15,36 @@ The dev server should start from `App/` (project root), not `App/app/` (Next.js 
 
 Create `.env.local` in repo root (same folder as package.json):
 ```
+# Stripe Configuration
 STRIPE_SECRET_KEY=YOUR_STRIPE_SECRET_KEY_<set-in-env>
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=YOUR_STRIPE_PUBLISHABLE_KEY_<set-in-env>
 STRIPE_WEBHOOK_SECRET=YOUR_STRIPE_WEBHOOK_SECRET_<set-in-env>
+
+# NOWPayments Configuration
 NOWPAYMENTS_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxx
 NOWPAYMENTS_IPN_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
+
+# Application Configuration
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 DUFFEL_ACCESS_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxx
+
+# Amadeus Configuration
+AMADEUS_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxx
+AMADEUS_API_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
+
+# Supabase Configuration (if using)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 **CRITICAL:**
 - NO quotes around values (or use quotes consistently)
 - NO trailing spaces
 - NO placeholder values like "sk_..." - use REAL full keys
-- Stripe keys must start with `YOUR_STRIPE_SECRET_KEY_` or `sk_test_` and be >30 characters
+- **Stripe Secret Key** (`STRIPE_SECRET_KEY`) must start with `YOUR_STRIPE_SECRET_KEY_` or `sk_test_` and be >30 characters
+- **Stripe Publishable Key** (`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`) must start with `YOUR_STRIPE_PUBLISHABLE_KEY_` or `pk_test_` and be >30 characters
+- The `NEXT_PUBLIC_` prefix is required for client-side environment variables
 - Restart dev server after ANY changes: `npm run dev` (env vars only load on boot)
 
 **If your .env.local is in app/.env.local, move it to the root:**
