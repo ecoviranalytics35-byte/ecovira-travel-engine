@@ -32,11 +32,18 @@ export default function AdminBookings() {
   };
 
   const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'success';
-      case 'paid': return 'info';
-      case 'pending': return 'warn';
-      case 'failed': return 'error';
+    // Support both new status enum and legacy statuses
+    const upperStatus = status.toUpperCase();
+    switch (upperStatus) {
+      case 'TICKETED':
+      case 'FULFILLMENT_PENDING':
+      case 'CONFIRMED': return 'success';
+      case 'PAID': return 'info';
+      case 'QUOTE_HELD':
+      case 'PAYMENT_PENDING':
+      case 'PENDING': return 'warn';
+      case 'FAILED': return 'error';
+      case 'REFUND_PENDING': return 'muted';
       default: return 'muted';
     }
   };

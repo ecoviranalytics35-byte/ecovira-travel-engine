@@ -679,6 +679,10 @@ function getPaymentProvider(paymentId: string): "Stripe" | "NOWPayments" {
 
 /**
  * Main function: Issue ticket for a booking
+ * 
+ * NOTE: This function is currently STUBBED for production readiness.
+ * Set ENABLE_LIVE_TICKETING=true to enable actual ticket issuance.
+ * When stubbed, it uses issueTicketStub() which returns PENDING status.
  */
 export async function issueTicket(bookingId: string): Promise<{
   success: boolean;
@@ -686,6 +690,21 @@ export async function issueTicket(bookingId: string): Promise<{
   ticketUrl?: string;
   error?: string;
 }> {
+  // STUB MODE: Use stub adapter unless live ticketing is explicitly enabled
+  const enableLiveTicketing = process.env.ENABLE_LIVE_TICKETING === 'true';
+  
+  if (!enableLiveTicketing) {
+    console.log("[Ticket] Using STUB adapter - live ticketing disabled");
+    const { issueTicketStub } = await import("./stub-adapter");
+    const stubResult = await issueTicketStub(bookingId);
+    return {
+      success: stubResult.success,
+      bookingReference: stubResult.bookingReference,
+      error: stubResult.error,
+    };
+  }
+
+  // LIVE MODE: Actual ticket issuance (only when ENABLE_LIVE_TICKETING=true)
   try {
     const booking = await getBookingById(bookingId);
     if (!booking) {
@@ -817,10 +836,12 @@ export async function issueTicket(bookingId: string): Promise<{
     }
 
     try {
-      await updateBookingStatus(bookingId, 'issued' as any);
+      // Use new status enum: TICKETED for flights, FULFILLMENT_PENDING for other products
+      await updateBookingStatus(bookingId, 'TICKETED');
     } catch (err) {
       console.warn("[Ticket] 'issued' status not supported, using 'confirmed'");
-      await updateBookingStatus(bookingId, 'confirmed');
+      // Use new status enum: FULFILLMENT_PENDING (provider booking confirmed, awaiting ticket/voucher)
+      await updateBookingStatus(bookingId, 'FULFILLMENT_PENDING');
     }
 
     console.log("[Ticket] Ticket issued successfully:", {

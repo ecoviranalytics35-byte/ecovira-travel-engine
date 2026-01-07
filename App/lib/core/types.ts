@@ -53,10 +53,18 @@ export type ItineraryItem = {
   item: FlightResult | StayResult | CarResult | TransferResult;
 };
 
+// Itinerary status enum
+export type ItineraryStatus = 
+  | 'draft'       // Initial creation
+  | 'priced'      // Items added, pricing calculated
+  | 'paid'         // Payment confirmed
+  | 'confirmed'    // Provider booking confirmed
+  | 'cancelled';   // Cancelled
+
 export type Itinerary = {
   id: string;
   userId?: string;
-  status: 'draft' | 'priced' | 'paid' | 'confirmed' | 'cancelled';
+  status: ItineraryStatus;
   total: number;
   currency: string;
   createdAt: string;
@@ -64,10 +72,23 @@ export type Itinerary = {
   items: ItineraryItem[];
 };
 
+// Booking status enum - production-ready state machine
+export type BookingStatus = 
+  | 'QUOTE_HELD'           // Quote created, awaiting payment
+  | 'PAYMENT_PENDING'       // Payment initiated, awaiting confirmation
+  | 'PAID'                  // Payment confirmed, awaiting fulfilment
+  | 'FULFILLMENT_PENDING'   // Payment confirmed, booking with provider in progress
+  | 'TICKETED'              // Fully confirmed, ticket/voucher issued (flights only)
+  | 'FAILED'                // Booking failed (payment or provider error)
+  | 'REFUND_PENDING';       // Refund initiated
+
+// Legacy status values for backward compatibility
+export type LegacyBookingStatus = 'pending' | 'paid' | 'confirmed' | 'issued' | 'failed';
+
 export type Booking = {
   id: string;
   itineraryId: string;
   paymentId: string;
-  status: 'pending' | 'paid' | 'confirmed' | 'issued' | 'failed';
+  status: BookingStatus | LegacyBookingStatus; // Support both for migration
   createdAt: string;
 };

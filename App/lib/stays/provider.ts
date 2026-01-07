@@ -17,7 +17,17 @@ export type NormalizedStay = {
 export interface StaysProvider {
   search(params: StaySearchParams): Promise<{ results: NormalizedStay[]; debug: any }>;
   quote(stayId: string, params: StaySearchParams): Promise<{ quote: any; debug: any }>;
-  book(quoteId: string, paymentIntentId: string): Promise<{ booking: any; debug: any }>;
+  book(
+    offerId: string, 
+    paymentIntentId: string,
+    guestInfo: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+      specialRequests?: string;
+    }
+  ): Promise<{ booking: any; debug: any }>;
 }
 
 export class MockStaysProvider implements StaysProvider {
@@ -69,16 +79,27 @@ export class MockStaysProvider implements StaysProvider {
     return { quote, debug: { mode: "mock", stayId, params } };
   }
 
-  async book(quoteId: string, paymentIntentId: string): Promise<{ booking: any; debug: any }> {
+  async book(
+    offerId: string, 
+    paymentIntentId: string,
+    guestInfo: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+      specialRequests?: string;
+    }
+  ): Promise<{ booking: any; debug: any }> {
     // Mock booking
     const booking = {
-      id: `booking-${quoteId}`,
-      quoteId,
+      id: `booking-${offerId}`,
+      offerId,
       paymentIntentId,
       status: "confirmed",
+      confirmationNumber: `MOCK-${Date.now()}`,
       details: "Mock booking completed",
     };
-    return { booking, debug: { mode: "mock", quoteId, paymentIntentId } };
+    return { booking, debug: { mode: "mock", offerId, paymentIntentId, guestInfo } };
   }
 }
 

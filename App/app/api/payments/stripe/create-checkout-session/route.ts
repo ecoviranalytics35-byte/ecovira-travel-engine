@@ -97,8 +97,20 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency: normalizedChargeCurrency,
             product_data: {
-              name: `Flight Booking ${bookingData?.offerId || orderId || ""}`,
-              description: `Flight booking ${bookingData?.offerId ? `from ${bookingData.offerId}` : ""}`,
+              name: bookingData?.stayOfferId 
+                ? `Hotel Booking ${bookingData?.stay?.name || bookingData?.stayOfferId || ""}`
+                : bookingData?.carOfferId
+                ? `Car Rental ${bookingData?.car?.name || bookingData?.car?.vehicle || bookingData?.carOfferId || ""}`
+                : bookingData?.transferOfferId
+                ? `Transfer ${bookingData?.transfer?.name || bookingData?.transfer?.transferType || bookingData?.transferOfferId || ""}`
+                : `Flight Booking ${bookingData?.offerId || orderId || ""}`,
+              description: bookingData?.stayOfferId
+                ? `Hotel booking ${bookingData?.stay?.name || ""}`
+                : bookingData?.carOfferId
+                ? `Car rental ${bookingData?.car?.name || bookingData?.car?.vehicle || ""}`
+                : bookingData?.transferOfferId
+                ? `Transfer ${bookingData?.transfer?.from || ""} → ${bookingData?.transfer?.to || ""}`
+                : `Flight booking ${bookingData?.offerId ? `from ${bookingData.offerId}` : ""}`,
             },
             unit_amount: finalUnitAmount,
           },

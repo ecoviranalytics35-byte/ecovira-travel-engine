@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { CarResult } from "@/lib/core/types";
 import { Input } from '../../components/Input';
@@ -13,6 +14,8 @@ import { FloatingAiAssist } from '../../components/ai/FloatingAiAssist';
 import { TestModeBanner } from '../../components/ui/TestModeBanner';
 import { getCoordinates } from '@/lib/utils/geocoding';
 import { SearchPanelSkeleton } from '../../components/search/SearchPanelSkeleton';
+import { useBookingStore } from "@/stores/bookingStore";
+import { useEvent } from "@/hooks/useEvent";
 
 // Client-only SearchPanelShell (no SSR to prevent hydration errors from browser extensions)
 const SearchPanelShellClient = dynamic(
@@ -33,7 +36,9 @@ function SkeletonLoader() {
 }
 
 export default function Cars() {
+  const router = useRouter();
   const { currency, setCurrency } = useCurrency();
+  const setSelectedOffer = useBookingStore((state) => state.setSelectedOffer);
   const [pickupLocation, setPickupLocation] = useState("Melbourne");
   const [pickupDate, setPickupDate] = useState("");
   const [pickupTime, setPickupTime] = useState("10:00");
@@ -89,6 +94,31 @@ export default function Cars() {
       setLoading(false);
     }
   };
+
+  // Handle car selection - navigate to driver information page
+  const handleSelectCar = useCallback((car: CarResult) => {
+    try {
+      // Store selected car in booking store
+      setSelectedOffer(car);
+      
+      const params = new URLSearchParams({
+        carId: car.id,
+        ...(pickupDate && { pickupDate }),
+        ...(returnDate && { returnDate }),
+        ...(pickupTime && { pickupTime }),
+        ...(returnTime && { returnTime }),
+        ...(driverAge && { driverAge: driverAge.toString() }),
+        ...(currency && { currency }),
+      });
+      // Navigate to driver information page
+      const driverUrl = `/book/car-driver?${params.toString()}`;
+      router.push(driverUrl);
+    } catch (err) {
+      console.error("[handleSelectCar] ERROR", err);
+    }
+  }, [router, pickupDate, returnDate, pickupTime, returnTime, driverAge, currency, setSelectedOffer]);
+  
+  const onSelectCar = useEvent(handleSelectCar);
 
   return (
     <>
@@ -210,6 +240,7 @@ export default function Cars() {
                 car={car}
                 onSelect={(c) => {
                   setSelectedCar(c);
+                  handleSelectCar(c);
                 }}
               />
             ))}

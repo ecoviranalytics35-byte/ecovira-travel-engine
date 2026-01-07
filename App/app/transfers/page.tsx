@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { TransferResult } from "@/lib/core/types";
 import { Input } from '../../components/Input';
@@ -13,6 +14,8 @@ import { FloatingAiAssist } from '../../components/ai/FloatingAiAssist';
 import { TestModeBanner } from '../../components/ui/TestModeBanner';
 import { getCoordinates } from '@/lib/utils/geocoding';
 import { SearchPanelSkeleton } from '../../components/search/SearchPanelSkeleton';
+import { useBookingStore } from "@/stores/bookingStore";
+import { useEvent } from "@/hooks/useEvent";
 
 // Client-only SearchPanelShell (no SSR to prevent hydration errors from browser extensions)
 const SearchPanelShellClient = dynamic(
@@ -33,7 +36,9 @@ function SkeletonLoader() {
 }
 
 export default function Transfers() {
+  const router = useRouter();
   const { currency, setCurrency } = useCurrency();
+  const setSelectedOffer = useBookingStore((state) => state.setSelectedOffer);
   const [fromLocation, setFromLocation] = useState("Melbourne Airport");
   const [toLocation, setToLocation] = useState("Melbourne CBD");
   const [date, setDate] = useState("");
@@ -91,6 +96,29 @@ export default function Transfers() {
       setLoading(false);
     }
   };
+
+  // Handle transfer selection - navigate to passenger information page
+  const handleSelectTransfer = useCallback((transfer: TransferResult) => {
+    try {
+      // Store selected transfer in booking store
+      setSelectedOffer(transfer);
+      
+      const dateTime = date && time ? `${date}T${time}` : transfer.dateTime;
+      const params = new URLSearchParams({
+        transferId: transfer.id,
+        ...(dateTime && { dateTime }),
+        ...(passengers && { passengers: passengers.toString() }),
+        ...(currency && { currency }),
+      });
+      // Navigate to passenger information page
+      const passengerUrl = `/book/transfer-passenger?${params.toString()}`;
+      router.push(passengerUrl);
+    } catch (err) {
+      console.error("[handleSelectTransfer] ERROR", err);
+    }
+  }, [router, date, time, passengers, currency, setSelectedOffer]);
+  
+  const onSelectTransfer = useEvent(handleSelectTransfer);
 
   return (
     <>
@@ -202,6 +230,7 @@ export default function Transfers() {
                 transfer={transfer}
                 onSelect={(t) => {
                   setSelectedTransfer(t);
+                  handleSelectTransfer(t);
                 }}
               />
             ))}

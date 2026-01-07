@@ -22,16 +22,27 @@ const glassPanelStyle: React.CSSProperties = {
 export default function CheckoutPage() {
   const router = useRouter();
   const selectedOffer = useBookingStore((state) => state.selectedOffer);
+  const items = useBookingStore((state) => state.items);
   const stepCompletion = useBookingStore((state) => state.stepCompletion);
   const passengers = useBookingStore((state) => state.passengers);
   const baggage = useBookingStore((state) => state.baggage);
   const seats = useBookingStore((state) => state.seats);
   const insurance = useBookingStore((state) => state.insurance);
+  const stayGuestInfo = useBookingStore((state) => state.stayGuestInfo);
+  const carDriverInfo = useBookingStore((state) => state.carDriverInfo);
+  const transferPassengerInfo = useBookingStore((state) => state.transferPassengerInfo);
   const pricing = useBookingStore((state) => state.pricing);
   const currency = useBookingStore((state) => state.currency);
   const setCurrency = useBookingStore((state) => state.setCurrency);
   const setPayment = useBookingStore((state) => state.setPayment);
   const completeStep = useBookingStore((state) => state.completeStep);
+  
+  // Determine booking type
+  const hasFlights = !!selectedOffer || (items.flights && items.flights.length > 0);
+  const hasHotels = items.stays && items.stays.length > 0;
+  const hasCars = (selectedOffer && selectedOffer.type === 'car') || (items.cars && items.cars.length > 0);
+  const hasTransfers = (selectedOffer && selectedOffer.type === 'transfer') || (items.transfers && items.transfers.length > 0);
+  const bookingType = hasFlights ? "flight" : hasHotels ? "hotel" : hasCars ? "car" : hasTransfers ? "transfer" : null;
   
   const [processing, setProcessing] = useState(false);
   const [processingMethod, setProcessingMethod] = useState<"stripe" | "crypto" | null>(null);
@@ -42,27 +53,36 @@ export default function CheckoutPage() {
   const [fxLoading, setFxLoading] = useState(false);
   const [currencyInitialized, setCurrencyInitialized] = useState(false);
 
-  // Calculate totals: base flight price + extras + fees - discounts
+  // Calculate totals: base price + extras + fees - discounts (supports flights and hotels)
   const totals = useMemo(() => {
-    const baseFare = Number(pricing?.base || pricing?.total || 0);
+    // Base price from pricing store (already calculated from items)
+    const basePrice = Number(pricing?.base || pricing?.total || 0);
+    
+    // Flight-specific extras
     const seatsTotal = Number(seats?.reduce((sum, s) => sum + (s.price || 0), 0) ?? 0);
     const bagsTotal = Number(
       baggage?.checkedBags?.reduce((sum, b) => sum + (b.price || 0), 0) ?? 0
     );
     const insuranceTotal = Number(insurance?.price ?? 0);
-    const serviceFee = baseFare * 0.04; // 4% service fee
-    const cryptoDiscount = selectedCrypto ? baseFare * 0.10 : 0; // 10% crypto discount
     
-    const subtotal = baseFare + seatsTotal + bagsTotal + insuranceTotal;
+    // Hotel extras (if any) - can be added later
+    const hotelExtras = 0; // Placeholder for future hotel extras
+    
+    const serviceFee = basePrice * 0.04; // 4% service fee
+    const cryptoDiscount = selectedCrypto ? basePrice * 0.10 : 0; // 10% crypto discount
+    
+    const subtotal = basePrice + seatsTotal + bagsTotal + insuranceTotal + hotelExtras;
     const fees = serviceFee;
     const discounts = cryptoDiscount;
     const total = subtotal + fees - discounts;
     
     return {
-      baseFare,
+      basePrice,
+      baseFare: basePrice, // Alias for backward compatibility
       seatsTotal,
       bagsTotal,
       insuranceTotal,
+      hotelExtras,
       serviceFee,
       cryptoDiscount,
       subtotal,
@@ -86,16 +106,40 @@ export default function CheckoutPage() {
     });
   }, [selectedCrypto, totals.total, pricing?.currency, selectedOffer?.id, passengers?.length, totals]);
 
-  // Route guard
+  // Route guard - support flights, hotels, cars, and transfers
   useEffect(() => {
-    if (!selectedOffer) {
-      router.push("/flights");
+    if (!hasFlights && !hasHotels && !hasCars && !hasTransfers) {
+      // No booking items - redirect to appropriate page
+      router.push("/");
       return;
     }
-    if (!stepCompletion.insurance) {
+    
+    // Flight-specific guards
+    if (hasFlights && !stepCompletion.insurance) {
       router.push("/book/insurance");
+      return;
     }
-  }, [selectedOffer, stepCompletion.insurance, router]);
+    
+    // Hotel-specific guards
+    if (hasHotels && !stayGuestInfo) {
+      router.push("/book/hotel-guest");
+      return;
+    }
+    
+    // Car-specific guards
+    if (hasCars && !stepCompletion.carDriverInfo) {
+      const carId = selectedOffer && selectedOffer.type === 'car' ? selectedOffer.id : items.cars?.[0]?.id;
+      router.push(`/book/car-driver?carId=${carId}`);
+      return;
+    }
+    
+    // Transfer-specific guards
+    if (hasTransfers && !stepCompletion.transferPassengerInfo) {
+      const transferId = selectedOffer && selectedOffer.type === 'transfer' ? selectedOffer.id : items.transfers?.[0]?.id;
+      router.push(`/book/transfer-passenger?transferId=${transferId}`);
+      return;
+    }
+  }, [hasFlights, hasHotels, hasCars, hasTransfers, stepCompletion.insurance, stepCompletion.carDriverInfo, stepCompletion.transferPassengerInfo, stayGuestInfo, selectedOffer, items.cars, items.transfers, router]);
 
   // Auto-default currency (only once, before user manually changes it)
   useEffect(() => {
@@ -208,19 +252,43 @@ export default function CheckoutPage() {
         ? fxData.convertedAmount 
         : baseAmountForFX;
       
+      // Determine booking ID and customer email based on booking type
+      const bookingId = hasFlights 
+        ? `booking-${selectedOffer?.id}` 
+        : hasHotels 
+        ? `booking-${items.stays?.[0]?.id}` 
+        : "booking-unknown";
+      
+      const customerEmail = hasFlights 
+        ? passengers[0]?.email 
+        : hasHotels 
+        ? stayGuestInfo?.email 
+        : hasCars
+        ? carDriverInfo?.email
+        : hasTransfers
+        ? "" // Transfers don't require email at this stage
+        : "";
+
       const requestBody: any = {
         chargeCurrency: currency,
         amount: chargeAmount,
         baseAmount: totals.total,
         baseCurrency: pricing.currency,
-        orderId: `booking-${selectedOffer.id}`,
-        customerEmail: passengers[0]?.email,
+        orderId: bookingId,
+        customerEmail,
         bookingData: {
-          offerId: selectedOffer.id,
-          passengers,
-          baggage,
-          seats,
-          insurance,
+          ...(hasFlights && {
+            offerId: selectedOffer?.id,
+            passengers,
+            baggage,
+            seats,
+            insurance,
+          }),
+          ...(hasHotels && {
+            stayOfferId: items.stays?.[0]?.id,
+            guestInfo: stayGuestInfo,
+            stay: items.stays?.[0],
+          }),
         },
       };
 
@@ -302,7 +370,11 @@ export default function CheckoutPage() {
       e.stopPropagation();
     }
 
-    const bookingId = selectedOffer?.id ? `booking-${selectedOffer.id}` : "none";
+    const bookingId = hasFlights 
+      ? (selectedOffer?.id ? `booking-${selectedOffer.id}` : "none")
+      : hasHotels 
+      ? (items.stays?.[0]?.id ? `booking-${items.stays[0].id}` : "none")
+      : "none";
     const priceAmount = totals.total;
     const priceCurrency = pricing?.currency || "AUD";
 
@@ -312,8 +384,11 @@ export default function CheckoutPage() {
       bookingId,
       priceAmount,
       priceCurrency,
+      hasFlights,
+      hasHotels,
       hasSelectedOffer: !!selectedOffer,
       passengersCount: passengers?.length || 0,
+      hasStayGuestInfo: !!stayGuestInfo,
       processing,
     });
 
@@ -369,18 +444,46 @@ export default function CheckoutPage() {
       const cancelUrl = `${siteUrl}/book/checkout?canceled=1`;
       const ipnCallbackUrl = `${siteUrl}/api/payments/nowpayments/ipn`;
 
+      // Build order description based on booking type
+      const orderDescription = hasFlights 
+        ? `Flight booking ${selectedOffer?.from} → ${selectedOffer?.to}`
+        : hasHotels 
+        ? `Hotel booking ${items.stays?.[0]?.name || "Hotel"}`
+        : hasCars
+        ? `Car rental ${selectedOffer && selectedOffer.type === 'car' ? selectedOffer.name || selectedOffer.vehicle : items.cars?.[0]?.name || items.cars?.[0]?.vehicle || "Car"}`
+        : hasTransfers
+        ? `Transfer ${selectedOffer && selectedOffer.type === 'transfer' ? `${selectedOffer.from} → ${selectedOffer.to}` : items.transfers?.[0] ? `${items.transfers[0].from} → ${items.transfers[0].to}` : "Transfer"}`
+        : "Booking";
+
       const requestPayload = {
         price_amount: priceAmount,
         price_currency: priceCurrency,
         pay_currency: payCurrency,
         order_id: bookingId,
-        order_description: `Flight booking ${selectedOffer.from} → ${selectedOffer.to}`,
+        order_description: orderDescription,
         bookingData: {
-          offerId: selectedOffer.id,
-          passengers,
-          baggage,
-          seats,
-          insurance,
+          ...(hasFlights && {
+            offerId: selectedOffer?.id,
+            passengers,
+            baggage,
+            seats,
+            insurance,
+          }),
+          ...(hasHotels && {
+            stayOfferId: items.stays?.[0]?.id,
+            guestInfo: stayGuestInfo,
+            stay: items.stays?.[0],
+          }),
+          ...(hasCars && {
+            carOfferId: selectedOffer && selectedOffer.type === 'car' ? selectedOffer.id : items.cars?.[0]?.id,
+            driverInfo: carDriverInfo,
+            car: selectedOffer && selectedOffer.type === 'car' ? selectedOffer : items.cars?.[0],
+          }),
+          ...(hasTransfers && {
+            transferOfferId: selectedOffer && selectedOffer.type === 'transfer' ? selectedOffer.id : items.transfers?.[0]?.id,
+            passengerInfo: transferPassengerInfo,
+            transfer: selectedOffer && selectedOffer.type === 'transfer' ? selectedOffer : items.transfers?.[0],
+          }),
         },
       };
 

@@ -1,9 +1,11 @@
 import { getStripeClient } from "@/lib/payments/stripe";
 import { sendConfirmation } from "@/lib/notifications";
 import { notifyBookingConfirmed } from "@/lib/notifications/trips";
-import { updateBookingStatus, updateItinerary, getBookingByPaymentId, getBookingByOrderId } from "@/lib/itinerary";
+import { updateBookingStatus, updateItinerary, getBookingByPaymentId, getBookingByOrderId, mapLegacyStatus } from "@/lib/itinerary";
 import { issueTicket } from "@/lib/tickets/issuance";
+import { fulfillHotelBooking } from "@/lib/stays/fulfillment";
 import { supabaseAdmin } from "@/lib/core/supabase";
+import type { BookingStatus } from "@/lib/core/types";
 
 export const runtime = "nodejs";
 
@@ -49,21 +51,79 @@ export async function POST(request: Request) {
         booking = await getBookingByPaymentId(sessionId);
       }
 
+      // If no booking exists, create one from session metadata
+      if (!booking && session.metadata?.bookingData) {
+        try {
+          const { createBookingFromCheckoutSession } = await import('@/lib/bookings/create-from-checkout');
+          const bookingData = JSON.parse(session.metadata.bookingData);
+          const amount = session.amount_total ? session.amount_total / 100 : 0;
+          const currency = session.currency?.toUpperCase() || 'AUD';
+          
+          const { bookingId } = await createBookingFromCheckoutSession(
+            sessionId,
+            bookingData,
+            session.customer_email || session.customer_details?.email || '',
+            amount,
+            currency
+          );
+          
+          booking = await getBookingByPaymentId(sessionId);
+        } catch (error) {
+          console.error('[Stripe Webhook] Failed to create booking from session:', error);
+        }
+      }
+
       if (booking) {
-        // Idempotency: Check if already processed
-        if (booking.status === 'paid' || booking.status === 'issued' || booking.status === 'confirmed') {
+        // Idempotency: Check if already processed (support both new and legacy statuses)
+        const currentStatus = typeof booking.status === 'string' ? booking.status.toUpperCase() : booking.status;
+        if (currentStatus === 'PAID' || currentStatus === 'TICKETED' || currentStatus === 'FULFILLMENT_PENDING' || 
+            booking.status === 'paid' || booking.status === 'issued' || booking.status === 'confirmed') {
           console.log("[Stripe Webhook] Booking already processed:", booking.id);
           return Response.json({ ok: true, received: true });
         }
 
-        // Mark booking as PAID
-        await updateBookingStatus(booking.id, 'paid');
+        // Mark booking as PAID (new status enum)
+        await updateBookingStatus(booking.id, 'PAID');
         
         // Update itinerary status
         await updateItinerary(booking.itinerary_id, { status: 'paid' });
 
-        // Issue ticket
-        await issueTicket(booking.id);
+        // Determine booking type and fulfill accordingly
+        const itinerary = await supabaseAdmin
+          .from('itineraries')
+          .select(`
+            *,
+            itinerary_items (*)
+          `)
+          .eq('id', booking.itinerary_id)
+          .single();
+
+        if (itinerary.data) {
+          const items = itinerary.data.itinerary_items || [];
+          const hasFlights = items.some((item: any) => item.type === 'flight');
+          const hasHotels = items.some((item: any) => item.type === 'stay');
+          const hasCars = items.some((item: any) => item.type === 'car');
+          const hasTransfers = items.some((item: any) => item.type === 'transfer');
+
+          if (hasHotels) {
+            // Fulfill hotel booking
+            await fulfillHotelBooking(booking.id);
+          } else if (hasCars) {
+            // Fulfill car booking
+            const { fulfillCarBooking } = await import("@/lib/transport/cars/fulfillment");
+            await fulfillCarBooking(booking.id);
+          } else if (hasTransfers) {
+            // Fulfill transfer booking
+            const { fulfillTransferBooking } = await import("@/lib/transport/transfers/fulfillment");
+            await fulfillTransferBooking(booking.id);
+          } else if (hasFlights) {
+            // Issue flight ticket
+            await issueTicket(booking.id);
+          } else {
+            // Unknown type - mark as fulfilled
+            await updateBookingStatus(booking.id, 'FULFILLMENT_PENDING');
+          }
+        }
       } else {
         console.warn("[Stripe Webhook] Booking not found for orderId:", orderId, "sessionId:", sessionId);
       }
@@ -77,19 +137,45 @@ export async function POST(request: Request) {
       if (itineraryId) {
         const booking = await getBookingByPaymentId(paymentIntent.id);
         if (booking) {
-          // Idempotency: Check if already processed
-          if (booking.status === 'paid' || booking.status === 'issued' || booking.status === 'confirmed') {
+          // Idempotency: Check if already processed (support both new and legacy statuses)
+          const currentStatus = typeof booking.status === 'string' ? booking.status.toUpperCase() : booking.status;
+          if (currentStatus === 'PAID' || currentStatus === 'TICKETED' || currentStatus === 'FULFILLMENT_PENDING' || 
+              booking.status === 'paid' || booking.status === 'issued' || booking.status === 'confirmed') {
             console.log("[Stripe Webhook] Booking already processed:", booking.id);
             return Response.json({ ok: true, received: true });
           }
 
-          // Update booking status
-          await updateBookingStatus(booking.id, 'paid');
+          // Update booking status (new status enum)
+          await updateBookingStatus(booking.id, 'PAID');
           // Update itinerary status
           await updateItinerary(itineraryId, { status: 'paid' });
           
-          // Issue ticket
-          await issueTicket(booking.id);
+          // Determine booking type and fulfill accordingly
+          const itinerary = await supabaseAdmin
+            .from('itineraries')
+            .select(`
+              *,
+              itinerary_items (*)
+            `)
+            .eq('id', itineraryId)
+            .single();
+
+          if (itinerary.data) {
+            const items = itinerary.data.itinerary_items || [];
+            const hasFlights = items.some((item: any) => item.type === 'flight');
+            const hasHotels = items.some((item: any) => item.type === 'stay');
+
+            if (hasHotels) {
+              // Fulfill hotel booking
+              await fulfillHotelBooking(booking.id);
+            } else if (hasFlights) {
+              // Issue flight ticket
+              await issueTicket(booking.id);
+            } else {
+              // Unknown type - mark as fulfilled
+              await updateBookingStatus(booking.id, 'FULFILLMENT_PENDING');
+            }
+          }
         }
       }
     }
@@ -129,6 +215,7 @@ async function sendBookingConfirmedEmail(itineraryId: string) {
 
     const itinerary = (booking as any).itineraries;
     const flightItem = itinerary?.itinerary_items?.find((item: any) => item.type === 'flight');
+    const hotelItem = itinerary?.itinerary_items?.find((item: any) => item.type === 'stay');
     const passengerEmail = (booking as any).passenger_email;
     const bookingReference = (booking as any).booking_reference || booking.id;
 
@@ -143,44 +230,79 @@ async function sendBookingConfirmedEmail(itineraryId: string) {
       return;
     }
 
-    const itemData = flightItem?.item_data || flightItem?.item;
-    const airlineIata = itemData?.raw?.airline_iata || itemData?.from?.substring(0, 2);
-    const flightNumber = itemData?.raw?.flight_number || 'N/A';
     const phoneNumber = (booking as any).phone_number;
     const smsOptIn = (booking as any).sms_opt_in === true;
 
-    // Send email and SMS (if opted in)
-    const { emailSent, smsSent } = await notifyBookingConfirmed(
-      booking.id,
-      bookingReference,
-      passengerEmail,
-      flightItem ? {
-        from: itemData?.from || '',
-        to: itemData?.to || '',
-        departDate: itemData?.departDate || '',
-        returnDate: undefined,
-      } : undefined,
-      flightItem ? {
-        airline: airlineIata,
-        flightNumber,
-        departureTime: itemData?.departDate || '',
-        airport: itemData?.from,
-      } : undefined,
-      phoneNumber,
-      smsOptIn
-    );
+    // Handle hotel bookings
+    if (hotelItem) {
+      const { notifyHotelBookingConfirmed } = await import('@/lib/notifications/hotels');
+      const itemData = hotelItem.item_data || hotelItem.item;
+      const confirmationNumber = booking.supplier_reference || bookingReference;
+      
+      const { emailSent, smsSent } = await notifyHotelBookingConfirmed(
+        booking.id,
+        bookingReference,
+        confirmationNumber,
+        passengerEmail,
+        {
+          hotelName: itemData?.name || 'Hotel',
+          checkIn: itemData?.checkIn || '',
+          checkOut: itemData?.checkOut || '',
+          nights: itemData?.nights || 1,
+          city: itemData?.city || '',
+        },
+        phoneNumber,
+        smsOptIn
+      );
 
-    if (emailSent) {
-      // Mark email as sent
-      await supabaseAdmin
-        .from('bookings')
-        .update({ booking_confirmed_email_sent_at: new Date().toISOString() })
-        .eq('id', booking.id);
+      if (emailSent) {
+        await supabaseAdmin
+          .from('bookings')
+          .update({ booking_confirmed_email_sent_at: new Date().toISOString() })
+          .eq('id', booking.id);
+      }
+      return;
     }
-    
-    if (smsSent) {
-      // Mark SMS as sent (optional tracking)
-      console.log('[Webhook] Booking confirmed SMS sent for:', booking.id);
+
+    // Handle flight bookings (existing logic)
+    if (flightItem) {
+      const itemData = flightItem.item_data || flightItem.item;
+      const airlineIata = itemData?.raw?.airline_iata || itemData?.from?.substring(0, 2);
+      const flightNumber = itemData?.raw?.flight_number || 'N/A';
+
+      // Send email and SMS (if opted in)
+      const { emailSent, smsSent } = await notifyBookingConfirmed(
+        booking.id,
+        bookingReference,
+        passengerEmail,
+        {
+          from: itemData?.from || '',
+          to: itemData?.to || '',
+          departDate: itemData?.departDate || '',
+          returnDate: undefined,
+        },
+        {
+          airline: airlineIata,
+          flightNumber,
+          departureTime: itemData?.departDate || '',
+          airport: itemData?.from,
+        },
+        phoneNumber,
+        smsOptIn
+      );
+
+      if (emailSent) {
+        // Mark email as sent
+        await supabaseAdmin
+          .from('bookings')
+          .update({ booking_confirmed_email_sent_at: new Date().toISOString() })
+          .eq('id', booking.id);
+      }
+      
+      if (smsSent) {
+        // Mark SMS as sent (optional tracking)
+        console.log('[Webhook] Booking confirmed SMS sent for:', booking.id);
+      }
     }
   } catch (error) {
     console.error('[Webhook] Failed to send booking confirmed email:', error);

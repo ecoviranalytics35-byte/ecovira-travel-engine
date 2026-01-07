@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getBookingByOrderId, updateBookingStatus, updateItinerary } from "@/lib/itinerary";
+import { fulfillHotelBooking } from "@/lib/stays/fulfillment";
+import { issueTicket } from "@/lib/tickets/issuance";
+import { supabaseAdmin } from "@/lib/core/supabase";
 import { issueTicket } from "@/lib/tickets/issuance";
 
 export const runtime = "nodejs";
@@ -88,8 +91,10 @@ export async function POST(request: NextRequest) {
         const booking = await getBookingByOrderId(order_id);
         
         if (booking) {
-          // Idempotency: Check if already processed
-          if (booking.status === 'paid' || booking.status === 'issued' || booking.status === 'confirmed') {
+          // Idempotency: Check if already processed (support both new and legacy statuses)
+          const currentStatus = typeof booking.status === 'string' ? booking.status.toUpperCase() : booking.status;
+          if (currentStatus === 'PAID' || currentStatus === 'TICKETED' || currentStatus === 'FULFILLMENT_PENDING' || 
+              booking.status === 'paid' || booking.status === 'issued' || booking.status === 'confirmed') {
             console.log("[NOWPayments IPN] Booking already processed:", booking.id);
             return NextResponse.json({ ok: true, received: true });
           }
@@ -103,14 +108,48 @@ export async function POST(request: NextRequest) {
             price_currency,
           });
           
-          // Update booking status to paid (unlock booking)
-          await updateBookingStatus(booking.id, "paid");
+          // Update booking status to PAID (new status enum)
+          await updateBookingStatus(booking.id, "PAID");
           
           // Update itinerary status
           await updateItinerary(booking.itinerary_id, { status: 'paid' });
           
-          // Issue ticket (unlock booking)
-          await issueTicket(booking.id);
+          // Determine booking type and fulfill accordingly
+          const itinerary = await supabaseAdmin
+            .from('itineraries')
+            .select(`
+              *,
+              itinerary_items (*)
+            `)
+            .eq('id', booking.itinerary_id)
+            .single();
+
+          if (itinerary.data) {
+            const items = itinerary.data.itinerary_items || [];
+            const hasFlights = items.some((item: any) => item.type === 'flight');
+            const hasHotels = items.some((item: any) => item.type === 'stay');
+            const hasCars = items.some((item: any) => item.type === 'car');
+            const hasTransfers = items.some((item: any) => item.type === 'transfer');
+
+            if (hasHotels) {
+              // Fulfill hotel booking
+              await fulfillHotelBooking(booking.id);
+            } else if (hasCars) {
+              // Fulfill car booking
+              const { fulfillCarBooking } = await import("@/lib/transport/cars/fulfillment");
+              await fulfillCarBooking(booking.id);
+            } else if (hasTransfers) {
+              // Fulfill transfer booking
+              const { fulfillTransferBooking } = await import("@/lib/transport/transfers/fulfillment");
+              await fulfillTransferBooking(booking.id);
+            } else if (hasFlights) {
+              // Issue flight ticket
+              await issueTicket(booking.id);
+            } else {
+              // Unknown type - mark as fulfilled
+              await updateBookingStatus(booking.id, 'FULFILLMENT_PENDING');
+            }
+          }
         } else {
           console.warn("[NOWPayments IPN] Booking not found for order_id:", order_id);
         }

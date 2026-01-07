@@ -132,15 +132,13 @@ export default function Stays() {
   // Use stable event handler for dynamic import compatibility
   const onSearch = useEvent(handleSearch);
 
-  // Handle stay selection with router navigation
+  // Handle stay selection - navigate to guest information page
   const handleSelectStay = useCallback((s: StayResult) => {
     // Always compute checkOut from checkIn + nights if not already set
     const computedCheckOut = checkOut || (checkIn && nights > 0 ? addDays(checkIn, nights) : "");
     
     console.log("[onSelectStay] ENTER", { stayId: s.id, checkIn, checkOut: computedCheckOut, nights, adults, currency, ts: Date.now() });
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:147',message:'[onSelectStay] ENTER',data:{stayId:s.id,checkIn,checkOut:computedCheckOut,nights,adults,currency,ts:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'checkout-compute-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-    // #endregion
+    
     try {
       setSelectedStay(s);
       const params = new URLSearchParams({
@@ -148,24 +146,15 @@ export default function Stays() {
         ...(checkIn && { checkIn }),
         ...(computedCheckOut && { checkOut: computedCheckOut }),
         ...(adults && { adults: adults.toString() }),
-        ...(nights && { rooms: "1" }), // Default to 1 room
+        ...(nights && { nights: nights.toString() }),
         ...(currency && { currency }),
       });
-      const checkoutUrl = `/checkout/stay?${params.toString()}`;
-      console.log("[onSelectStay] Navigating to checkout", { checkoutUrl, stayId: s.id, checkIn, checkOut: computedCheckOut, adults, currency });
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:161',message:'[onSelectStay] Navigating to checkout',data:{checkoutUrl,stayId:s.id,checkIn,checkOut:computedCheckOut,adults,currency},timestamp:Date.now(),sessionId:'debug-session',runId:'checkout-compute-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-      // #endregion
-      router.push(checkoutUrl);
-      console.log("[onSelectStay] EXIT - navigated to checkout");
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:166',message:'[onSelectStay] EXIT - navigated',data:{stayId:s.id,checkIn,checkOut:computedCheckOut},timestamp:Date.now(),sessionId:'debug-session',runId:'checkout-compute-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-      // #endregion
+      // Navigate to guest information page (new flow)
+      const guestUrl = `/book/hotel-guest?${params.toString()}`;
+      console.log("[onSelectStay] Navigating to guest information", { guestUrl, stayId: s.id });
+      router.push(guestUrl);
     } catch (err) {
       console.error("[onSelectStay] ERROR", err);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:171',message:'[onSelectStay] ERROR',data:{error:err instanceof Error?err.message:'Unknown',errorStack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'checkout-compute-fix',hypothesisId:'C'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-      // #endregion
       throw err;
     }
   }, [router, checkIn, checkOut, nights, adults, currency, addDays]);

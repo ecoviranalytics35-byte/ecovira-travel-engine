@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../core/supabase';
-import { Itinerary, ItineraryItem, Booking } from '../core/types';
+import { Itinerary, ItineraryItem, Booking, BookingStatus } from '../core/types';
 
 export async function createItinerary(items: Omit<ItineraryItem, 'id' | 'itineraryId'>[], userId?: string): Promise<Itinerary> {
   const total = items.reduce((sum, item) => sum + Number((item.item as any).price || (item.item as any).total || 0), 0);
@@ -97,14 +97,18 @@ export async function createBooking(
     smsOptIn?: boolean;
     bookingReference?: string;
     supplierReference?: string;
+    initialStatus?: BookingStatus;
   }
 ): Promise<Booking> {
+  // Use new status enum, default to QUOTE_HELD for new bookings
+  const status: BookingStatus = options?.initialStatus || 'QUOTE_HELD';
+  
   const { data, error } = await supabaseAdmin
     .from('bookings')
     .insert({
       itinerary_id: itineraryId,
       payment_id: paymentId,
-      status: 'pending',
+      status: status, // New status enum
       passenger_email: options?.passengerEmail,
       passenger_last_name: options?.passengerLastName,
       phone_number: options?.phoneNumber,
@@ -119,13 +123,26 @@ export async function createBooking(
   return data as Booking;
 }
 
-export async function updateBookingStatus(bookingId: string, status: Booking['status']): Promise<void> {
+export async function updateBookingStatus(bookingId: string, status: BookingStatus | Booking['status']): Promise<void> {
   const { error } = await supabaseAdmin
     .from('bookings')
     .update({ status })
     .eq('id', bookingId);
 
   if (error) throw error;
+}
+
+// Helper function to map legacy status to new status enum
+export function mapLegacyStatus(legacyStatus: string): BookingStatus {
+  const mapping: Record<string, BookingStatus> = {
+    'pending': 'QUOTE_HELD',
+    'paid': 'PAID',
+    'confirmed': 'FULFILLMENT_PENDING',
+    'issued': 'TICKETED',
+    'failed': 'FAILED',
+  };
+  
+  return mapping[legacyStatus] || (legacyStatus as BookingStatus);
 }
 
 export async function getBookingByPaymentId(paymentId: string): Promise<Booking | null> {

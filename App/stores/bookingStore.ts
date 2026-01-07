@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { FlightResult } from "@/lib/core/types";
+import type { FlightResult, StayResult, CarResult, TransferResult } from "@/lib/core/types";
 
 export interface Passenger {
   id: string;
@@ -63,15 +63,56 @@ export interface BookingInfo {
   bookingId?: string;
 }
 
+// Multi-product booking items
+export interface BookingItems {
+  flights?: FlightResult[];
+  stays?: StayResult[];
+  cars?: CarResult[];
+  transfers?: TransferResult[];
+}
+
+// Product-specific configuration
+export interface StayGuestInfo {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  specialRequests?: string;
+}
+
+export interface CarDriverInfo {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  licenseNumber?: string;
+  licenseCountry?: string;
+  age?: number;
+}
+
+export interface TransferPassengerInfo {
+  passengers: number;
+  luggage: number;
+  specialRequests?: string;
+}
+
 export interface BookingState {
-  // Flight selection
-  selectedOffer: FlightResult | null;
+  // Multi-product selection (replaces selectedOffer for backward compatibility)
+  items: BookingItems;
   
-  // Step data
+  // Legacy: Product selection (maintained for backward compatibility)
+  selectedOffer: FlightResult | StayResult | CarResult | TransferResult | null;
+  
+  // Flight-specific step data
   passengers: Passenger[];
   baggage: BaggageSelection;
   seats: SeatSelection[];
   insurance: InsuranceSelection | null;
+  
+  // Product-specific guest/driver info
+  stayGuestInfo?: StayGuestInfo;
+  carDriverInfo?: CarDriverInfo;
+  transferPassengerInfo?: TransferPassengerInfo;
   
   // Pricing
   currency: string;
@@ -90,10 +131,21 @@ export interface BookingState {
     seats: boolean;
     insurance: boolean;
     checkout: boolean;
+    // Product-specific steps
+    stayGuestInfo?: boolean;
+    carDriverInfo?: boolean;
+    transferPassengerInfo?: boolean;
   };
   
-  // Actions
-  setSelectedOffer: (offer: FlightResult) => void;
+  // Actions - Multi-product
+  addItem: (type: 'flight' | 'stay' | 'car' | 'transfer', item: FlightResult | StayResult | CarResult | TransferResult) => void;
+  removeItem: (type: 'flight' | 'stay' | 'car' | 'transfer', itemId: string) => void;
+  clearItems: (type?: 'flight' | 'stay' | 'car' | 'transfer') => void;
+  
+  // Actions - Legacy (maintained for backward compatibility)
+  setSelectedOffer: (offer: FlightResult | StayResult | CarResult | TransferResult) => void;
+  
+  // Actions - Flight-specific
   addPassenger: (passenger: Passenger) => void;
   updatePassenger: (id: string, passenger: Partial<Passenger>) => void;
   removePassenger: (id: string) => void;
@@ -101,6 +153,13 @@ export interface BookingState {
   addSeat: (seat: SeatSelection) => void;
   removeSeat: (passengerId: string) => void;
   setInsurance: (insurance: InsuranceSelection | null) => void;
+  
+  // Actions - Product-specific
+  setStayGuestInfo: (info: StayGuestInfo) => void;
+  setCarDriverInfo: (info: CarDriverInfo) => void;
+  setTransferPassengerInfo: (info: TransferPassengerInfo) => void;
+  
+  // Actions - Common
   setCurrency: (currency: string) => void;
   updatePricing: (pricing: Partial<BookingPricing>) => void;
   setPayment: (payment: Partial<PaymentInfo>) => void;
@@ -129,45 +188,197 @@ const defaultStepCompletion = {
   seats: false,
   insurance: false,
   checkout: false,
+  stayGuestInfo: false,
+  carDriverInfo: false,
+  transferPassengerInfo: false,
 };
+
+// Helper function to calculate total from all items
+function calculateTotalFromItems(items: BookingItems): number {
+  let total = 0;
+  
+  if (items.flights) {
+    total += items.flights.reduce((sum, f) => {
+      const price = typeof f.price === "string" 
+        ? parseFloat(f.price.replace(/[^0-9.]/g, "")) 
+        : typeof f.price === "number" 
+        ? f.price 
+        : 0;
+      return sum + price;
+    }, 0);
+  }
+  
+  if (items.stays) {
+    total += items.stays.reduce((sum, s) => {
+      const price = typeof s.total === "string" 
+        ? parseFloat(s.total.replace(/[^0-9.]/g, "")) 
+        : typeof s.total === "number" 
+        ? s.total 
+        : 0;
+      return sum + price;
+    }, 0);
+  }
+  
+  if (items.cars) {
+    total += items.cars.reduce((sum, c) => {
+      const price = typeof c.total === "string" 
+        ? parseFloat(c.total.replace(/[^0-9.]/g, "")) 
+        : typeof c.total === "number" 
+        ? c.total 
+        : 0;
+      return sum + price;
+    }, 0);
+  }
+  
+  if (items.transfers) {
+    total += items.transfers.reduce((sum, t) => {
+      const price = typeof t.total === "string" 
+        ? parseFloat(t.total.replace(/[^0-9.]/g, "")) 
+        : typeof t.total === "number" 
+        ? t.total 
+        : 0;
+      return sum + price;
+    }, 0);
+  }
+  
+  return total;
+}
 
 export const useBookingStore = create<BookingState>()(
   persist(
     (set, get) => ({
+      // Multi-product items
+      items: {},
+      
+      // Legacy: Flight selection (maintained for backward compatibility)
       selectedOffer: null,
+      
+      // Flight-specific
       passengers: [],
       baggage: defaultBaggage,
       seats: [],
       insurance: null,
+      
+      // Product-specific info
+      stayGuestInfo: undefined,
+      carDriverInfo: undefined,
+      transferPassengerInfo: undefined,
+      
+      // Common
       currency: "AUD",
       pricing: defaultPricing,
-        payment: {
-          method: null,
-          status: "pending",
-        },
-        booking: null,
-        stepCompletion: defaultStepCompletion,
+      payment: {
+        method: null,
+        status: "pending",
+      },
+      booking: null,
+      stepCompletion: defaultStepCompletion,
 
-        setSelectedOffer: (offer) => {
-          set({ selectedOffer: offer });
-          // Recalculate pricing when offer changes
-          const base = typeof offer.price === "string" 
-            ? parseFloat(offer.price.replace(/[^0-9.]/g, "")) 
-            : typeof offer.price === "number" 
-            ? offer.price 
-            : 0;
-          const currentState = get();
-          set({
+      // Multi-product actions
+      addItem: (type, item) => {
+        set((state) => {
+          const items = { ...state.items };
+          const key = `${type}s` as keyof BookingItems;
+          
+          if (!items[key]) {
+            items[key] = [];
+          }
+          
+          // Check if item already exists (by id)
+          const existing = (items[key] as any[]).findIndex((i: any) => i.id === item.id);
+          if (existing >= 0) {
+            // Update existing
+            (items[key] as any[])[existing] = item;
+          } else {
+            // Add new
+            (items[key] as any[]).push(item);
+          }
+          
+          // Recalculate pricing
+          const total = calculateTotalFromItems(items);
+          const currency = item.currency || state.currency || "AUD";
+          
+          return {
+            items,
             pricing: {
-              ...defaultPricing,
-              base,
-              currency: offer.currency || currentState.currency || "AUD",
-              total: base,
+              ...state.pricing,
+              base: total,
+              total,
+              currency,
             },
-            // Don't override currency if user has already selected one
-            currency: currentState.currency || offer.currency || "AUD",
-          });
-        },
+            currency: state.currency || currency,
+            // Legacy: If it's a flight, also set selectedOffer for backward compatibility
+            ...(type === 'flight' && { selectedOffer: item as FlightResult }),
+          };
+        });
+      },
+
+      removeItem: (type, itemId) => {
+        set((state) => {
+          const items = { ...state.items };
+          const key = `${type}s` as keyof BookingItems;
+          
+          if (items[key]) {
+            (items[key] as any[]) = (items[key] as any[]).filter((i: any) => i.id !== itemId);
+            if ((items[key] as any[]).length === 0) {
+              delete items[key];
+            }
+          }
+          
+          // Recalculate pricing
+          const total = calculateTotalFromItems(items);
+          
+          return {
+            items,
+            pricing: {
+              ...state.pricing,
+              base: total,
+              total,
+            },
+            // Legacy: If removing flight and it was selectedOffer, clear it
+            ...(type === 'flight' && state.selectedOffer?.id === itemId && { selectedOffer: null }),
+          };
+        });
+      },
+
+      clearItems: (type) => {
+        set((state) => {
+          if (type) {
+            // Clear specific type
+            const items = { ...state.items };
+            const key = `${type}s` as keyof BookingItems;
+            delete items[key];
+            
+            const total = calculateTotalFromItems(items);
+            return {
+              items,
+              pricing: {
+                ...state.pricing,
+                base: total,
+                total,
+              },
+              // Legacy: If clearing flights, also clear selectedOffer
+              ...(type === 'flight' && { selectedOffer: null }),
+            };
+          } else {
+            // Clear all
+            return {
+              items: {},
+              selectedOffer: null,
+              pricing: defaultPricing,
+            };
+          }
+        });
+      },
+
+      // Legacy: Maintained for backward compatibility
+      setSelectedOffer: (offer) => {
+        // Use addItem internally to maintain consistency
+        const type = offer.type || 'flight';
+        get().addItem(type as 'flight' | 'stay' | 'car' | 'transfer', offer);
+        // Also set selectedOffer for backward compatibility
+        set({ selectedOffer: offer });
+      },
 
       addPassenger: (passenger) => {
         set((state) => ({
@@ -285,13 +496,30 @@ export const useBookingStore = create<BookingState>()(
         }));
       },
 
+      // Product-specific actions
+      setStayGuestInfo: (info) => {
+        set({ stayGuestInfo: info, stepCompletion: { ...get().stepCompletion, stayGuestInfo: true } });
+      },
+
+      setCarDriverInfo: (info) => {
+        set({ carDriverInfo: info, stepCompletion: { ...get().stepCompletion, carDriverInfo: true } });
+      },
+
+      setTransferPassengerInfo: (info) => {
+        set({ transferPassengerInfo: info, stepCompletion: { ...get().stepCompletion, transferPassengerInfo: true } });
+      },
+
       clearBooking: () => {
         set({
+          items: {},
           selectedOffer: null,
           passengers: [],
           baggage: defaultBaggage,
           seats: [],
           insurance: null,
+          stayGuestInfo: undefined,
+          carDriverInfo: undefined,
+          transferPassengerInfo: undefined,
           currency: "AUD",
           pricing: defaultPricing,
           payment: {
