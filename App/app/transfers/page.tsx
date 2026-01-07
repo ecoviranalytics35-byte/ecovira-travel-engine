@@ -15,7 +15,7 @@ import { TestModeBanner } from '../../components/ui/TestModeBanner';
 import { getCoordinates } from '@/lib/utils/geocoding';
 import { SearchPanelSkeleton } from '../../components/search/SearchPanelSkeleton';
 import { useBookingStore } from "@/stores/bookingStore";
-import { useEvent } from "@/hooks/useEvent";
+import { useEvent } from "@/lib/hooks/useEvent";
 
 // Client-only SearchPanelShell (no SSR to prevent hydration errors from browser extensions)
 const SearchPanelShellClient = dynamic(

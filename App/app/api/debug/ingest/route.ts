@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * Debug ingest endpoint - always returns 200, non-blocking
- * In development, optionally forwards to local logger server at 127.0.0.1:7243
+ * All debug logging is now handled via console.log in development mode only
  * In production, silently succeeds to prevent any client-side errors
  */
 export async function POST(request: NextRequest) {
@@ -17,25 +17,8 @@ export async function POST(request: NextRequest) {
   // #endregion
   
   // Always return 200 immediately - non-blocking
-  // Optionally forward to local logger in development only
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      const logData = await request.json();
-      const loggerUrl = 'http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1';
-      
-      // Forward to local logger asynchronously (fire and forget)
-      // Don't await - this should never block the response
-      fetch(loggerUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(logData),
-      }).catch(() => {
-        // Silently ignore errors - logger may not be running
-      });
-    } catch (error) {
-      // Silently ignore parsing errors
-    }
-  }
+  // Debug endpoint - no longer forwards to local logger
+  // All debug logging is now handled via console.log in development mode only
   
   // Always return success immediately
   return NextResponse.json({ success: true }, { status: 200 });

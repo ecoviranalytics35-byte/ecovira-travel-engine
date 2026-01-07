@@ -18,9 +18,6 @@ export async function POST(request: NextRequest) {
     const nowpaymentsEnvKeys = Object.keys(process.env).filter(k => k.includes("NOW") || k.includes("now"));
     console.log("[ENV] keys sample (NOW*):", nowpaymentsEnvKeys.slice(0, 10));
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'nowpayments/create-invoice/route.ts:6',message:'[POST] ENTER',data:{ts:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     const body = await request.json();
     // Support both camelCase and snake_case field names
     const priceAmount = body.priceAmount || body.price_amount;
@@ -29,10 +26,6 @@ export async function POST(request: NextRequest) {
     const orderId = body.orderId || body.order_id;
     const orderDescription = body.orderDescription || body.order_description;
     const bookingData = body.bookingData || body.booking_data;
-
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'nowpayments/create-invoice/route.ts:21',message:'[POST] Request body parsed',data:{hasPriceAmount:!!priceAmount,priceAmount:priceAmount,hasPriceCurrency:!!priceCurrency,priceCurrency:priceCurrency,hasPayCurrency:!!payCurrency,payCurrency:payCurrency,hasOrderId:!!orderId,hasOrderDescription:!!orderDescription},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
 
     // Log environment variable status
     const hasKey = !!process.env.NOWPAYMENTS_API_KEY;
@@ -45,16 +38,9 @@ export async function POST(request: NextRequest) {
       ipnLength: process.env.NOWPAYMENTS_IPN_SECRET?.length || 0,
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'nowpayments/create-invoice/route.ts:26',message:'[POST] Env check',data:{hasKey,hasIpn,keyLength:process.env.NOWPAYMENTS_API_KEY?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-
     // Check for NOWPayments API key - return 500 with clear error
     if (!hasKey) {
       console.error("[NOWPayments API] Missing NOWPAYMENTS_API_KEY");
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'nowpayments/create-invoice/route.ts:36',message:'[POST] Key missing error',data:{error:'Missing NOWPAYMENTS_API_KEY'},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       return NextResponse.json(
         { error: "Missing NOWPAYMENTS_API_KEY" },
         { status: 500 }
@@ -63,9 +49,6 @@ export async function POST(request: NextRequest) {
 
     // Validate request body - ensure required fields exist
     if (!priceAmount || typeof priceAmount !== 'number' || priceAmount <= 0) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'nowpayments/create-invoice/route.ts:45',message:'[POST] priceAmount validation failed',data:{error:'Invalid price_amount',priceAmount:priceAmount},timestamp:Date.now(),sessionId:'debug-session',runId:'payment-debug',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       return NextResponse.json(
         { error: "Invalid price_amount" },
         { status: 400 }

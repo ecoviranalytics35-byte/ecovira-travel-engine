@@ -74,10 +74,9 @@ export default function Stays() {
   }, [checkIn, nights, addDays]);
 
   const handleSearch = useCallback(async () => {
-    console.log("[handleSearch] ENTER", { ts: Date.now(), city, checkIn, nights, adults, children, roomType, classType });
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:52',message:'[handleSearch] ENTER',data:{ts:Date.now(),city,checkIn,nights,adults,children,roomType,classType},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-    // #endregion
+    if (process.env.NODE_ENV === 'development') {
+      console.log("[handleSearch] ENTER", { ts: Date.now(), city, checkIn, nights, adults, children, roomType, classType });
+    }
     try {
       setLoading(true);
       setError("");
@@ -93,18 +92,16 @@ export default function Stays() {
         classType,
       });
       const url = `/api/stays/search?${params.toString()}`;
-      console.log("[handleSearch] Fetching API", { url });
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:66',message:'[handleSearch] Fetching API',data:{url},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-      // #endregion
+      if (process.env.NODE_ENV === 'development') {
+        console.log("[handleSearch] Fetching API", { url });
+      }
       
       const res = await fetch(url);
       const data = await res.json();
       
-      console.log("[handleSearch] API response", { status: res.status, ok: res.ok, hasErrors: !!data.errors, resultsCount: data.results?.length || 0 });
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:74',message:'[handleSearch] API response',data:{status:res.status,ok:res.ok,hasErrors:!!data.errors,resultsCount:data.results?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-      // #endregion
+      if (process.env.NODE_ENV === 'development') {
+        console.log("[handleSearch] API response", { status: res.status, ok: res.ok, hasErrors: !!data.errors, resultsCount: data.results?.length || 0 });
+      }
       
       if (data.errors && data.errors.length > 0) {
         setError(data.errors[0]);
@@ -115,17 +112,13 @@ export default function Stays() {
       }
     } catch (err) {
       console.error("[handleSearch] ERROR", err);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:85',message:'[handleSearch] ERROR',data:{error:err instanceof Error?err.message:'Unknown',errorStack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'C'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-      // #endregion
       setError("We encountered a network issue. Please try again.");
       throw err;
     } finally {
       setLoading(false);
-      console.log("[handleSearch] EXIT");
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'stays/page.tsx:93',message:'[handleSearch] EXIT',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'useEvent-fix',hypothesisId:'A'})}).catch((err) => console.error('[DEBUG] Log fetch failed', err));
-      // #endregion
+      if (process.env.NODE_ENV === 'development') {
+        console.log("[handleSearch] EXIT");
+      }
     }
   }, [city, checkIn, nights, adults, children, roomType, classType]);
 

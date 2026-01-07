@@ -10,6 +10,35 @@ import { getCityCode } from "@/lib/utils/cityCodes";
 export class AmadeusStaysProvider implements StaysProvider {
   async search(params: StaySearchParams): Promise<{ results: NormalizedStay[]; debug: any }> {
     try {
+      // Validate check-in date before proceeding
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const checkIn = new Date(params.checkIn);
+      checkIn.setHours(0, 0, 0, 0);
+      
+      if (isNaN(checkIn.getTime())) {
+        return { 
+          results: [], 
+          debug: { error: "Invalid check-in date format" },
+        };
+      }
+      
+      if (checkIn < today) {
+        return { 
+          results: [], 
+          debug: { error: "Check-in date cannot be in the past" },
+        };
+      }
+      
+      const maxDays = 359;
+      const daysDiff = Math.ceil((checkIn.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysDiff > maxDays) {
+        return { 
+          results: [], 
+          debug: { error: `Check-in date cannot be more than ${maxDays} days in advance` },
+        };
+      }
+
       // Convert city name to city code
       const cityCode = getCityCode(params.city);
       if (!cityCode) {

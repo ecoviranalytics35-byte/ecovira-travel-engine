@@ -101,14 +101,12 @@ export async function createNowPaymentsInvoice(input: {
       cancel_url: input.cancelUrl,
     };
 
-    console.log("[NOWPayments Lib] Creating payment via API:", {
-      ...requestBody,
-      apiKeyPrefix: apiKey.substring(0, 10),
-    });
-
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/payments/nowpayments.ts:57',message:'[createNowPaymentsInvoice] Calling API',data:{url:'https://api.nowpayments.io/v1/invoice',hasApiKey:!!apiKey,requestBody:requestBody},timestamp:Date.now(),sessionId:'debug-session',runId:'nowpayments-real-api',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
+    if (process.env.NODE_ENV === 'development') {
+      console.log("[NOWPayments Lib] Creating payment via API:", {
+        ...requestBody,
+        apiKeyPrefix: apiKey.substring(0, 10),
+      });
+    }
     // CRITICAL: Use /v1/invoice endpoint (NOT /v1/payment) to guarantee locked currency selection
     // The /v1/invoice endpoint returns invoice_url with locked crypto, while /v1/payment may redirect to generic selector
     const response = await fetch("https://api.nowpayments.io/v1/invoice", {
@@ -120,24 +118,13 @@ export async function createNowPaymentsInvoice(input: {
       body: JSON.stringify(requestBody),
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/payments/nowpayments.ts:66',message:'[createNowPaymentsInvoice] API response status',data:{status:response.status,ok:response.ok,statusText:response.statusText},timestamp:Date.now(),sessionId:'debug-session',runId:'nowpayments-real-api',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error("[NOWPayments Lib] API error:", errorData);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/payments/nowpayments.ts:69',message:'[createNowPaymentsInvoice] API error response',data:{errorData:errorData,status:response.status},timestamp:Date.now(),sessionId:'debug-session',runId:'nowpayments-real-api',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       throw new Error(`NOWPayments API error: ${errorData.message || response.statusText}`);
     }
 
     const data = await response.json();
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/payments/nowpayments.ts:82',message:'[createNowPaymentsInvoice] API success response',data:{hasPaymentId:!!data.payment_id,hasId:!!data.id,hasInvoiceId:!!data.invoice_id,hasPaymentUrl:!!data.payment_url,hasInvoiceUrl:!!data.invoice_url,hasUrl:!!data.url,responseKeys:Object.keys(data)},timestamp:Date.now(),sessionId:'debug-session',runId:'nowpayments-real-api',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     
     // /v1/invoice endpoint returns invoice_id and invoice_url (with locked crypto)
     const invoiceId = data.invoice_id || data.payment_id || data.id;
@@ -168,9 +155,6 @@ export async function createNowPaymentsInvoice(input: {
       throw new Error("Invalid response from NOWPayments API: missing invoice_url. The /v1/invoice endpoint must return invoice_url.");
     }
     
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/payments/nowpayments.ts:95',message:'[createNowPaymentsInvoice] Using invoice_url from API',data:{invoiceId:invoiceId,invoiceUrl:invoiceUrl,urlSource:data.invoice_url?'invoice_url':'url',hasOriginalUrl:!!invoiceUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'nowpayments-real-api',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
 
     // Extract payment data from NOWPayments response
     // CRITICAL: These fields MUST be present for QR code generation and payment processing
@@ -205,9 +189,6 @@ export async function createNowPaymentsInvoice(input: {
       note: "Payment data optional - available after payment method selection",
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/payments/nowpayments.ts:112',message:'[createNowPaymentsInvoice] Returning result',data:{invoiceId:invoiceId,invoiceUrl:invoiceUrl,urlPrefix:invoiceUrl?.substring(0,50),hasPayAddress:!!payAddress,hasPayAmount:!!payAmount},timestamp:Date.now(),sessionId:'debug-session',runId:'nowpayments-real-api',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
 
     // Return invoice data - payment address/amount are optional (available later)
     return {
@@ -221,17 +202,10 @@ export async function createNowPaymentsInvoice(input: {
   } catch (error: unknown) {
     console.error("[NOWPayments Lib] Error creating invoice:", error);
     
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/payments/nowpayments.ts:93',message:'[createNowPaymentsInvoice] Error caught',data:{errorMessage:error instanceof Error?error.message:'unknown',errorType:error instanceof Error?error.constructor.name:'unknown'},timestamp:Date.now(),sessionId:'debug-session',runId:'nowpayments-real-api',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
     // Log upstream error if available
     if (error instanceof Error && 'response' in error) {
       const upstreamError = error as any;
       console.error("[NOWPayments Lib] Upstream error body:", upstreamError.response?.data || upstreamError.body);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/payments/nowpayments.ts:99',message:'[createNowPaymentsInvoice] Upstream error details',data:{upstreamErrorBody:upstreamError.response?.data||upstreamError.body},timestamp:Date.now(),sessionId:'debug-session',runId:'nowpayments-real-api',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
     }
     
     throw error;

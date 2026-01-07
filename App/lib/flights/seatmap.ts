@@ -180,17 +180,43 @@ export async function getAmadeusSeatMap(
       type: flightOffer.type || "flight-offer", // Ensure type is set
     };
 
-    // Amadeus Seat Map API format
-    // According to official docs, the format should be:
+    // Amadeus Seat Map API format (v1/shopping/seatmaps)
+    // According to Amadeus API documentation, the correct format is:
     // { data: [{ type: "seatmap", flightOffer: {...} }] }
     // 
-    // However, some implementations suggest it might be:
-    // { data: [{ flightOffer: {...} }] } (without type field)
-    // 
-    // Let's try the documented format with type field first
+    // The flightOffer MUST be the complete object from /v2/shopping/flight-offers
+    // Required fields: type, id, source, itineraries, price
+    // Optional but recommended: instantTicketingRequired, nonHomogeneous, oneWay, 
+    // lastTicketingDate, numberOfBookableSeats, pricingOptions, validatingAirlineCodes
+    
+    // Ensure all required Amadeus fields are present
+    const completeFlightOffer = {
+      type: cleanFlightOffer.type || "flight-offer",
+      id: cleanFlightOffer.id,
+      source: cleanFlightOffer.source || "GDS",
+      instantTicketingRequired: cleanFlightOffer.instantTicketingRequired ?? false,
+      nonHomogeneous: cleanFlightOffer.nonHomogeneous ?? false,
+      oneWay: cleanFlightOffer.oneWay ?? false,
+      lastTicketingDate: cleanFlightOffer.lastTicketingDate,
+      numberOfBookableSeats: cleanFlightOffer.numberOfBookableSeats,
+      itineraries: cleanFlightOffer.itineraries,
+      price: cleanFlightOffer.price,
+      pricingOptions: cleanFlightOffer.pricingOptions,
+      validatingAirlineCodes: cleanFlightOffer.validatingAirlineCodes,
+      // Include any other fields from the original offer
+      ...Object.fromEntries(
+        Object.entries(cleanFlightOffer).filter(([key]) => 
+          !['type', 'id', 'source', 'instantTicketingRequired', 'nonHomogeneous', 
+            'oneWay', 'lastTicketingDate', 'numberOfBookableSeats', 'itineraries', 
+            'price', 'pricingOptions', 'validatingAirlineCodes'].includes(key)
+        )
+      ),
+    };
+
+    // Amadeus Seat Map API request format
     const seatMapRequest: any = {
       type: "seatmap",
-      flightOffer: cleanFlightOffer, // Complete Amadeus flight offer object
+      flightOffer: completeFlightOffer, // Complete Amadeus flight offer object
     };
 
     // Add segment index if specified (optional)
@@ -206,15 +232,15 @@ export async function getAmadeusSeatMap(
     // Validate flight offer has all required Amadeus fields before sending
     const requiredAmadeusFields = ['type', 'id', 'itineraries', 'price'];
     const missingRequiredFields = requiredAmadeusFields.filter(field => {
-      if (field === 'itineraries') return !cleanFlightOffer.itineraries || !Array.isArray(cleanFlightOffer.itineraries);
-      if (field === 'price') return !cleanFlightOffer.price || typeof cleanFlightOffer.price !== 'object';
-      return !cleanFlightOffer[field];
+      if (field === 'itineraries') return !completeFlightOffer.itineraries || !Array.isArray(completeFlightOffer.itineraries);
+      if (field === 'price') return !completeFlightOffer.price || typeof completeFlightOffer.price !== 'object';
+      return !completeFlightOffer[field];
     });
 
     if (missingRequiredFields.length > 0) {
       console.error("[getAmadeusSeatMap] Flight offer missing required Amadeus fields", {
         missingFields: missingRequiredFields,
-        flightOfferKeys: Object.keys(cleanFlightOffer),
+        flightOfferKeys: Object.keys(completeFlightOffer),
         flightOfferId,
       });
       return {
@@ -233,16 +259,18 @@ export async function getAmadeusSeatMap(
       dataArrayLength: requestBody.data?.length,
       seatMapRequestKeys: Object.keys(seatMapRequest),
       flightOfferKeys: flightOffer ? Object.keys(flightOffer).slice(0, 15) : [],
-      flightOfferType: cleanFlightOffer?.type,
-      flightOfferIdInOffer: cleanFlightOffer?.id,
-      hasItineraries: !!cleanFlightOffer?.itineraries,
-      hasPrice: !!cleanFlightOffer?.price,
-      hasSource: !!cleanFlightOffer?.source,
+      flightOfferType: completeFlightOffer?.type,
+      flightOfferIdInOffer: completeFlightOffer?.id,
+      hasItineraries: !!completeFlightOffer?.itineraries,
+      hasPrice: !!completeFlightOffer?.price,
+      hasSource: !!completeFlightOffer?.source,
+      hasPricingOptions: !!completeFlightOffer?.pricingOptions,
+      hasValidatingAirlineCodes: !!completeFlightOffer?.validatingAirlineCodes,
     });
 
-    // Log a sample of the actual request body (first 500 chars to see structure)
-    const requestBodyStr = JSON.stringify(requestBody);
-    console.log("[getAmadeusSeatMap] Request body sample", requestBodyStr.substring(0, 500));
+    // Log the complete request body structure (for debugging format issues)
+    const requestBodyStr = JSON.stringify(requestBody, null, 2);
+    console.log("[getAmadeusSeatMap] Complete request body:", requestBodyStr);
 
     let response: AmadeusSeatMapResponse;
     let retries = 0;

@@ -47,8 +47,45 @@ export async function hotelsByCity(cityCode: string, token: string): Promise<str
   }
 }
 
+/**
+ * Validate check-in date for Amadeus Hotels API
+ * Rules:
+ * - Must not be in the past
+ * - Must be within 359 days from today (Amadeus maximum advance booking)
+ */
+function validateCheckInDate(checkInDate: string): { valid: boolean; error?: string } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const checkIn = new Date(checkInDate);
+  checkIn.setHours(0, 0, 0, 0);
+  
+  if (isNaN(checkIn.getTime())) {
+    return { valid: false, error: "Invalid date format" };
+  }
+  
+  if (checkIn < today) {
+    return { valid: false, error: "Check-in date cannot be in the past" };
+  }
+  
+  const maxDays = 359;
+  const daysDiff = Math.ceil((checkIn.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (daysDiff > maxDays) {
+    return { valid: false, error: `Check-in date cannot be more than ${maxDays} days in advance` };
+  }
+  
+  return { valid: true };
+}
+
 export async function hotelOffers(hotelIds: string[], token: string, adults: number, checkInDate: string, nights: number, roomQuantity: number): Promise<any[]> {
   try {
+    // Validate check-in date before calling Amadeus
+    const dateValidation = validateCheckInDate(checkInDate);
+    if (!dateValidation.valid) {
+      console.error('[hotelOffers] Invalid check-in date:', dateValidation.error, { checkInDate });
+      throw new Error(dateValidation.error || "Invalid check-in date");
+    }
+
     const checkOutDate = new Date(checkInDate);
     checkOutDate.setDate(checkOutDate.getDate() + nights);
     const checkOutStr = checkOutDate.toISOString().split('T')[0];
@@ -56,11 +93,29 @@ export async function hotelOffers(hotelIds: string[], token: string, adults: num
     const ids = hotelIds.slice(0, 10).join(","); // Limit to 10 hotels
     const url = `https://test.api.amadeus.com/v3/shopping/hotel-offers?hotelIds=${ids}&adults=${adults}&checkInDate=${checkInDate}&checkOutDate=${checkOutStr}&roomQuantity=${roomQuantity}`;
 
-    const data = await fetchJson<{ data?: any[] }>(url, {
+    const data = await fetchJson<{ data?: any[]; errors?: Array<{ code?: number; title?: string; detail?: string }> }>(url, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
+
+    // Check for Amadeus errors in response (even if HTTP 200)
+    if (data.errors && data.errors.length > 0) {
+      const error = data.errors[0];
+      const errorCode = error.code;
+      const errorDetail = error.detail || error.title || "Unknown error";
+      
+      // Handle specific error codes - these should be treated as failures
+      if (errorCode === 425) {
+        // INVALID DATE error from Amadeus
+        console.error('[hotelOffers] Amadeus INVALID DATE error (code 425):', errorDetail);
+        throw new Error(`Invalid date: ${errorDetail}. Please check your check-in date is valid and within the allowed range (must be today or up to 359 days in the future).`);
+      }
+      
+      // For other errors, log and throw to prevent silent failures
+      console.error('[hotelOffers] Amadeus API error in response:', { code: errorCode, detail: errorDetail, status: error.status });
+      throw new Error(`Amadeus API error (code ${errorCode}): ${errorDetail}`);
+    }
 
     // Check if data exists and has results
     if (!data || !data.data || data.data.length === 0) {

@@ -30,20 +30,48 @@ export async function GET(request: Request) {
     classType,
   };
 
-  // #region agent log
-  console.log('[API] stays/search called', { params, hasCity: !!city, hasCheckIn: !!checkIn });
-  // #endregion
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[API] stays/search called', { params, hasCity: !!city, hasCheckIn: !!checkIn });
+  }
   
   try {
     const { results, meta, errors } = await searchStays(params);
-    // #region agent log
-    console.log('[API] stays/search result', { resultsCount: results?.length || 0, errorsCount: errors?.length || 0, hasErrors: !!errors });
-    // #endregion
-    return Response.json({ results, meta, errors });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[API] stays/search result', { resultsCount: results?.length || 0, errorsCount: errors?.length || 0, hasErrors: !!errors });
+    }
+    
+    // If there are errors, return them properly (don't silently succeed)
+    if (errors && errors.length > 0) {
+      // Return 200 with errors array (client can handle this)
+      // But ensure errors are clearly indicated
+      return Response.json({ 
+        results: results || [], 
+        meta: meta || {}, 
+        errors: errors,
+        hasErrors: true,
+      });
+    }
+    
+    return Response.json({ results, meta, errors: [] });
   } catch (error) {
-    // #region agent log
     console.error('[API] stays/search error', error);
-    // #endregion
-    return Response.json({ results: [], meta: {}, errors: [error instanceof Error ? error.message : 'Unknown error'] }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Check if it's a date validation error (should return 400)
+    if (errorMessage.includes('Invalid date') || errorMessage.includes('cannot be') || errorMessage.includes('code 425')) {
+      return Response.json({ 
+        results: [], 
+        meta: {}, 
+        errors: [errorMessage],
+        hasErrors: true,
+      }, { status: 400 });
+    }
+    
+    return Response.json({ 
+      results: [], 
+      meta: {}, 
+      errors: [errorMessage],
+      hasErrors: true,
+    }, { status: 500 });
   }
 }

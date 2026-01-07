@@ -81,7 +81,36 @@ export async function searchStays(params: StaySearchParams): Promise<{ results: 
       return { results: [], meta: {}, errors: [error] };
     }
     
+    // Validate check-in date before calling Amadeus
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkIn = new Date(params.checkIn);
+    checkIn.setHours(0, 0, 0, 0);
+    
+    if (isNaN(checkIn.getTime())) {
+      const error = "Invalid check-in date format";
+      console.log(JSON.stringify({ event: 'search', category: 'stays', duration: Date.now() - start, provider: 'amadeus', count: 0, status: 'error', error }));
+      return { results: [], meta: {}, errors: [error] };
+    }
+    
+    if (checkIn < today) {
+      const error = "Check-in date cannot be in the past";
+      console.log(JSON.stringify({ event: 'search', category: 'stays', duration: Date.now() - start, provider: 'amadeus', count: 0, status: 'error', error }));
+      return { results: [], meta: {}, errors: [error] };
+    }
+    
+    const maxDays = 359;
+    const daysDiff = Math.ceil((checkIn.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysDiff > maxDays) {
+      const error = `Check-in date cannot be more than ${maxDays} days in advance`;
+      console.log(JSON.stringify({ event: 'search', category: 'stays', duration: Date.now() - start, provider: 'amadeus', count: 0, status: 'error', error }));
+      return { results: [], meta: {}, errors: [error] };
+    }
+
     const rawResults = await hotelOffers(hotelIds, token, params.adults, params.checkIn, params.nights, params.rooms || 1);
+    
+    // Check if hotelOffers returned an error (even if it didn't throw)
+    // hotelOffers will throw on validation errors, but may return results with errors
     const results: StayResult[] = rawResults.map(r => ({ 
       type: 'stay' as const, 
       city: r.cityCode || cityCode, 
@@ -96,6 +125,7 @@ export async function searchStays(params: StaySearchParams): Promise<{ results: 
       id: r.id || `stay-${Date.now()}-${Math.random()}`,
       raw: r.raw || r,
     }));
+    
     const debug = { hotelsFoundCount: hotelIds.length, offersFoundCount: rawResults.length, cityCode };
     cache.set(key, { results, timestamp: Date.now() });
     const duration = Date.now() - start;
@@ -104,6 +134,13 @@ export async function searchStays(params: StaySearchParams): Promise<{ results: 
   } catch (e) {
     const duration = Date.now() - start;
     const error = e instanceof Error ? e.message : 'Unknown error';
+    
+    // Check if error is related to date validation (code 425)
+    if (error.includes('INVALID DATE') || error.includes('Invalid date') || error.includes('code 425')) {
+      console.log(JSON.stringify({ event: 'search', category: 'stays', duration, provider: 'amadeus', count: 0, status: 'error', error, code: 425 }));
+      return { results: [], meta: {}, errors: [error] };
+    }
+    
     console.log(JSON.stringify({ event: 'search', category: 'stays', duration, provider: 'amadeus', count: 0, status: 'error', error }));
     return { results: [], meta: {}, errors: [error] };
   }
