@@ -6,7 +6,7 @@ import { TripProvider } from "../contexts/TripContext";
 import FloatingActions from "../components/FloatingActions";
 
 export const metadata: Metadata = {
-  title: "Ecovira - Luxury Travel Planning",
+  title: "Ecovira Travel Hub",
   description: "Premium travel booking platform"
 };
 

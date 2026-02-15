@@ -43,7 +43,7 @@ export function BookingShell({ children, currentStep }: BookingShellProps) {
                 className="h-8 w-auto opacity-90"
                 style={{ width: "auto" }}
               />
-              <span className="text-xl font-serif font-bold text-ec-text">Ecovira Air</span>
+              <span className="text-xl font-serif font-bold text-ec-text">Ecovira Travel Hub</span>
             </Link>
 
             {/* Stepper */}

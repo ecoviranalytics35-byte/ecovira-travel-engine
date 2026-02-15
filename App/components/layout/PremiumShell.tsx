@@ -90,7 +90,7 @@ export function PremiumShell({ children, rightPanel, chatContext: baseChatContex
                   fontWeight: '700'
                 }}
               >
-                Ecovira Air
+                Ecovira Travel Hub
               </div>
             </a>
           </div>
