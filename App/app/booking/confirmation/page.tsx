@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+export const dynamic = "force-dynamic";
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle, Plane, Calendar, MapPin } from 'lucide-react';
 import { EcoviraButton } from '@/components/Button';
 
-export default function BookingConfirmationPage() {
+function BookingConfirmationContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const bookingId = searchParams.get('bookingId');
@@ -156,3 +157,10 @@ export default function BookingConfirmationPage() {
   );
 }
 
+export default function BookingConfirmationPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading...</div>}>
+      <BookingConfirmationContent />
+    </Suspense>
+  );
+}

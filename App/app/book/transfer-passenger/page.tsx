@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+export const dynamic = "force-dynamic";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBookingStore } from "@/stores/bookingStore";
 import { EcoviraButton } from "@/components/Button";
@@ -9,7 +10,7 @@ import { EcoviraCard } from "@/components/EcoviraCard";
 import { ArrowLeft, Users, Luggage, MapPin, Calendar, MessageSquare } from "lucide-react";
 import type { TransferResult } from "@/lib/core/types";
 
-export default function TransferPassengerInfoPage() {
+function TransferPassengerInfoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedOffer = useBookingStore((state) => state.selectedOffer);
@@ -101,14 +102,12 @@ export default function TransferPassengerInfoPage() {
                   Number of Passengers
                 </label>
                 <Input
-                  icon={Users}
                   type="number"
                   value={passengers}
                   onChange={(e) => setPassengers(parseInt(e.target.value) || 1)}
                   placeholder="1"
                   min="1"
                   max="20"
-                  error={errors.passengers}
                 />
               </div>
               <div>
@@ -116,14 +115,12 @@ export default function TransferPassengerInfoPage() {
                   Number of Luggage Pieces
                 </label>
                 <Input
-                  icon={Luggage}
                   type="number"
                   value={luggage}
                   onChange={(e) => setLuggage(parseInt(e.target.value) || 0)}
                   placeholder="0"
                   min="0"
                   max="50"
-                  error={errors.luggage}
                 />
               </div>
               <div>
@@ -189,7 +186,7 @@ export default function TransferPassengerInfoPage() {
                 <div className="flex items-center justify-between">
                   <div className="text-lg font-semibold text-ec-text">Total</div>
                   <div className="text-2xl font-bold text-ec-text">
-                    {transfer.currency} {typeof transfer.total === 'string' ? parseFloat(transfer.total).toFixed(2) : transfer.total.toFixed(2)}
+                    {transfer.currency} {Number(transfer.total).toFixed(2)}
                   </div>
                 </div>
               </div>
@@ -201,3 +198,10 @@ export default function TransferPassengerInfoPage() {
   );
 }
 
+export default function TransferPassengerInfoPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading...</div>}>
+      <TransferPassengerInfoContent />
+    </Suspense>
+  );
+}

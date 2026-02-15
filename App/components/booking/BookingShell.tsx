@@ -156,10 +156,10 @@ function BookingSummary() {
       >
         <div className="text-xs text-ec-muted mb-2 font-medium uppercase tracking-wide">Flight</div>
         <div className="text-xl font-bold text-ec-text mb-1">
-          {selectedOffer.from} → {selectedOffer.to}
+          {(selectedOffer as { from?: string; to?: string }).from} → {(selectedOffer as { to?: string }).to}
         </div>
         <div className="text-sm text-ec-muted">
-          {selectedOffer.departDate} • {selectedOffer.provider}
+          {(selectedOffer as { departDate?: string; provider?: string }).departDate} • {(selectedOffer as { provider?: string }).provider}
         </div>
       </div>
 

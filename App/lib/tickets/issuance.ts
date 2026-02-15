@@ -113,16 +113,17 @@ export async function createTicketPDF(bookingData: {
       const [tealR, tealG, tealB] = hexToRgb(COLORS.teal);
       
       // Gradient background (subtle teal glow top-left)
-      doc.rect(0, 0, pageWidth, pageHeight)
-        .linearGradient(margin, margin, pageWidth - margin, pageHeight - margin,
-          { 0: [ivoryR, ivoryG, ivoryB], 0.1: [tealR * 0.02 + ivoryR * 0.98, tealG * 0.02 + ivoryG * 0.98, tealB * 0.02 + ivoryB * 0.98], 1: [ivoryR, ivoryG, ivoryB] })
-        .fill();
+      const grad = doc.linearGradient(margin, margin, pageWidth - margin, pageHeight - margin);
+      grad.stop(0, `rgb(${ivoryR}, ${ivoryG}, ${ivoryB})`);
+      grad.stop(0.1, `rgb(${Math.round(tealR * 0.02 + ivoryR * 0.98)}, ${Math.round(tealG * 0.02 + ivoryG * 0.98)}, ${Math.round(tealB * 0.02 + ivoryB * 0.98)})`);
+      grad.stop(1, `rgb(${ivoryR}, ${ivoryG}, ${ivoryB})`);
+      doc.rect(0, 0, pageWidth, pageHeight).fill(grad);
 
       // Gold border with rounded corners
       const [goldR, goldG, goldB] = hexToRgb(COLORS.gold);
       doc.roundedRect(margin, margin, pageWidth - (margin * 2), pageHeight - (margin * 2), borderRadius)
         .lineWidth(borderWidth)
-        .strokeColor(goldR / 255, goldG / 255, goldB / 255)
+        .strokeColor(`rgb(${goldR}, ${goldG}, ${goldB})`)
         .stroke();
 
       // Logo path
@@ -159,7 +160,7 @@ export async function createTicketPDF(bookingData: {
       const headerHeight = 70;
       const [navyR, navyG, navyB] = hexToRgb(COLORS.navy);
       doc.rect(margin + borderRadius, currentY, contentWidth - borderRadius * 2, headerHeight)
-        .fillColor(navyR / 255, navyG / 255, navyB / 255)
+        .fillColor(`rgb(${navyR}, ${navyG}, ${navyB})`)
         .fill();
 
       // Logo in header (left)
@@ -174,72 +175,73 @@ export async function createTicketPDF(bookingData: {
         } catch (err) {
           // Fallback text
           doc.fontSize(18).font('Helvetica-Bold')
-            .fillColor(1, 1, 1)
+            .fillColor('white')
             .text('ECOVIRA AIR', margin + 20, currentY + 20);
         }
       } else {
         doc.fontSize(18).font('Helvetica-Bold')
-          .fillColor(1, 1, 1)
+          .fillColor('white')
           .text('ECOVIRA AIR', margin + 20, currentY + 20);
       }
 
       // Booking Reference pill (right side of header)
       const [charcoalR, charcoalG, charcoalB] = hexToRgb(COLORS.charcoal);
       const refText = bookingData.bookingReference;
-      const refWidth = doc.widthOfString(refText, { fontSize: 12, font: 'Helvetica-Bold' }) + 24;
+      doc.font('Helvetica-Bold').fontSize(12);
+      const refWidth = doc.widthOfString(refText) + 24;
       const refX = pageWidth - margin - refWidth - 20;
       const refY = currentY + 20;
       const refHeight = 28;
 
       // Pill background (charcoal)
       doc.roundedRect(refX, refY, refWidth, refHeight, refHeight / 2)
-        .fillColor(charcoalR / 255, charcoalG / 255, charcoalB / 255)
+        .fillColor(`rgb(${charcoalR}, ${charcoalG}, ${charcoalB})`)
         .fill();
 
       // Gold border
       doc.roundedRect(refX, refY, refWidth, refHeight, refHeight / 2)
         .lineWidth(1)
-        .strokeColor(goldR / 255, goldG / 255, goldB / 255)
+        .strokeColor(`rgb(${goldR}, ${goldG}, ${goldB})`)
         .stroke();
 
       // Subtle teal glow effect (shadow)
       doc.save();
       doc.opacity(0.15);
       doc.roundedRect(refX + 1, refY + 2, refWidth, refHeight, refHeight / 2)
-        .fillColor(tealR / 255, tealG / 255, tealB / 255)
+        .fillColor(`rgb(${tealR}, ${tealG}, ${tealB})`)
         .fill();
       doc.restore();
 
       // Reference text (ivory)
       doc.fontSize(12).font('Helvetica-Bold')
-        .fillColor(1, 0.97, 0.94) // Ivory text
+        .fillColor('rgb(255, 247, 240)') // Ivory text
         .text(refText, refX + 12, refY + 7);
 
       // Gold hairline underline
       doc.moveTo(margin + borderRadius, currentY + headerHeight)
         .lineTo(pageWidth - margin - borderRadius, currentY + headerHeight)
         .lineWidth(0.5)
-        .strokeColor(goldR / 255, goldG / 255, goldB / 255)
+        .strokeColor(`rgb(${goldR}, ${goldG}, ${goldB})`)
         .stroke();
 
       currentY += headerHeight + 25;
 
       // Issue date (small, right-aligned, above content)
       doc.fontSize(9).font('Helvetica')
-        .fillColor(charcoalR / 255, charcoalG / 255, charcoalB / 255)
+        .fillColor(`rgb(${charcoalR}, ${charcoalG}, ${charcoalB})`)
         .text(`Issued: ${getMelbourneTime(new Date(bookingData.issueDate))} (Melbourne time)`, 
           margin, currentY - 15, { align: 'right', width: contentWidth });
 
       // Passengers section (premium card)
       doc.roundedRect(margin + 10, currentY, contentWidth - 20, 60, 4)
-        .fillColor(1, 1, 1)
+        .fillColor('white')
         .fill()
         .lineWidth(0.5)
-        .strokeColor(0.9, 0.9, 0.9)
+        .strokeColor('rgb(230, 230, 230)')
         .stroke();
 
       doc.fontSize(10).font('Helvetica-Bold')
-        .fillColor(charcoalR / 255, charcoalG / 255, charcoalB / 255)
+        .fillColor(`rgb(${charcoalR}, ${charcoalG}, ${charcoalB})`)
         .text('PASSENGER(S)', margin + 25, currentY + 12);
 
       const passengerNames = bookingData.passengers.map((p, idx) => {
@@ -248,7 +250,7 @@ export async function createTicketPDF(bookingData: {
       }).join(' | ');
 
       doc.fontSize(10).font('Helvetica')
-        .fillColor(charcoalR / 255, charcoalG / 255, charcoalB / 255)
+        .fillColor(`rgb(${charcoalR}, ${charcoalG}, ${charcoalB})`)
         .text(passengerNames, margin + 25, currentY + 28, {
           width: contentWidth - 50,
           ellipsis: true,
@@ -259,10 +261,10 @@ export async function createTicketPDF(bookingData: {
       // Hero Itinerary Section (main focus)
       const itineraryCardHeight = 180;
       doc.roundedRect(margin + 10, currentY, contentWidth - 20, itineraryCardHeight, 6)
-        .fillColor(1, 1, 1)
+        .fillColor('white')
         .fill()
         .lineWidth(0.5)
-        .strokeColor(0.9, 0.9, 0.9)
+        .strokeColor('rgb(230, 230, 230)')
         .stroke();
 
       const flight = bookingData.flights[0];
@@ -270,7 +272,7 @@ export async function createTicketPDF(bookingData: {
 
       // Large route line (IATA → IATA)
       doc.fontSize(32).font('Helvetica-Bold')
-        .fillColor(navyR / 255, navyG / 255, navyB / 255)
+        .fillColor(`rgb(${navyR}, ${navyG}, ${navyB})`)
         .text(`${flight.from.code} → ${flight.to.code}`, margin + 25, routeY);
 
       // Subtle teal glow accent line under route
@@ -279,7 +281,7 @@ export async function createTicketPDF(bookingData: {
       doc.moveTo(margin + 25, routeY + 35)
         .lineTo(margin + 25 + 150, routeY + 35)
         .lineWidth(3)
-        .strokeColor(tealR / 255, tealG / 255, tealB / 255)
+        .strokeColor(`rgb(${tealR}, ${tealG}, ${tealB})`)
         .stroke();
       doc.restore();
 
@@ -291,7 +293,7 @@ export async function createTicketPDF(bookingData: {
       ].join(' → ');
 
       doc.fontSize(9).font('Helvetica')
-        .fillColor(0.4, 0.4, 0.4)
+        .fillColor('rgb(102, 102, 102)')
         .text(routeDetails, margin + 25, timelineY);
 
       const dateTimeY = timelineY + 18;
@@ -307,7 +309,7 @@ export async function createTicketPDF(bookingData: {
       }
 
       doc.fontSize(9).font('Helvetica')
-        .fillColor(charcoalR / 255, charcoalG / 255, charcoalB / 255)
+        .fillColor(`rgb(${charcoalR}, ${charcoalG}, ${charcoalB})`)
         .text(dateTimeText, margin + 25, dateTimeY);
 
       // Airline/flight number/cabin
@@ -320,7 +322,7 @@ export async function createTicketPDF(bookingData: {
 
       if (flightInfoParts.length > 0) {
         doc.fontSize(9).font('Helvetica')
-          .fillColor(charcoalR / 255, charcoalG / 255, charcoalB / 255)
+          .fillColor(`rgb(${charcoalR}, ${charcoalG}, ${charcoalB})`)
           .text(flightInfoParts.join(' • '), margin + 25, flightInfoY);
       }
 
@@ -358,8 +360,9 @@ export async function createTicketPDF(bookingData: {
         const chipHeight = 24;
         const chipPadding = 12;
 
+        doc.font('Helvetica').fontSize(9);
         addOns.forEach((text, idx) => {
-          const chipWidth = doc.widthOfString(text, { fontSize: 9, font: 'Helvetica' }) + chipPadding * 2;
+          const chipWidth = doc.widthOfString(text) + chipPadding * 2;
           
           if (chipX + chipWidth > pageWidth - margin - 25 && idx > 0) {
             chipX = margin + 25;
@@ -368,14 +371,14 @@ export async function createTicketPDF(bookingData: {
 
           // Chip background (white with gold border)
           doc.roundedRect(chipX, currentY, chipWidth, chipHeight, chipHeight / 2)
-            .fillColor(1, 1, 1)
+            .fillColor('white')
             .fill()
             .lineWidth(1)
-            .strokeColor(goldR / 255, goldG / 255, goldB / 255)
+            .strokeColor(`rgb(${goldR}, ${goldG}, ${goldB})`)
             .stroke();
 
           doc.fontSize(9).font('Helvetica')
-            .fillColor(charcoalR / 255, charcoalG / 255, charcoalB / 255)
+            .fillColor(`rgb(${charcoalR}, ${charcoalG}, ${charcoalB})`)
             .text(text, chipX + chipPadding, currentY + 6);
 
           chipX += chipWidth + 10;
@@ -393,17 +396,17 @@ export async function createTicketPDF(bookingData: {
 
       // Table header
       doc.fontSize(10).font('Helvetica-Bold')
-        .fillColor(navyR / 255, navyG / 255, navyB / 255)
+        .fillColor(`rgb(${navyR}, ${navyG}, ${navyB})`)
         .text('PAYMENT SUMMARY', tableX, paymentY);
 
       let paymentTableY = paymentY + 20;
 
       // Payment provider
       doc.fontSize(9).font('Helvetica')
-        .fillColor(0.5, 0.5, 0.5)
+        .fillColor('rgb(127, 127, 127)')
         .text('Provider:', tableX, paymentTableY);
       doc.fontSize(9).font('Helvetica')
-        .fillColor(charcoalR / 255, charcoalG / 255, charcoalB / 255)
+        .fillColor(`rgb(${charcoalR}, ${charcoalG}, ${charcoalB})`)
         .text(bookingData.paymentProvider, tableX + 70, paymentTableY);
       paymentTableY += 15;
 
@@ -411,16 +414,16 @@ export async function createTicketPDF(bookingData: {
       doc.moveTo(tableX, paymentTableY + 5)
         .lineTo(tableX + tableWidth, paymentTableY + 5)
         .lineWidth(1)
-        .strokeColor(goldR / 255, goldG / 255, goldB / 255)
+        .strokeColor(`rgb(${goldR}, ${goldG}, ${goldB})`)
         .stroke();
 
       paymentTableY += 10;
 
       doc.fontSize(10).font('Helvetica-Bold')
-        .fillColor(charcoalR / 255, charcoalG / 255, charcoalB / 255)
+        .fillColor(`rgb(${charcoalR}, ${charcoalG}, ${charcoalB})`)
         .text('Total Paid:', tableX, paymentTableY);
       doc.fontSize(12).font('Helvetica-Bold')
-        .fillColor(navyR / 255, navyG / 255, navyB / 255)
+        .fillColor(`rgb(${navyR}, ${navyG}, ${navyB})`)
         .text(`${bookingData.currency} ${bookingData.totalPaid.toFixed(2)}`, tableX + 70, paymentTableY - 2);
 
       // QR Code + Manage booking section
@@ -449,11 +452,11 @@ export async function createTicketPDF(bookingData: {
         : bookingUrl;
 
       doc.fontSize(9).font('Helvetica')
-        .fillColor(charcoalR / 255, charcoalG / 255, charcoalB / 255)
+        .fillColor(`rgb(${charcoalR}, ${charcoalG}, ${charcoalB})`)
         .text('Manage Booking:', manageX, qrSectionY + 10);
       
       doc.fontSize(9).font('Helvetica')
-        .fillColor(tealR / 255, tealG / 255, tealB / 255)
+        .fillColor(`rgb(${tealR}, ${tealG}, ${tealB})`)
         .text(manageUrl, manageX, qrSectionY + 25, {
           width: qrX - manageX - 20,
           link: manageUrl,
@@ -461,11 +464,11 @@ export async function createTicketPDF(bookingData: {
         });
 
       doc.fontSize(9).font('Helvetica')
-        .fillColor(charcoalR / 255, charcoalG / 255, charcoalB / 255)
+        .fillColor(`rgb(${charcoalR}, ${charcoalG}, ${charcoalB})`)
         .text('Support:', manageX, qrSectionY + 45);
       
       doc.fontSize(9).font('Helvetica')
-        .fillColor(tealR / 255, tealG / 255, tealB / 255)
+        .fillColor(`rgb(${tealR}, ${tealG}, ${tealB})`)
         .text(supportEmail, manageX, qrSectionY + 60, {
           link: `mailto:${supportEmail}`,
         });
@@ -475,18 +478,18 @@ export async function createTicketPDF(bookingData: {
       doc.moveTo(margin + 10, footerY - 10)
         .lineTo(pageWidth - margin - 10, footerY - 10)
         .lineWidth(0.5)
-        .strokeColor(0.9, 0.9, 0.9)
+        .strokeColor('rgb(230, 230, 230)')
         .stroke();
 
       doc.fontSize(8).font('Helvetica-Bold')
-        .fillColor(charcoalR / 255, charcoalG / 255, charcoalB / 255)
+        .fillColor(`rgb(${charcoalR}, ${charcoalG}, ${charcoalB})`)
         .text('This is not a boarding pass. Check-in required.', margin, footerY, {
           align: 'center',
           width: contentWidth,
         });
 
       doc.fontSize(7).font('Helvetica')
-        .fillColor(0.5, 0.5, 0.5)
+        .fillColor('rgb(127, 127, 127)')
         .text('Subject to airline rules.', margin, footerY + 12, {
           align: 'center',
           width: contentWidth,

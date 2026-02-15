@@ -139,15 +139,15 @@ export default function ConfirmationPage() {
                 <div className="flex items-center justify-between p-3 rounded-lg bg-[rgba(28,140,130,0.1)] border border-[rgba(28,140,130,0.2)]">
                   <div>
                     <div className="text-ec-text font-medium">
-                      {selectedOffer.from} → {selectedOffer.to}
+                      {(selectedOffer as { from?: string; to?: string }).from} → {(selectedOffer as { to?: string }).to}
                     </div>
                     <div className="text-xs text-ec-muted mt-1">
-                      {selectedOffer.departDate} • {selectedOffer.provider}
+                      {(selectedOffer as { departDate?: string; provider?: string }).departDate} • {(selectedOffer as { provider?: string }).provider}
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-ec-text font-semibold">
-                      {selectedOffer.currency} {typeof selectedOffer.price === "string" ? selectedOffer.price : selectedOffer.price.toFixed(2)}
+                      {(selectedOffer as { currency?: string; price?: string | number }).currency} {typeof (selectedOffer as { price?: string | number }).price === "string" ? (selectedOffer as { price?: string }).price : Number((selectedOffer as { price?: number }).price).toFixed(2)}
                     </div>
                   </div>
                 </div>

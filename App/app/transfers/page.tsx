@@ -223,6 +223,7 @@ export default function Transfers() {
           <ResultsList
             title="Transfer Results"
             count={results.length}
+            countLabel="transfers"
           >
             {results.map((transfer) => (
               <TransferResultCard

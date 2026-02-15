@@ -4,10 +4,10 @@ import { isDemoBookingId, getDemoBookingFromDB, getDemoTripById } from '@/lib/de
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { bookingId: string } }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   try {
-    const bookingId = params.bookingId;
+    const { bookingId } = await params;
     
     // Check if this is a demo booking
     if (isDemoBookingId(bookingId)) {

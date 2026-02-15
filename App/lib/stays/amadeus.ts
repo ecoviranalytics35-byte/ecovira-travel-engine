@@ -113,7 +113,7 @@ export async function hotelOffers(hotelIds: string[], token: string, adults: num
       }
       
       // For other errors, log and throw to prevent silent failures
-      console.error('[hotelOffers] Amadeus API error in response:', { code: errorCode, detail: errorDetail, status: error.status });
+      console.error('[hotelOffers] Amadeus API error in response:', { code: errorCode, detail: errorDetail, status: (error as { status?: number }).status });
       throw new Error(`Amadeus API error (code ${errorCode}): ${errorDetail}`);
     }
 

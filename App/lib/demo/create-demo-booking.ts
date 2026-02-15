@@ -24,7 +24,7 @@ export async function createDemoFlightBooking(params: {
     .from('itineraries')
     .insert({
       status: 'confirmed',
-      total: parseFloat(flight.price || '0'),
+      total: parseFloat(String(flight.price ?? '0')),
       currency: flight.currency || 'AUD',
     })
     .select()
@@ -34,18 +34,19 @@ export async function createDemoFlightBooking(params: {
     throw new Error('Failed to create demo itinerary');
   }
 
-  // Create itinerary item with extras
+  // Create itinerary item with extras (FlightResult has from/to/price/currency; airline/flightNumber may be in raw)
+  const raw = (flight.raw ?? {}) as { airline?: string; flightNumber?: string };
   const flightItemData = {
-    airlineIata: flight.airline || 'QF',
-    flightNumber: flight.flightNumber || 'QF101',
+    airlineIata: raw.airline ?? 'QF',
+    flightNumber: raw.flightNumber ?? 'QF101',
     departureAirport: flight.from || 'MEL',
     arrivalAirport: flight.to || 'SYD',
     scheduledDeparture: departure.toISOString(),
     scheduledArrival: new Date(departure.getTime() + 90 * 60 * 1000).toISOString(),
-    price: parseFloat(flight.price || '0'),
+    price: parseFloat(String(flight.price ?? '0')),
     currency: flight.currency || 'AUD',
     raw: flight.raw || {},
-    extras: extras || null, // Store extras in flight item data
+    extras: extras || null,
   };
 
   const { error: itemError } = await supabaseAdmin

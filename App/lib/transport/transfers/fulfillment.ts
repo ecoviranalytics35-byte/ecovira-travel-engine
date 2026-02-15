@@ -35,7 +35,7 @@ export async function fulfillTransferBooking(bookingId: string): Promise<{ succe
   }
 
   const transferOffer = transferItem.item as TransferResult;
-  const bookingMetadata = booking.metadata || {};
+  const bookingMetadata = (booking as { metadata?: Record<string, unknown> }).metadata || {};
   const passengerInfo = bookingMetadata.transferPassengerInfo as TransferPassengerInfo;
 
   if (!passengerInfo) {
@@ -50,7 +50,7 @@ export async function fulfillTransferBooking(bookingId: string): Promise<{ succe
       transferOffer.raw, // Pass the raw Amadeus offer
       passengerInfo,
       booking.paymentId,
-      booking.bookingReference || booking.id // Use existing or generate
+      (booking as { bookingReference?: string }).bookingReference || booking.id // Use existing or generate
     );
 
     // Update booking status to FULFILLMENT_PENDING (or CONFIRMED if Amadeus confirms immediately)
@@ -63,16 +63,16 @@ export async function fulfillTransferBooking(bookingId: string): Promise<{ succe
       .update({
         supplier_reference: providerBooking.providerBookingId,
         status: 'FULFILLMENT_PENDING', // Ensure status is updated in DB
-        metadata: { ...booking.metadata, providerBookingDetails: providerBooking.details },
+        metadata: { ...(booking as { metadata?: Record<string, unknown> }).metadata, providerBookingDetails: providerBooking.details },
       })
       .eq('id', booking.id);
 
     // Send confirmation email (if email is available from booking)
-    const passengerEmail = booking.passenger_email || "";
+    const passengerEmail = (booking as { passenger_email?: string }).passenger_email || "";
     if (passengerEmail) {
       const { emailSent } = await notifyTransferBookingConfirmed(
         booking.id,
-        booking.bookingReference || booking.id,
+        (booking as { bookingReference?: string }).bookingReference || booking.id,
         providerBooking.providerBookingId,
         passengerEmail,
         {
@@ -82,8 +82,8 @@ export async function fulfillTransferBooking(bookingId: string): Promise<{ succe
           dateTime: transferOffer.dateTime,
           passengers: passengerInfo.passengers,
         },
-        booking.phone_number,
-        booking.smsOptIn // Assuming smsOptIn is stored on booking
+        (booking as { phone_number?: string }).phone_number,
+        (booking as { smsOptIn?: boolean }).smsOptIn ?? false
       );
 
       if (emailSent) {

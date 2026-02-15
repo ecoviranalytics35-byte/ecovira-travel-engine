@@ -24,14 +24,6 @@ try {
   console.warn('[Notifications] Twilio not configured:', error);
 }
 
-const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE || 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
 export type NotificationType = 
   | 'booking_confirmed'
   | 'checkin_opens_soon'

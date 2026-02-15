@@ -49,10 +49,10 @@ function generateCheckInInfo(trip: any): CheckInInfo {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { bookingId: string } }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   try {
-    const bookingId = params.bookingId;
+    const { bookingId } = await params;
     const searchParams = request.nextUrl.searchParams;
     const departureOffsetHours = searchParams.get('departureOffsetHours') 
       ? parseInt(searchParams.get('departureOffsetHours')!) 

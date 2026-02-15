@@ -2,7 +2,7 @@
 // This would run as a cron job or scheduled task
 
 import { supabaseAdmin } from '@/lib/core/supabase';
-import { notifyCheckInOpensSoon, notifyCheckInOpen, notifyDepartureReminder, notifyBookingConfirmed } from './trips';
+import { notifyCheckInOpensSoon, notifyCheckInOpen, notifyDepartureReminder, notifyBookingConfirmed, notifyFlightDelayed } from './trips';
 
 // This function should be called periodically (e.g., every hour via cron)
 export async function processTripNotifications(): Promise<void> {
@@ -49,29 +49,32 @@ export async function processTripNotifications(): Promise<void> {
     const checkInOpensSoonTime = checkInOpensTime - (24 * 60 * 60 * 1000);
     if (nowTime >= checkInOpensSoonTime && nowTime < checkInOpensTime) {
       // TODO: Check if notification already sent (store in notifications table)
+      const bookingRef = (booking as any).reference ?? (booking as any).booking_reference ?? booking.id;
       await notifyCheckInOpensSoon(
         booking.id,
+        bookingRef,
         checkInOpens.toISOString(),
-        (booking as any).passenger_email
+        (booking as any).passenger_email ?? ''
       );
     }
 
     // Check-in is now open
     if (nowTime >= checkInOpensTime && nowTime < departureTime) {
       // TODO: Check if notification already sent
-      await notifyCheckInOpen(booking.id, (booking as any).passenger_email);
+      const bookingRef = (booking as any).reference ?? (booking as any).booking_reference ?? booking.id;
+      await notifyCheckInOpen(booking.id, bookingRef, (booking as any).passenger_email ?? '');
     }
 
     // Departure reminder (2 hours before)
     if (nowTime >= twoHoursBeforeTime && nowTime < departureTime) {
       // TODO: Check if notification already sent
+      const bookingRef = (booking as any).reference ?? (booking as any).booking_reference ?? booking.id;
       await notifyDepartureReminder(
         booking.id,
+        bookingRef,
         `${flightItem.item?.raw?.airline_iata || ''} ${flightItem.item?.raw?.flight_number || ''}`,
         scheduledDeparture.toISOString(),
-        undefined, // Gate would come from flight status API
-        undefined, // Terminal would come from flight status API
-        (booking as any).passenger_email
+        (booking as any).passenger_email ?? ''
       );
     }
   }

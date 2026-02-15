@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+export const dynamic = "force-dynamic";
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { generateDemoHotelDetails } from '@/lib/demo/hotel-helpers';
 import type { HotelRoom, HotelExtras } from '@/lib/core/hotel-types';
@@ -8,7 +9,7 @@ import { HOTEL_EXTRAS_PRICING } from '@/lib/core/hotel-types';
 import { EcoviraButton } from '@/components/Button';
 import { ArrowLeft, ArrowRight, Coffee, Clock, CheckCircle } from 'lucide-react';
 
-export default function HotelRoomSelectionPage() {
+function HotelRoomSelectionContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
@@ -322,3 +323,10 @@ export default function HotelRoomSelectionPage() {
   );
 }
 
+export default function HotelRoomSelectionPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading...</div>}>
+      <HotelRoomSelectionContent />
+    </Suspense>
+  );
+}

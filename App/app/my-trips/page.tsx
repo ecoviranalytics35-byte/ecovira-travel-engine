@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+export const dynamic = "force-dynamic";
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plane, Search, Calendar, Users } from 'lucide-react';
 import type { TripBooking } from '@/lib/core/trip-types';
 
-export default function MyTrips() {
+function MyTripsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [bookingRef, setBookingRef] = useState('');
@@ -218,3 +219,10 @@ export default function MyTrips() {
   );
 }
 
+export default function MyTrips() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading...</div>}>
+      <MyTripsContent />
+    </Suspense>
+  );
+}

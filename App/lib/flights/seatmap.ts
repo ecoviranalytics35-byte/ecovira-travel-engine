@@ -231,10 +231,11 @@ export async function getAmadeusSeatMap(
 
     // Validate flight offer has all required Amadeus fields before sending
     const requiredAmadeusFields = ['type', 'id', 'itineraries', 'price'];
+    const offer = completeFlightOffer as Record<string, unknown>;
     const missingRequiredFields = requiredAmadeusFields.filter(field => {
       if (field === 'itineraries') return !completeFlightOffer.itineraries || !Array.isArray(completeFlightOffer.itineraries);
       if (field === 'price') return !completeFlightOffer.price || typeof completeFlightOffer.price !== 'object';
-      return !completeFlightOffer[field];
+      return !offer[field];
     });
 
     if (missingRequiredFields.length > 0) {

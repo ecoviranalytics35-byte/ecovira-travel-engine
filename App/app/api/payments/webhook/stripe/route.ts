@@ -86,7 +86,8 @@ export async function POST(request: Request) {
         await updateBookingStatus(booking.id, 'PAID');
         
         // Update itinerary status
-        await updateItinerary(booking.itinerary_id, { status: 'paid' });
+        const itineraryId = booking.itineraryId ?? (booking as { itinerary_id?: string }).itinerary_id;
+        await updateItinerary(itineraryId, { status: 'paid' });
 
         // Determine booking type and fulfill accordingly
         const itinerary = await supabaseAdmin
@@ -95,7 +96,7 @@ export async function POST(request: Request) {
             *,
             itinerary_items (*)
           `)
-          .eq('id', booking.itinerary_id)
+          .eq('id', itineraryId)
           .single();
 
         if (itinerary.data) {

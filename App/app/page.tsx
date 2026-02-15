@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import type { FlightResult } from "@/lib/core/types";
 import { EcoviraButton } from '../components/Button';
 import { Input } from '../components/Input';
@@ -37,6 +38,7 @@ function SkeletonLoader() {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [tripType, setTripType] = useState("roundtrip");
   const [from, setFrom] = useState("MEL");
   const [to, setTo] = useState("SYD");

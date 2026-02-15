@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+export const dynamic = "force-dynamic";
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { SeatSelector } from '@/components/booking/SeatSelector';
 import { BaggageSelector } from '@/components/booking/BaggageSelector';
@@ -9,7 +10,7 @@ import type { BookingExtras, SeatSelection, BaggageSelection, InsuranceSelection
 import { EcoviraButton } from '@/components/Button';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 
-export default function BookingExtrasPage() {
+function BookingExtrasContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -295,3 +296,10 @@ export default function BookingExtrasPage() {
   );
 }
 
+export default function BookingExtrasPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading...</div>}>
+      <BookingExtrasContent />
+    </Suspense>
+  );
+}

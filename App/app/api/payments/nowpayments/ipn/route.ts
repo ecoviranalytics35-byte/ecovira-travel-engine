@@ -4,7 +4,6 @@ import { getBookingByOrderId, updateBookingStatus, updateItinerary } from "@/lib
 import { fulfillHotelBooking } from "@/lib/stays/fulfillment";
 import { issueTicket } from "@/lib/tickets/issuance";
 import { supabaseAdmin } from "@/lib/core/supabase";
-import { issueTicket } from "@/lib/tickets/issuance";
 
 export const runtime = "nodejs";
 
@@ -112,7 +111,8 @@ export async function POST(request: NextRequest) {
           await updateBookingStatus(booking.id, "PAID");
           
           // Update itinerary status
-          await updateItinerary(booking.itinerary_id, { status: 'paid' });
+          const itineraryId = booking.itineraryId ?? (booking as { itinerary_id?: string }).itinerary_id;
+          await updateItinerary(itineraryId, { status: 'paid' });
           
           // Determine booking type and fulfill accordingly
           const itinerary = await supabaseAdmin
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
               *,
               itinerary_items (*)
             `)
-            .eq('id', booking.itinerary_id)
+            .eq('id', itineraryId)
             .single();
 
           if (itinerary.data) {

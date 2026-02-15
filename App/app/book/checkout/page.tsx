@@ -438,13 +438,13 @@ export default function CheckoutPage() {
 
       // Build order description based on booking type
       const orderDescription = hasFlights 
-        ? `Flight booking ${selectedOffer?.from} → ${selectedOffer?.to}`
+        ? `Flight booking ${(selectedOffer as { from?: string; to?: string })?.from ?? ''} → ${(selectedOffer as { from?: string; to?: string })?.to ?? ''}`
         : hasHotels 
         ? `Hotel booking ${items.stays?.[0]?.name || "Hotel"}`
         : hasCars
-        ? `Car rental ${selectedOffer && selectedOffer.type === 'car' ? selectedOffer.name || selectedOffer.vehicle : items.cars?.[0]?.name || items.cars?.[0]?.vehicle || "Car"}`
+        ? `Car rental ${selectedOffer && (selectedOffer as { type?: string; name?: string; vehicle?: string }).type === 'car' ? (selectedOffer as { name?: string; vehicle?: string }).name || (selectedOffer as { vehicle?: string }).vehicle : items.cars?.[0]?.name || items.cars?.[0]?.vehicle || "Car"}`
         : hasTransfers
-        ? `Transfer ${selectedOffer && selectedOffer.type === 'transfer' ? `${selectedOffer.from} → ${selectedOffer.to}` : items.transfers?.[0] ? `${items.transfers[0].from} → ${items.transfers[0].to}` : "Transfer"}`
+        ? `Transfer ${selectedOffer && (selectedOffer as { type?: string; from?: string; to?: string }).type === 'transfer' ? `${(selectedOffer as { from?: string; to?: string }).from} → ${(selectedOffer as { to?: string }).to}` : items.transfers?.[0] ? `${items.transfers[0].from} → ${items.transfers[0].to}` : "Transfer"}`
         : "Booking";
 
       const requestPayload = {
@@ -621,7 +621,7 @@ export default function CheckoutPage() {
             >
               <span className="font-medium text-sm text-white">Flight</span>
               <span className="font-semibold text-base text-white">
-                {selectedOffer.from} → {selectedOffer.to}
+                {(selectedOffer as { from?: string; to?: string }).from} → {(selectedOffer as { to?: string }).to}
               </span>
             </div>
             

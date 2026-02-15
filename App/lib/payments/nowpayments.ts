@@ -55,7 +55,8 @@ export async function createNowPaymentsInvoice(input: {
     if (!input.payCurrency || typeof input.payCurrency !== 'string' || input.payCurrency.trim() === '') {
       throw new Error("pay_currency is required and must be a non-empty string");
     }
-    
+    const normalizedPayCurrency = input.payCurrency.trim().toLowerCase();
+
     // In mock mode, return mock invoice URL
     // HARD RULE: Only use mock if NOWPAYMENTS_USE_MOCK=true
     if (!isLiveMode && useMock) {
@@ -81,9 +82,6 @@ export async function createNowPaymentsInvoice(input: {
       throw new Error("NOWPayments API key is missing or invalid. Cannot create invoice without API key.");
     }
 
-    // Normalize pay_currency: trim and lowercase (NOWPayments expects lowercase codes)
-    const normalizedPayCurrency = input.payCurrency.trim().toLowerCase();
-    
     console.log("[NOWPayments Lib] Normalized pay_currency:", {
       original: input.payCurrency,
       normalized: normalizedPayCurrency,

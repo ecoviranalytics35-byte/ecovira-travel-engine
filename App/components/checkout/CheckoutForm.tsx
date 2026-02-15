@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 
 import { BookingShell } from "@/components/booking/BookingShell";
-import { CheckoutForm } from "@/components/checkout/CheckoutForm";
 import { EcoviraButton } from "@/components/Button";
 import { useBookingStore } from "@/stores/bookingStore";
 
@@ -200,6 +199,30 @@ function PaymentHeroButton({
   );
 }
 
+export function CheckoutForm({
+  onSubmit,
+  loading,
+  requirePassport,
+}: {
+  onSubmit: (data: { passengerEmail: string; passengerLastName: string; phoneNumber?: string; smsOptIn: boolean; passportNumber?: string; nationality?: string; passportExpiry?: string }) => Promise<void>;
+  loading: boolean;
+  requirePassport?: boolean;
+}) {
+  const [email, setEmail] = useState("");
+  const [lastName, setLastName] = useState("");
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({ passengerEmail: email, passengerLastName: lastName, smsOptIn: false });
+  };
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required className="w-full px-4 py-2 rounded-lg border border-[rgba(28,140,130,0.3)] bg-[rgba(15,17,20,0.6)] text-white" />
+      <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" required className="w-full px-4 py-2 rounded-lg border border-[rgba(28,140,130,0.3)] bg-[rgba(15,17,20,0.6)] text-white" />
+      <EcoviraButton type="submit" disabled={loading}>{loading ? "Saving…" : "Continue"}</EcoviraButton>
+    </form>
+  );
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
 
@@ -224,7 +247,7 @@ export default function CheckoutPage() {
   const currency = pricing?.currency || "AUD";
 
   const totals = useMemo(() => {
-    const base = Number(pricing?.total ?? pricing?.baseFare ?? 0);
+    const base = Number(pricing?.total ?? pricing?.base ?? 0);
     const seatsTotal = Number(seats?.reduce((sum, s) => sum + (s.price || 0), 0) ?? 0);
     const bagsTotal = Number(
       baggage?.checkedBags?.reduce((sum, b) => sum + (b.price || 0), 0) ?? 0
@@ -306,7 +329,7 @@ export default function CheckoutPage() {
   }
 
   // Passenger form submit still exists — it should update store; then user presses payment
-  const onPassengerSubmit = async () => {
+  const onPassengerSubmit = async (_data?: { passengerEmail?: string; passengerLastName?: string; phoneNumber?: string; smsOptIn?: boolean; passportNumber?: string; nationality?: string; passportExpiry?: string }) => {
     completeStep("checkout");
     // We do not auto-pay here; user chooses the big CTA buttons.
   };
@@ -348,9 +371,13 @@ export default function CheckoutPage() {
                 <BubbleRow
                   label="Route"
                   value={
-                    selectedOffer?.origin && selectedOffer?.destination
-                      ? `${selectedOffer.origin} → ${selectedOffer.destination}`
-                      : "—"
+                    selectedOffer?.type === "flight" || selectedOffer?.type === "transfer"
+                      ? `${(selectedOffer as { from?: string }).from ?? "—"} → ${(selectedOffer as { to?: string }).to ?? "—"}`
+                      : selectedOffer?.type === "car"
+                        ? `${(selectedOffer as { pickup?: string; pickupLocation?: string }).pickup ?? (selectedOffer as { pickupLocation?: string }).pickupLocation ?? "—"} → ${(selectedOffer as { dropoff?: string; returnLocation?: string }).dropoff ?? (selectedOffer as { returnLocation?: string }).returnLocation ?? "—"}`
+                        : selectedOffer?.type === "stay"
+                          ? (selectedOffer as { city?: string; name?: string }).city ?? (selectedOffer as { name?: string }).name ?? "—"
+                          : "—"
                   }
                   icon={<Plane size={18} className="text-[rgba(28,140,130,0.95)]" />}
                 />
@@ -370,7 +397,7 @@ export default function CheckoutPage() {
                 />
                 <BubbleRow
                   label="Insurance"
-                  value={insurance?.type ? insurance.type : "None"}
+                  value={insurance?.plan && insurance.plan !== "none" ? insurance.plan : "None"}
                   icon={<ShieldCheck size={18} className="text-[rgba(28,140,130,0.95)]" />}
                 />
               </div>

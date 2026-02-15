@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBookingStore } from "@/stores/bookingStore";
 import type { StayResult } from "@/lib/core/types";
@@ -8,7 +8,7 @@ import { EcoviraButton } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { EcoviraCard } from "@/components/EcoviraCard";
 
-export default function HotelGuestPage() {
+function HotelGuestContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { items, setStayGuestInfo, addItem } = useBookingStore();
@@ -254,3 +254,10 @@ export default function HotelGuestPage() {
   );
 }
 
+export default function HotelGuestPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading...</div>}>
+      <HotelGuestContent />
+    </Suspense>
+  );
+}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+export const dynamic = "force-dynamic";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBookingStore } from "@/stores/bookingStore";
 import { EcoviraButton } from "@/components/Button";
@@ -9,7 +10,7 @@ import { EcoviraCard } from "@/components/EcoviraCard";
 import { ArrowLeft, User, Mail, Phone, Car, Calendar, MapPin, CreditCard } from "lucide-react";
 import type { CarResult } from "@/lib/core/types";
 
-export default function CarDriverInfoPage() {
+function CarDriverInfoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedOffer = useBookingStore((state) => state.selectedOffer);
@@ -114,11 +115,9 @@ export default function CarDriverInfoPage() {
                     First Name
                   </label>
                   <Input
-                    icon={User}
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="John"
-                    error={errors.firstName}
                   />
                 </div>
                 <div>
@@ -126,11 +125,9 @@ export default function CarDriverInfoPage() {
                     Last Name
                   </label>
                   <Input
-                    icon={User}
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Doe"
-                    error={errors.lastName}
                   />
                 </div>
               </div>
@@ -139,12 +136,10 @@ export default function CarDriverInfoPage() {
                   Email Address
                 </label>
                 <Input
-                  icon={Mail}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="john.doe@example.com"
-                  error={errors.email}
                 />
               </div>
               <div>
@@ -152,12 +147,10 @@ export default function CarDriverInfoPage() {
                   Phone Number
                 </label>
                 <Input
-                  icon={Phone}
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+61 412 345 678"
-                  error={errors.phone}
                 />
               </div>
               <div>
@@ -171,7 +164,6 @@ export default function CarDriverInfoPage() {
                   placeholder="25"
                   min="18"
                   max="100"
-                  error={errors.age}
                 />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -180,7 +172,6 @@ export default function CarDriverInfoPage() {
                     License Number (Optional)
                   </label>
                   <Input
-                    icon={CreditCard}
                     value={licenseNumber}
                     onChange={(e) => setLicenseNumber(e.target.value)}
                     placeholder="12345678"
@@ -247,7 +238,7 @@ export default function CarDriverInfoPage() {
                 <div className="flex items-center justify-between">
                   <div className="text-lg font-semibold text-ec-text">Total</div>
                   <div className="text-2xl font-bold text-ec-text">
-                    {car.currency} {typeof car.total === 'string' ? parseFloat(car.total).toFixed(2) : car.total.toFixed(2)}
+                    {car.currency} {Number(car.total).toFixed(2)}
                   </div>
                 </div>
               </div>
@@ -259,3 +250,10 @@ export default function CarDriverInfoPage() {
   );
 }
 
+export default function CarDriverInfoPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading...</div>}>
+      <CarDriverInfoContent />
+    </Suspense>
+  );
+}

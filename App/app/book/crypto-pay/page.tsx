@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Copy, Check, ExternalLink, ArrowLeft, Loader2 } from "lucide-react";
 import { BookingShell } from "@/components/booking/BookingShell";
@@ -123,7 +123,7 @@ function generateQRCodeUrl(address: string, amount: string, currency: string): s
   return `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(paymentURI)}`;
 }
 
-export default function CryptoPayPage() {
+function CryptoPayContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const paymentId = searchParams.get("paymentId");
@@ -436,7 +436,7 @@ export default function CryptoPayPage() {
               </div>
             ) : (
               <div className="flex justify-center mb-8">
-                <div className="text-center p-6 rounded-2xl" style={glassPanelStyle}>
+                <div className="text-center p-6 rounded-2xl bg-[rgba(15,17,20,0.6)] border border-[rgba(255,255,255,0.1)]">
                   <p className="text-white/70 text-sm mb-2">
                     Payment details will be available after selecting payment method
                   </p>
@@ -606,3 +606,10 @@ export default function CryptoPayPage() {
   );
 }
 
+export default function CryptoPayPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading...</div>}>
+      <CryptoPayContent />
+    </Suspense>
+  );
+}

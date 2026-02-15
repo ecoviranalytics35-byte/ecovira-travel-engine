@@ -35,10 +35,11 @@ export default function PassengersPage() {
   // Initialize with one passenger if empty
   useEffect(() => {
     if (passengers.length === 0 && selectedOffer) {
-      const basePrice = typeof selectedOffer.price === "string"
-        ? parseFloat(selectedOffer.price.replace(/[^0-9.]/g, ""))
-        : typeof selectedOffer.price === "number"
-        ? selectedOffer.price
+      const offerPrice = (selectedOffer as { price?: string | number }).price;
+      const basePrice = typeof offerPrice === "string"
+        ? parseFloat(offerPrice.replace(/[^0-9.]/g, ""))
+        : typeof offerPrice === "number"
+        ? offerPrice
         : 0;
       const passengerCount = Math.max(1, Math.floor(basePrice / 100) || 1); // Estimate from price or default to 1
       

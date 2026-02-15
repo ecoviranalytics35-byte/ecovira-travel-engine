@@ -14,7 +14,6 @@ const CITY_CODE_MAP: Record<string, string> = {
   'singapore': 'SIN',
   'bangkok': 'BKK',
   'hong kong': 'HKG',
-  'sydney': 'SYD',
   'auckland': 'AKL',
   'vancouver': 'YVR',
   'toronto': 'YYZ',

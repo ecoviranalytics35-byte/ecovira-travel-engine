@@ -1,5 +1,5 @@
-import type { CarResult, CarDriverInfo } from "@/lib/core/types";
-import type { CarDriverInfo as BookingStoreCarDriverInfo } from "@/stores/bookingStore";
+import type { CarResult } from "@/lib/core/types";
+import type { CarDriverInfo } from "@/stores/bookingStore";
 
 export type CarSearchParams = {
   pickupLat: number;
@@ -39,7 +39,7 @@ export interface CarsProvider {
   quote(carId: string, params: CarSearchParams): Promise<{ quote: any; debug: any }>;
   book(
     offer: any, // Raw offer object
-    driverInfo: BookingStoreCarDriverInfo,
+    driverInfo: CarDriverInfo,
     paymentId: string,
     bookingReference: string,
   ): Promise<{ booking: any; debug: any }>;
@@ -97,7 +97,7 @@ export class MockCarsProvider implements CarsProvider {
 
   async book(
     offer: any,
-    driverInfo: BookingStoreCarDriverInfo,
+    driverInfo: CarDriverInfo,
     paymentId: string,
     bookingReference: string,
   ): Promise<{ booking: any; debug: any }> {

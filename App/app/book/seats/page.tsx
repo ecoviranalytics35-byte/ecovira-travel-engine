@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+export const dynamic = "force-dynamic";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plane, ArrowLeft, ArrowRight, UserRound, Loader2, AlertCircle } from "lucide-react";
 
@@ -58,7 +59,7 @@ const glassPanelStyle: React.CSSProperties = {
   boxShadow: "0 18px 55px rgba(0,0,0,0.55)",
 };
 
-export default function SeatsPage() {
+function SeatsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -767,6 +768,14 @@ export default function SeatsPage() {
         </div>
       </div>
     </BookingShell>
+  );
+}
+
+export default function SeatsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading...</div>}>
+      <SeatsContent />
+    </Suspense>
   );
 }
 

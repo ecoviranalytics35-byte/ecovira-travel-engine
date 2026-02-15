@@ -1,5 +1,5 @@
-import type { TransferResult, TransferPassengerInfo } from "@/lib/core/types";
-import type { TransferPassengerInfo as BookingStoreTransferPassengerInfo } from "@/stores/bookingStore";
+import type { TransferResult } from "@/lib/core/types";
+import type { TransferPassengerInfo } from "@/stores/bookingStore";
 
 export type TransferSearchParams = {
   startLat: number;
@@ -30,7 +30,7 @@ export interface TransfersProvider {
   quote(transferId: string, params: TransferSearchParams): Promise<{ quote: any; debug: any }>;
   book(
     offer: any, // Raw offer object
-    passengerInfo: BookingStoreTransferPassengerInfo,
+    passengerInfo: TransferPassengerInfo,
     paymentId: string,
     bookingReference: string,
   ): Promise<{ booking: any; debug: any }>;
@@ -73,7 +73,7 @@ export class MockTransfersProvider implements TransfersProvider {
 
   async book(
     offer: any,
-    passengerInfo: BookingStoreTransferPassengerInfo,
+    passengerInfo: TransferPassengerInfo,
     paymentId: string,
     bookingReference: string,
   ): Promise<{ booking: any; debug: any }> {

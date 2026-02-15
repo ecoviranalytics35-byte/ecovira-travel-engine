@@ -35,7 +35,7 @@ export async function fulfillCarBooking(bookingId: string): Promise<{ success: b
   }
 
   const carOffer = carItem.item as CarResult;
-  const bookingMetadata = booking.metadata || {};
+  const bookingMetadata = (booking as { metadata?: Record<string, unknown> }).metadata || {};
   const driverInfo = bookingMetadata.carDriverInfo as CarDriverInfo;
 
   if (!driverInfo) {
@@ -50,7 +50,7 @@ export async function fulfillCarBooking(bookingId: string): Promise<{ success: b
       carOffer.raw, // Pass the raw Amadeus offer
       driverInfo,
       booking.paymentId,
-      booking.bookingReference || booking.id // Use existing or generate
+      (booking as { bookingReference?: string }).bookingReference || booking.id // Use existing or generate
     );
 
     // Update booking status to FULFILLMENT_PENDING (or CONFIRMED if Amadeus confirms immediately)
@@ -63,14 +63,14 @@ export async function fulfillCarBooking(bookingId: string): Promise<{ success: b
       .update({
         supplier_reference: providerBooking.providerBookingId,
         status: 'FULFILLMENT_PENDING', // Ensure status is updated in DB
-        metadata: { ...booking.metadata, providerBookingDetails: providerBooking.details },
+        metadata: { ...(booking as { metadata?: Record<string, unknown> }).metadata, providerBookingDetails: providerBooking.details },
       })
       .eq('id', booking.id);
 
     // Send confirmation email
     const { emailSent } = await notifyCarBookingConfirmed(
       booking.id,
-      booking.bookingReference || booking.id,
+      (booking as { bookingReference?: string }).bookingReference || booking.id,
       providerBooking.providerBookingId,
       driverInfo.email,
       {
@@ -78,12 +78,12 @@ export async function fulfillCarBooking(bookingId: string): Promise<{ success: b
         vendor: carOffer.vendor,
         pickupLocation: carOffer.pickupLocation || carOffer.pickup,
         returnLocation: carOffer.returnLocation || carOffer.dropoff,
-        pickupDate: carOffer.pickupDate || '',
-        returnDate: carOffer.returnDate || '',
-        duration: carOffer.duration || 1,
+        pickupDate: (carOffer as { pickupDate?: string }).pickupDate || (carOffer.raw as { pickupDate?: string })?.pickupDate || '',
+        returnDate: (carOffer as { returnDate?: string }).returnDate || (carOffer.raw as { returnDate?: string })?.returnDate || '',
+        duration: (carOffer as { duration?: number }).duration ?? (carOffer.raw as { duration?: number })?.duration ?? 1,
       },
       driverInfo.phone,
-      booking.smsOptIn // Assuming smsOptIn is stored on booking
+      (booking as { smsOptIn?: boolean }).smsOptIn ?? false
     );
 
     if (emailSent) {

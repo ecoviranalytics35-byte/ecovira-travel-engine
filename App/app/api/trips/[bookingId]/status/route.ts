@@ -6,10 +6,10 @@ import type { FlightStatus } from '@/lib/core/trip-types';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { bookingId: string } }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   try {
-    const bookingId = params.bookingId;
+    const { bookingId } = await params;
 
     // Get booking and flight data
     const { data: booking, error } = await supabaseAdmin
@@ -76,7 +76,7 @@ export async function GET(
             actual: flight.departure?.actualAt,
             gate: flight.departure?.terminal?.gate,
             terminal: flight.departure?.terminal?.code,
-            status: determineStatus(flight.departure?.scheduledAt, flight.departure?.estimatedAt, flight.departure?.actualAt),
+            status: determineStatus(flight.departure?.scheduledAt, flight.departure?.estimatedAt, flight.departure?.actualAt) as FlightStatus['departure']['status'],
           },
           arrival: {
             airport: flight.arrival?.iataCode || flightData.arrivalAirport,
@@ -86,7 +86,7 @@ export async function GET(
             gate: flight.arrival?.terminal?.gate,
             terminal: flight.arrival?.terminal?.code,
             baggageBelt: flight.arrival?.baggageBelt,
-            status: determineStatus(flight.arrival?.scheduledAt, flight.arrival?.estimatedAt, flight.arrival?.actualAt),
+            status: determineStatus(flight.arrival?.scheduledAt, flight.arrival?.estimatedAt, flight.arrival?.actualAt) as FlightStatus['arrival']['status'],
           },
           lastUpdated: new Date().toISOString(),
           source: 'amadeus',
