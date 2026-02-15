@@ -222,14 +222,18 @@ export class LiteApiStaysProvider implements StaysProvider {
     try {
       const data = await searchRates(params);
       const results = normalizeResults(data, params);
+      const count = results.length;
+      const status = count > 0 ? "success" : "empty";
+      console.log(JSON.stringify({ event: "liteapi_stays_response", provider: "liteapi", count, status, city: params.city }));
       return {
         results,
-        debug: { provider: "liteapi", count: results.length, city: params.city },
+        debug: { provider: "liteapi", count, status, city: params.city },
       };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       console.error("[LiteApiStaysProvider] search error:", message);
-      return { results: [], debug: { provider: "liteapi", error: message } };
+      console.log(JSON.stringify({ event: "liteapi_stays_response", provider: "liteapi", count: 0, status: "error", city: params.city, error: message }));
+      return { results: [], debug: { provider: "liteapi", error: message, count: 0, status: "error" } };
     }
   }
 

@@ -23,7 +23,7 @@ async function duffelFetch<T = unknown>(
   path: string,
   init: RequestInit & { method?: string; body?: string }
 ): Promise<{ data: T; requestId: string; statusCode: number }> {
-  const token = process.env.DUFFEL_ACCESS_TOKEN;
+  const token = (process.env.DUFFEL_ACCESS_TOKEN ?? "").trim();
   if (!token) {
     structuredLog("error", {
       event: "duffel_config",
@@ -36,7 +36,7 @@ async function duffelFetch<T = unknown>(
   const requestId = newRequestId();
   const url = `${BASE}${path}`;
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
+    Authorization: `Bearer ${token.trim()}`,
     "Duffel-Version": DUFFEL_VERSION,
     Accept: "application/json",
     "Content-Type": "application/json",
@@ -171,7 +171,7 @@ export const duffelFlightProvider: FlightProvider = {
 
   async healthCheck() {
     const requestId = newRequestId();
-    if (!process.env.DUFFEL_ACCESS_TOKEN) {
+    if (!(process.env.DUFFEL_ACCESS_TOKEN ?? "").trim()) {
       structuredLog("error", {
         event: "duffel_health",
         requestId,

@@ -19,8 +19,6 @@ export async function GET() {
     "STRIPE_WEBHOOK_SECRET",
     "NOWPAYMENTS_API_KEY",
     "NOWPAYMENTS_IPN_SECRET",
-    "AMADEUS_API_KEY",
-    "AMADEUS_API_SECRET",
   ];
 
   const result: Record<string, {
@@ -45,12 +43,11 @@ export async function GET() {
   const diagnostics = {
     cwd: process.cwd(),
     nodeEnv: process.env.NODE_ENV,
+    vercelEnv: process.env.VERCEL_ENV,
     hasNextPublicSiteUrl: !!process.env.NEXT_PUBLIC_SITE_URL,
     totalEnvVarsCount: Object.keys(process.env).length,
-    // Show sample of env var names that contain key patterns
     stripeRelated: Object.keys(process.env).filter(k => k.includes("STRIPE") || k.includes("stripe")),
     nowpaymentsRelated: Object.keys(process.env).filter(k => k.includes("NOW") || k.includes("now")),
-    amadeusRelated: Object.keys(process.env).filter(k => k.includes("AMADEUS") || k.includes("amadeus")),
   };
 
   return NextResponse.json({

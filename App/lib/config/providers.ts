@@ -9,11 +9,9 @@ const PRIMARY_HOTEL = (process.env.PRIMARY_HOTEL_PROVIDER || "liteapi").toLowerC
 export const PROVIDER_NAMES = {
   FLIGHT: {
     DUFFEL: "duffel",
-    AMADEUS: "amadeus",
   },
   HOTEL: {
     LITEAPI: "liteapi",
-    AMADEUS: "amadeus",
   },
 } as const;
 

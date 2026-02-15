@@ -1,6 +1,7 @@
 import { getFlightProvider } from "@/lib/providers/flights";
 import { getPrimaryHotelProvider } from "@/lib/config/providers";
 import { getHotelProvider } from "@/lib/providers/hotels";
+import { isProduction } from "@/lib/core/env";
 import { searchCars as searchCarsAmadeus } from "@/lib/transport/cars/amadeus";
 import { searchTransfers as searchTransfersAmadeus } from "@/lib/transport/transfers/amadeus";
 import type { FlightResult, StayResult, CarResult, TransferResult } from "@/lib/core/types";
@@ -157,11 +158,13 @@ export async function searchTransfers(params: TransferSearchParams): Promise<{ r
     const duration = Date.now() - start;
     const error = e instanceof Error ? e.message : 'Unknown error';
     console.log(JSON.stringify({ event: 'search', category: 'transfers', duration, provider: 'amadeus', count: 0, status: 'error', error }));
-    
-    // Fallback stub if Amadeus is not available
+
+    if (isProduction()) {
+      return { results: [], meta: {}, errors: [error] };
+    }
+
     const hasEnv = process.env.AMADEUS_API_KEY && process.env.AMADEUS_API_SECRET;
     if (!hasEnv || error.includes('401') || error.includes('403') || error.includes('not available')) {
-      // Return stub results for testing UI
       const stubResults: TransferResult[] = [
         {
           id: 'stub-1',
@@ -194,7 +197,7 @@ export async function searchTransfers(params: TransferSearchParams): Promise<{ r
       ];
       return { results: stubResults, meta: { provider: 'stub', note: 'Transfers beta - using placeholder results' }, errors: [] };
     }
-    
+
     return { results: [], meta: {}, errors: [error] };
   }
 }
