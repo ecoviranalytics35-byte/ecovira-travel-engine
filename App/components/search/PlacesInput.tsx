@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { MapPin } from "lucide-react";
 
 export interface PlaceResult {
@@ -29,6 +30,7 @@ export function PlacesInput({ value, onChange, placeholder = "Melbourne", label,
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lastSelectedRef = useRef<string | null>(null);
+  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
     if (value !== lastSelectedRef.current) {
@@ -41,6 +43,7 @@ export function PlacesInput({ value, onChange, placeholder = "Melbourne", label,
     if (query.length < 1) {
       setResults([]);
       setIsOpen(false);
+      setDropdownRect(null);
       return;
     }
 
@@ -48,11 +51,27 @@ export function PlacesInput({ value, onChange, placeholder = "Melbourne", label,
       setLoading(true);
       const url = `/api/places/search?q=${encodeURIComponent(query.trim())}`;
       try {
-        const res = await fetch(url);
-        const data = await res.json();
-        const list = Array.isArray(data.results) ? data.results : [];
+        const res = await fetch(url, { cache: "no-store" });
+        const text = await res.text();
+        let data: { results?: unknown };
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          setResults([]);
+          setIsOpen(false);
+          setDropdownRect(null);
+          setLoading(false);
+          return;
+        }
+        const list = Array.isArray(data.results) ? data.results as PlaceResult[] : [];
         setResults(list);
         setIsOpen(list.length > 0);
+        if (list.length > 0 && containerRef.current) {
+          const rect = containerRef.current.getBoundingClientRect();
+          setDropdownRect({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+        } else {
+          setDropdownRect(null);
+        }
         if (onDebugInfo && typeof console.debug === "function") {
           console.debug("places_autocomplete", { q: query.trim(), count: list.length });
         }
@@ -89,6 +108,7 @@ export function PlacesInput({ value, onChange, placeholder = "Melbourne", label,
     onChange(place.city, place.countryCode, place.lat || undefined, place.lng || undefined);
     setIsOpen(false);
     setResults([]);
+    setDropdownRect(null);
     inputRef.current?.blur();
   };
 
@@ -131,26 +151,33 @@ export function PlacesInput({ value, onChange, placeholder = "Melbourne", label,
         )}
       </div>
 
-      {isOpen && results.length > 0 && (
-        <div
-          className="absolute z-[9999] w-full mt-2 bg-[rgba(15,17,20,0.98)] backdrop-blur-xl border border-[rgba(28,140,130,0.3)] rounded-ec-md shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-visible"
-          role="listbox"
-        >
-          <div className="max-h-64 overflow-y-auto p-2">
-            {results.map((place, index) => (
-              <button
-                key={`${place.city}-${place.countryCode}-${index}`}
-                type="button"
-                role="option"
-                onClick={() => handleSelect(place)}
-                className="w-full text-left px-4 py-3 rounded-lg bg-[rgba(28,140,130,0.08)] hover:bg-[rgba(28,140,130,0.2)] border border-transparent hover:border-[rgba(28,140,130,0.3)] text-ec-text transition-all"
-              >
-                <span className="font-semibold text-sm">{place.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {typeof document !== "undefined" &&
+        isOpen &&
+        results.length > 0 &&
+        dropdownRect &&
+        createPortal(
+          <div
+            id="places-dropdown-portal"
+            role="listbox"
+            className="fixed z-[99999] bg-[rgba(15,17,20,0.98)] backdrop-blur-xl border border-[rgba(28,140,130,0.3)] rounded-ec-md shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden"
+            style={{ top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width, minWidth: 200 }}
+          >
+            <div className="max-h-64 overflow-y-auto p-2">
+              {results.map((place, index) => (
+                <button
+                  key={`${place.city}-${place.countryCode}-${index}`}
+                  type="button"
+                  role="option"
+                  onClick={() => handleSelect(place)}
+                  className="w-full text-left px-4 py-3 rounded-lg bg-[rgba(28,140,130,0.08)] hover:bg-[rgba(28,140,130,0.2)] border border-transparent hover:border-[rgba(28,140,130,0.3)] text-ec-text transition-all"
+                >
+                  <span className="font-semibold text-sm">{place.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Plane } from "lucide-react";
 
 interface Airport {
@@ -42,9 +43,10 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
   useEffect(syncFromParent, [syncFromParent]);
 
   useEffect(() => {
-    if (query.length < 1) {
+        if (query.length < 1) {
       setResults([]);
       setIsOpen(false);
+      setDropdownRect(null);
       return;
     }
 
@@ -65,6 +67,7 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
           }
           setResults([]);
           setIsOpen(false);
+          setDropdownRect(null);
           onDebugInfo?.({ url, status: res.status, count: 0, error: "Invalid JSON" });
           setLoading(false);
           return;
@@ -73,6 +76,12 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
         if (abortController.signal.aborted) return;
         setResults(list);
         setIsOpen(list.length > 0);
+        if (list.length > 0 && containerRef.current) {
+          const rect = containerRef.current.getBoundingClientRect();
+          setDropdownRect({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+        } else {
+          setDropdownRect(null);
+        }
         if (onDebugInfo && typeof console.debug === "function") {
           console.debug("airport_autocomplete", { q: input, url, status: res.status, count: list.length, first: list[0] ?? null });
         }
@@ -82,6 +91,7 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
         const msg = error instanceof Error ? error.message : String(error);
         setResults([]);
         setIsOpen(false);
+        setDropdownRect(null);
         onDebugInfo?.({ url, status: 0, count: 0, error: msg });
         if (onDebugInfo && typeof console.debug === "function") {
           console.debug("airport_autocomplete", { q: input, url, status: 0, error: msg });
@@ -99,8 +109,12 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target)) {
+        const portalEl = document.getElementById("airport-dropdown-portal");
+        if (portalEl && portalEl.contains(target)) return;
         setIsOpen(false);
+        setDropdownRect(null);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -113,6 +127,7 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
     onChange(airport.iataCode);
     setIsOpen(false);
     setResults([]);
+    setDropdownRect(null);
     inputRef.current?.blur();
   };
 
@@ -161,29 +176,36 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
         )}
       </div>
 
-      {isOpen && results.length > 0 && (
-        <div
-          className="absolute z-[9999] w-full mt-2 bg-[rgba(15,17,20,0.98)] backdrop-blur-xl border border-[rgba(28,140,130,0.3)] rounded-ec-md shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden"
-          role="listbox"
-        >
-          <div className="max-h-64 overflow-y-auto p-2">
-            {results.map((airport, index) => (
-              <button
-                key={`${airport.iataCode}-${index}`}
-                type="button"
-                role="option"
-                onClick={() => handleSelect(airport)}
-                className="w-full text-left px-4 py-3 rounded-lg bg-[rgba(28,140,130,0.08)] hover:bg-[rgba(28,140,130,0.2)] border border-transparent hover:border-[rgba(28,140,130,0.3)] text-ec-text transition-all flex flex-col gap-0.5"
-              >
-                <span className="font-semibold text-sm">{airport.displayName}</span>
-                <span className="text-ec-muted text-xs">
-                  {[airport.city, airport.country].filter(Boolean).join(", ")}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {typeof document !== "undefined" &&
+        isOpen &&
+        results.length > 0 &&
+        dropdownRect &&
+        createPortal(
+          <div
+            id="airport-dropdown-portal"
+            role="listbox"
+            className="fixed z-[99999] bg-[rgba(15,17,20,0.98)] backdrop-blur-xl border border-[rgba(28,140,130,0.3)] rounded-ec-md shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden"
+            style={{ top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width, minWidth: 200 }}
+          >
+            <div className="max-h-64 overflow-y-auto p-2">
+              {results.map((airport, index) => (
+                <button
+                  key={`${airport.iataCode}-${index}`}
+                  type="button"
+                  role="option"
+                  onClick={() => handleSelect(airport)}
+                  className="w-full text-left px-4 py-3 rounded-lg bg-[rgba(28,140,130,0.08)] hover:bg-[rgba(28,140,130,0.2)] border border-transparent hover:border-[rgba(28,140,130,0.3)] text-ec-text transition-all flex flex-col gap-0.5"
+                >
+                  <span className="font-semibold text-sm">{airport.displayName}</span>
+                  <span className="text-ec-muted text-xs">
+                    {[airport.city, airport.country].filter(Boolean).join(", ")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

@@ -19,14 +19,27 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const query = (searchParams.get("q") ?? searchParams.get("query") ?? "").trim();
 
-  if (!query || query.length < 2) {
+  if (!query) {
     return jsonResults([]);
   }
 
   const production = isProduction();
 
+  /** Dev fallback when no token or Duffel returns empty — so dropdown always shows when typing */
+  const STATIC_AIRPORTS = [
+    { iataCode: "MEL", name: "Melbourne", city: "Melbourne", country: "AU", displayName: "Melbourne (MEL)", fullDisplay: "Melbourne - Melbourne - MEL" },
+    { iataCode: "SYD", name: "Sydney", city: "Sydney", country: "AU", displayName: "Sydney (SYD)", fullDisplay: "Sydney - Sydney - SYD" },
+    { iataCode: "LHR", name: "London Heathrow", city: "London", country: "GB", displayName: "London Heathrow (LHR)", fullDisplay: "London Heathrow - London - LHR" },
+    { iataCode: "LGW", name: "London Gatwick", city: "London", country: "GB", displayName: "London Gatwick (LGW)", fullDisplay: "London Gatwick - London - LGW" },
+    { iataCode: "IST", name: "Istanbul", city: "Istanbul", country: "TR", displayName: "Istanbul (IST)", fullDisplay: "Istanbul - Istanbul - IST" },
+    { iataCode: "CDG", name: "Paris Charles de Gaulle", city: "Paris", country: "FR", displayName: "Paris Charles de Gaulle (CDG)", fullDisplay: "Paris Charles de Gaulle - Paris - CDG" },
+    { iataCode: "JFK", name: "New York JFK", city: "New York", country: "US", displayName: "New York JFK (JFK)", fullDisplay: "New York JFK - New York - JFK" },
+  ];
+  const qLower = query.toLowerCase();
+  const staticMatch = () => STATIC_AIRPORTS.filter((a) => a.iataCode.toLowerCase().startsWith(qLower) || a.city.toLowerCase().includes(qLower) || a.name.toLowerCase().includes(qLower)).slice(0, 10);
+
   if (production) {
-    const token = (process.env.DUFFEL_ACCESS_TOKEN ?? "").trim();
+    const token = (process.env.DUFFEL_ACCESS_TOKEN || "").trim();
     if (!token) {
       console.error("[airports/search] Production: DUFFEL_ACCESS_TOKEN is missing");
       return NextResponse.json(
@@ -37,9 +50,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const token = (process.env.DUFFEL_ACCESS_TOKEN ?? "").trim();
+    const token = (process.env.DUFFEL_ACCESS_TOKEN || "").trim();
     if (!token) {
       console.log(JSON.stringify({ event: "airports_search", query, count: 0, statusCode: 200, provider: "duffel", note: "no_token" }));
+      if (!production) return jsonResults(staticMatch());
       return jsonResults([]);
     }
 
@@ -108,6 +122,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(JSON.stringify({ event: "airports_search", query, count: results.length, statusCode: res.status, provider: "duffel" }));
+    if (results.length === 0 && !production) return jsonResults(staticMatch());
     return jsonResults(results);
   } catch (error) {
     console.error("[airports/search] Error", error);
@@ -118,6 +133,6 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-    return jsonResults([]);
+    return jsonResults(staticMatch());
   }
 }
