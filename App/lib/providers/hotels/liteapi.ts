@@ -1,7 +1,7 @@
 /**
  * LiteAPI hotel provider (sandbox/production via LITEAPI_API_KEY).
- * Implements: hotel search, room availability, rate details.
- * Rate expiration: we do not cache or return expired rates.
+ * Server-side only: use LITEAPI_API_KEY (not NEXT_PUBLIC_).
+ * Endpoint: POST /hotels/rates = inventory search by city (returns rates), not a rates-by-hotelIds-only endpoint.
  */
 
 import type { StaySearchParams, NormalizedStay, StaysProvider } from "@/lib/stays/provider";
@@ -16,22 +16,99 @@ function getApiKey(): string {
   return key;
 }
 
-function liteApiFetch<T>(path: string, init: { method: string; body?: object; headers?: Record<string, string> }): Promise<T> {
+function sanitizeKeyForLog(key: string): string {
+  if (!key) return "length=0";
+  const len = key.length;
+  const prefix = key.slice(0, 6);
+  return `length=${len}, first6=${prefix}`;
+}
+
+/** Log outbound request (sanitized). Returns { data, statusCode, rawCount } from response. */
+async function liteApiFetchWithLog<T>(
+  path: string,
+  init: { method: string; body?: object; headers?: Record<string, string> },
+  logContext: { city?: string; checkIn?: string; checkOut?: string; adults?: number }
+): Promise<{ data: T; statusCode: number; rawCount: number }> {
   const apiKey = getApiKey();
   const url = `${LITEAPI_BASE}${path}`;
+  const body = init.body;
   const headers: Record<string, string> = {
     "X-API-Key": apiKey,
     "Content-Type": "application/json",
     Accept: "application/json",
     ...(init.headers ?? {}),
   };
+  const headersForLog = {
+    "Content-Type": headers["Content-Type"],
+    Accept: headers["Accept"],
+    "X-API-Key": sanitizeKeyForLog(apiKey),
+  };
+  console.log(JSON.stringify({
+    event: "liteapi_request",
+    provider: "liteapi",
+    endpoint: url,
+    method: init.method,
+    bodyParams: body ? { ...body, cityName: (body as any).cityName, countryCode: (body as any).countryCode, checkin: (body as any).checkin, checkout: (body as any).checkout, occupancies: (body as any).occupancies, currency: (body as any).currency } : undefined,
+    headersPresent: Object.keys(headersForLog),
+    apiKeySanitized: headersForLog["X-API-Key"],
+    ...logContext,
+  }));
+
   const fetchInit: RequestInit = {
     method: init.method,
-    headers,
+    headers: { "X-API-Key": apiKey, "Content-Type": "application/json", Accept: "application/json", ...(init.headers ?? {}) },
   };
-  if (init.body) {
-    fetchInit.body = JSON.stringify(init.body);
+  if (body) fetchInit.body = JSON.stringify(body);
+
+  const res = await fetch(url, fetchInit);
+  const statusCode = res.status;
+  const rawText = await res.text();
+
+  let parsed: any;
+  try {
+    parsed = rawText ? JSON.parse(rawText) : {};
+  } catch {
+    parsed = {};
   }
+  const topLevelKeys = Object.keys(parsed);
+  const rawDataArray = Array.isArray(parsed?.data) ? parsed.data : Array.isArray(parsed?.hotels) ? parsed.hotels : Array.isArray(parsed?.result) ? parsed.result : (parsed?.result && Array.isArray(parsed.result?.data)) ? parsed.result.data : (parsed?.result && Array.isArray(parsed.result?.items)) ? parsed.result.items : [];
+  const rawCount = rawDataArray.length;
+
+  const responseDump = JSON.stringify(parsed).slice(0, 2000);
+  console.log(JSON.stringify({
+    event: "liteapi_response_structure",
+    provider: "liteapi",
+    statusCode,
+    responseTopLevelKeys: topLevelKeys,
+    rawCount,
+    hasData: Array.isArray(parsed?.data),
+    dataLength: Array.isArray(parsed?.data) ? parsed.data.length : 0,
+    hasHotels: Array.isArray(parsed?.hotels),
+    hasResult: !!parsed?.result,
+    responseDumpSanitized: responseDump,
+    ...logContext,
+  }));
+
+  if (!res.ok) {
+    throw new Error(`LiteAPI ${statusCode}: ${rawText.slice(0, 300)}`);
+  }
+
+  if (parsed && (parsed.error || (typeof parsed.message === "string" && parsed.message.length > 0 && parsed.data === undefined))) {
+    const msg = parsed.message || parsed.error || String(parsed.error);
+    throw new Error(`LiteAPI 200 error: ${msg}`);
+  }
+
+  return { data: parsed as T, statusCode, rawCount };
+}
+
+function liteApiFetch<T>(path: string, init: { method: string; body?: object; headers?: Record<string, string> }): Promise<T> {
+  const apiKey = getApiKey();
+  const url = `${LITEAPI_BASE}${path}`;
+  const fetchInit: RequestInit = {
+    method: init.method,
+    headers: { "X-API-Key": apiKey, "Content-Type": "application/json", Accept: "application/json", ...(init.headers ?? {}) },
+  };
+  if (init.body) fetchInit.body = JSON.stringify(init.body);
   return fetch(url, fetchInit).then(async (res) => {
     if (!res.ok) {
       const text = await res.text();
@@ -86,9 +163,12 @@ interface LiteApiRatesRequest {
   currency: string;
   guestNationality: string;
   occupancies: Array<{ rooms: number; adults: number; children?: number[] }>;
-  city?: string;
+  cityName?: string;
   countryCode?: string;
   hotelIds?: string[];
+  latitude?: number;
+  longitude?: number;
+  radius?: number;
 }
 
 interface LiteApiRoomOffer {
@@ -114,51 +194,142 @@ interface LiteApiRatesResponse {
   }>;
 }
 
-// --- Hotel search (POST /hotels/rates by city)
-async function searchRates(params: StaySearchParams): Promise<LiteApiRatesResponse> {
-  const checkIn = params.checkIn;
-  const checkOut = new Date(Date.parse(checkIn));
-  checkOut.setDate(checkOut.getDate() + (params.nights || 1));
-  const checkoutStr = checkOut.toISOString().split("T")[0];
-  const countryCode = inferCountryCode(params.city);
+const CBD_COORDINATES: Record<string, { lat: number; lng: number }> = {
+  Sydney: { lat: -33.8688, lng: 151.2093 },
+  Melbourne: { lat: -37.8136, lng: 144.9631 },
+};
 
+function getCheckOutStr(params: StaySearchParams): string {
+  const checkOut = new Date(params.checkIn + "T12:00:00");
+  checkOut.setDate(checkOut.getDate() + (params.nights || 1));
+  return checkOut.toISOString().split("T")[0];
+}
+
+function buildRatesOccupancies(params: StaySearchParams): LiteApiRatesRequest["occupancies"] {
+  return [{ rooms: params.rooms || 1, adults: params.adults || 1, ...(params.children ? { children: [10] } : {}) }];
+}
+
+// --- Step 1: GET /data/hotels to obtain hotel IDs by city (for 2-step fallback)
+async function getHotelIdsByCity(cityName: string, countryCode: string): Promise<string[]> {
+  const apiKey = getApiKey();
+  const url = `${LITEAPI_BASE}/data/hotels?countryCode=${encodeURIComponent(countryCode)}&cityName=${encodeURIComponent(cityName)}&limit=50`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { "X-API-Key": apiKey, Accept: "application/json" },
+  });
+  const raw = await res.text();
+  let data: any = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    return [];
+  }
+  if (!res.ok) {
+    console.warn(JSON.stringify({ event: "liteapi_data_hotels", statusCode: res.status, error: data?.message || raw.slice(0, 200) }));
+    return [];
+  }
+  const hotelIds: string[] = [];
+  const rawIds = data.hotelIds ?? data.HotelIds ?? data.hotel_ids;
+  if (typeof rawIds === "string") {
+    rawIds.split(",").forEach((id: string) => {
+      const t = id.trim();
+      if (t) hotelIds.push(t);
+    });
+  }
+  if (Array.isArray(data.data)) {
+    data.data.forEach((h: any) => {
+      const id = h?.hotelId ?? h?.id ?? h?.hotel_id;
+      if (id) hotelIds.push(String(id));
+    });
+  }
+  if (Array.isArray(data.hotels)) {
+    data.hotels.forEach((h: any) => {
+      const id = h?.hotelId ?? h?.id ?? h?.hotel_id;
+      if (id) hotelIds.push(String(id));
+    });
+  }
+  console.log(JSON.stringify({ event: "liteapi_data_hotels", cityName, countryCode, hotelIdsCount: hotelIds.length }));
+  return hotelIds;
+}
+
+// --- Hotel search (POST /hotels/rates) — supports cityName, geo, or hotelIds
+async function searchRates(
+  params: StaySearchParams,
+  overrides?: { cityName?: string; countryCode?: string; hotelIds?: string[]; latitude?: number; longitude?: number; radius?: number }
+): Promise<{ data: LiteApiRatesResponse; statusCode: number; rawCount: number }> {
+  const checkIn = params.checkIn;
+  const checkoutStr = getCheckOutStr(params);
+  const countryCode = overrides?.countryCode ?? inferCountryCode(params.city);
   const body: LiteApiRatesRequest = {
     checkin: checkIn,
     checkout: checkoutStr,
     currency: params.currency || "AUD",
     guestNationality: "AU",
-    occupancies: [{ rooms: params.rooms || 1, adults: params.adults || 1, ...(params.children ? { children: [10] } : {}) }],
-    city: params.city,
+    occupancies: buildRatesOccupancies(params),
+    cityName: overrides?.cityName ?? params.city?.trim() || "Melbourne",
     countryCode,
+    hotelIds: overrides?.hotelIds,
+    latitude: overrides?.latitude,
+    longitude: overrides?.longitude,
+    radius: overrides?.radius ?? 5000,
   };
-  return liteApiFetch<LiteApiRatesResponse>("/hotels/rates", { method: "POST", body });
+  if (overrides?.hotelIds?.length) {
+    body.cityName = undefined;
+    body.countryCode = undefined;
+    body.latitude = undefined;
+    body.longitude = undefined;
+    body.radius = undefined;
+  } else if (overrides?.latitude != null && overrides?.longitude != null) {
+    body.cityName = undefined;
+    body.countryCode = undefined;
+  }
+  if (body.latitude == null && body.longitude == null) {
+    body.radius = undefined;
+  }
+  const logContext = { city: params.city, checkIn, checkOut: checkoutStr, adults: params.adults };
+  return liteApiFetchWithLog<LiteApiRatesResponse>("/hotels/rates", { method: "POST", body }, logContext);
+}
+
+/** Extract hotel/rate items array from LiteAPI response (multiple possible shapes). */
+function extractDataArray(raw: any): any[] {
+  if (Array.isArray(raw?.data)) return raw.data;
+  if (Array.isArray(raw?.hotels)) return raw.hotels;
+  if (Array.isArray(raw?.result)) return raw.result;
+  if (raw?.result && Array.isArray(raw.result?.data)) return raw.result.data;
+  if (raw?.result && Array.isArray(raw.result?.items)) return raw.result.items;
+  if (Array.isArray(raw)) return raw;
+  return [];
 }
 
 // --- Normalize and filter expired
 function normalizeResults(
-  data: LiteApiRatesResponse,
+  raw: any,
   params: StaySearchParams
 ): NormalizedStay[] {
   const results: NormalizedStay[] = [];
   const seen = new Set<string>();
   const now = Date.now();
 
-  for (const item of data.data ?? []) {
-    const hotel = item.hotel;
-    const hotelId = hotel?.hotelId ?? "";
+  const items = extractDataArray(raw);
+  for (const item of items) {
+    const hotel = (item as any).hotel ?? item;
+    const hotelId = hotel?.hotelId ?? hotel?.hotel_id ?? "";
     const hotelName = hotel?.name ?? "Hotel";
     const city = hotel?.city ?? params.city;
+    const roomTypesList = (item as any).roomTypes ?? (item as any).room_types ?? [];
 
-    for (const roomType of item.roomTypes ?? []) {
-      for (const offer of roomType.offers ?? []) {
-        const offerId = offer.offerId;
+    for (const roomType of roomTypesList) {
+      const offersList = roomType.offers ?? roomType.rates ?? [];
+      for (const offer of offersList) {
+        const offerId = offer.offerId ?? offer.offer_id ?? offer.rateId ?? offer.rate_id;
         if (!offerId || seen.has(offerId)) continue;
-        const expiresAt = offer.expiresAt;
-        if (expiresAt && new Date(expiresAt).getTime() <= now) continue; // do not return expired rates
+        const expiresAt = offer.expiresAt ?? offer.expires_at;
+        if (expiresAt && new Date(expiresAt).getTime() <= now) continue;
         seen.add(offerId);
-        const total = typeof offer.price?.total === "number" ? offer.price.total : parseFloat(String(offer.price?.total ?? 0)) || 0;
+        const priceObj = offer.price ?? offer;
+        const total = typeof priceObj?.total === "number" ? priceObj.total : parseFloat(String(priceObj?.total ?? 0)) || 0;
         results.push({
-          id: offerId,
+          id: String(offerId),
           city,
           name: hotelName,
           checkIn: params.checkIn,
@@ -166,7 +337,7 @@ function normalizeResults(
           roomType: params.roomType || "double",
           classType: params.classType || "standard",
           total,
-          currency: offer.price?.currency || params.currency || "AUD",
+          currency: priceObj?.currency || params.currency || "AUD",
           provider: "liteapi",
           raw: { offerId, expiresAt, roomName: roomType.name, offer },
         });
@@ -216,24 +387,159 @@ export async function rateDetails(offerId: string): Promise<PrebookResponse> {
   return liteApiFetch<PrebookResponse>("/rates/prebook", { method: "POST", body });
 }
 
-// --- StaysProvider implementation
+// --- StaysProvider implementation with fallback chain: cityName -> geo (Sydney/Melbourne) -> 2-step (data/hotels + rates)
 export class LiteApiStaysProvider implements StaysProvider {
   async search(params: StaySearchParams): Promise<{ results: NormalizedStay[]; debug: any }> {
+    const checkOutStr = getCheckOutStr(params);
+    const countryCode = inferCountryCode(params.city);
+    const cityName = params.city?.trim() || "Melbourne";
+
+    const run = async (
+      mode: "cityName" | "geo" | "hotelIds",
+      overrides?: { cityName?: string; countryCode?: string; hotelIds?: string[]; latitude?: number; longitude?: number; radius?: number }
+    ): Promise<{ data: any; statusCode: number; rawCount: number }> => {
+      return searchRates(params, overrides);
+    };
+
+    let lastData: any = null;
+    let lastStatusCode = 0;
+    let lastRawCount = 0;
+    let results: NormalizedStay[] = [];
+
     try {
-      const data = await searchRates(params);
-      const results = normalizeResults(data, params);
-      const count = results.length;
-      const status = count > 0 ? "success" : "empty";
-      console.log(JSON.stringify({ event: "liteapi_stays_response", provider: "liteapi", count, status, city: params.city }));
+      const { data, statusCode, rawCount } = await run("cityName");
+      lastData = data;
+      lastStatusCode = statusCode;
+      lastRawCount = rawCount;
+      results = normalizeResults(data, params);
+
+      if (results.length > 0) {
+        console.log(JSON.stringify({
+          event: "stays_search",
+          provider: "liteapi",
+          city: params.city,
+          checkIn: params.checkIn,
+          checkOut: checkOutStr,
+          adults: params.adults,
+          statusCode: lastStatusCode,
+          rawCount: lastRawCount,
+          parsedCount: results.length,
+          mode: "cityName",
+        }));
+        return {
+          results,
+          debug: { provider: "liteapi", count: results.length, status: "success", city: params.city, rawCount: lastRawCount, parsedCount: results.length, statusCode: lastStatusCode, mode: "cityName" },
+        };
+      }
+
+      const cbd = CBD_COORDINATES[cityName];
+      if (cbd) {
+        const res2 = await run("geo", {
+          latitude: cbd.lat,
+          longitude: cbd.lng,
+          radius: 5000,
+          cityName: undefined,
+          countryCode,
+        });
+        lastData = res2.data;
+        lastStatusCode = res2.statusCode;
+        lastRawCount = res2.rawCount;
+        results = normalizeResults(res2.data, params);
+        if (results.length > 0) {
+          console.log(JSON.stringify({
+            event: "stays_search",
+            provider: "liteapi",
+            city: params.city,
+            checkIn: params.checkIn,
+            checkOut: checkOutStr,
+            adults: params.adults,
+            statusCode: lastStatusCode,
+            rawCount: lastRawCount,
+            parsedCount: results.length,
+            mode: "geo",
+          }));
+          return {
+            results,
+            debug: { provider: "liteapi", count: results.length, status: "success", city: params.city, rawCount: lastRawCount, parsedCount: results.length, statusCode: lastStatusCode, mode: "geo" },
+          };
+        }
+      }
+
+      const hotelIds = await getHotelIdsByCity(cityName, countryCode);
+      if (hotelIds.length > 0) {
+        const res3 = await run("hotelIds", {
+          hotelIds: hotelIds.slice(0, 30),
+          cityName: undefined,
+          countryCode: undefined,
+        });
+        lastData = res3.data;
+        lastStatusCode = res3.statusCode;
+        lastRawCount = res3.rawCount;
+        results = normalizeResults(res3.data, params);
+        if (results.length > 0) {
+          console.log(JSON.stringify({
+            event: "stays_search",
+            provider: "liteapi",
+            city: params.city,
+            checkIn: params.checkIn,
+            checkOut: checkOutStr,
+            adults: params.adults,
+            statusCode: lastStatusCode,
+            rawCount: lastRawCount,
+            parsedCount: results.length,
+            mode: "hotelIds",
+          }));
+          return {
+            results,
+            debug: { provider: "liteapi", count: results.length, status: "success", city: params.city, rawCount: lastRawCount, parsedCount: results.length, statusCode: lastStatusCode, mode: "hotelIds" },
+          };
+        }
+      }
+
+      const parsedCount = results.length;
+      console.log(JSON.stringify({
+        event: "stays_search",
+        provider: "liteapi",
+        city: params.city,
+        checkIn: params.checkIn,
+        checkOut: checkOutStr,
+        adults: params.adults,
+        statusCode: lastStatusCode,
+        rawCount: lastRawCount,
+        parsedCount,
+        mode: "all_fallbacks_tried",
+      }));
       return {
         results,
-        debug: { provider: "liteapi", count, status, city: params.city },
+        debug: {
+          provider: "liteapi",
+          count: parsedCount,
+          status: "empty",
+          city: params.city,
+          rawCount: lastRawCount,
+          parsedCount,
+          statusCode: lastStatusCode,
+        },
       };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       console.error("[LiteApiStaysProvider] search error:", message);
-      console.log(JSON.stringify({ event: "liteapi_stays_response", provider: "liteapi", count: 0, status: "error", city: params.city, error: message }));
-      return { results: [], debug: { provider: "liteapi", error: message, count: 0, status: "error" } };
+      console.log(JSON.stringify({
+        event: "stays_search",
+        provider: "liteapi",
+        city: params.city,
+        checkIn: params.checkIn,
+        checkOut: checkOutStr,
+        adults: params.adults,
+        statusCode: null,
+        rawCount: 0,
+        parsedCount: 0,
+        error: message,
+      }));
+      return {
+        results: [],
+        debug: { provider: "liteapi", error: message, count: 0, status: "error", rawCount: 0, parsedCount: 0, statusCode: null },
+      };
     }
   }
 
@@ -355,7 +661,7 @@ export async function liteApiHealthCheck(): Promise<{
         currency: "AUD",
         guestNationality: "AU",
         occupancies: [{ rooms: 1, adults: 1 }],
-        city: "Sydney",
+        cityName: "Sydney",
         countryCode: "AU",
       }),
     });

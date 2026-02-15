@@ -13,7 +13,8 @@ const cache = new Map<string, { results: any[], timestamp: number }>();
 const TTL = 5 * 60 * 1000; // 5 minutes
 
 function flightCacheKey(params: Record<string, unknown>): string {
-  return `flights:${params.from}:${params.to}:${params.departDate}:${params.returnDate ?? ""}:${params.adults}:${params.cabinClass ?? "economy"}`;
+  const test = (params as { _testDuffel?: boolean })._testDuffel ? ":test" : "";
+  return `flights:${params.from}:${params.to}:${params.departDate}:${params.returnDate ?? ""}:${params.adults}:${params.cabinClass ?? "economy"}${test}`;
 }
 
 export async function searchFlights(params: any): Promise<{ results: FlightResult[], meta: any, errors: string[] }> {
