@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { FlightResult } from "@/lib/core/types";
 import { useEvent } from "@/lib/hooks/useEvent";
@@ -54,10 +54,13 @@ function getDefaultReturnDate(): string {
 
 export default function Flights() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const debugMode = searchParams.get("debug") === "1";
   const setSelectedOffer = useBookingStore((state) => state.setSelectedOffer);
   const [tripType, setTripType] = useState("roundtrip");
   const [from, setFrom] = useState("MEL");
   const [to, setTo] = useState("SYD");
+  const [lastAutocompleteDebug, setLastAutocompleteDebug] = useState<AutocompleteDebugInfo | null>(null);
   const [departDate, setDepartDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [adults, setAdults] = useState(1);
@@ -280,14 +283,21 @@ export default function Flights() {
             onChange={setFrom}
             placeholder="MEL"
             label="From"
+            onDebugInfo={debugMode ? setLastAutocompleteDebug : undefined}
           />
           <AirportInput
             value={to}
             onChange={setTo}
             placeholder="SYD"
             label="To"
+            onDebugInfo={debugMode ? setLastAutocompleteDebug : undefined}
           />
         </div>
+        {debugMode && (
+          <div className="mb-6">
+            <DebugAutocompletePanel info={lastAutocompleteDebug} label="Airport autocomplete" />
+          </div>
+        )}
 
         {/* Row 2: Departure | Return */}
         <div className={tripType === "roundtrip" ? "ec-grid-2 mb-6" : "mb-6"}>

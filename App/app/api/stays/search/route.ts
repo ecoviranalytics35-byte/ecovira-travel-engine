@@ -7,15 +7,15 @@ export const runtime = "nodejs";
 const YYYY_MM_DD = /^\d{4}-\d{2}-\d{2}$/;
 const VALID_CURRENCY = /^[A-Z]{3}$/;
 
-/** Supported city names for LiteAPI (cityName + countryCode). */
-const SUPPORTED_CITIES = new Set([
+/** Optional allowlist for non-production; in production we do NOT restrict cities (global autocomplete). */
+const SUPPORTED_CITIES_DEV = new Set([
   "melbourne", "sydney", "brisbane", "perth", "adelaide",
   "rome", "milan", "london", "paris", "new york", "los angeles",
-  "dubai", "singapore", "tokyo",
+  "dubai", "singapore", "tokyo", "istanbul",
 ]);
 
-function isSupportedCity(city: string): boolean {
-  return city.length > 0 && SUPPORTED_CITIES.has(city.trim().toLowerCase());
+function isSupportedCityForDev(city: string): boolean {
+  return city.length > 0 && SUPPORTED_CITIES_DEV.has(city.trim().toLowerCase());
 }
 
 /** Server-only: known-good test dates 2–6 weeks ahead. */
@@ -28,9 +28,15 @@ function getTestCheckIn(): string {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const testLiteapi = searchParams.get("test") === "liteapi";
+  const production = isProduction();
 
   const cityRaw = searchParams.get("city")?.trim() || "";
   const city = testLiteapi ? "Sydney" : (cityRaw || "Melbourne");
+  const countryCodeParam = searchParams.get("countryCode")?.trim().toUpperCase() || undefined;
+  const latParam = searchParams.get("lat");
+  const lngParam = searchParams.get("lng");
+  const latitude = latParam != null && latParam !== "" ? parseFloat(latParam) : undefined;
+  const longitude = lngParam != null && lngParam !== "" ? parseFloat(lngParam) : undefined;
   const defaultCheckIn = (() => {
     const d = new Date();
     d.setDate(d.getDate() + 3);
@@ -48,13 +54,16 @@ export async function GET(request: Request) {
   const roomType = searchParams.get("roomType") || "double";
   const classType = searchParams.get("classType") || "standard";
 
-  // Validate before calling LiteAPI
+  // Validate before calling LiteAPI (no city allowlist in production — global autocomplete)
   if (!testLiteapi) {
-    if (!city || !isSupportedCity(city)) {
+    if (!city || city.length < 1) {
       return Response.json(
-        { error: "City must be a supported location (e.g. Melbourne, Sydney, London, Paris).", results: [], meta: {}, errors: ["Invalid city"] },
+        { error: "City is required.", results: [], meta: {}, errors: ["Invalid city"] },
         { status: 400 }
       );
+    }
+    if (!production && !isSupportedCityForDev(city)) {
+      // In dev, optional allowlist for testing; can be removed or expanded
     }
     if (!YYYY_MM_DD.test(checkIn)) {
       return Response.json(
@@ -106,9 +115,10 @@ export async function GET(request: Request) {
     budgetPerNight: budgetPerNight || undefined,
     roomType,
     classType,
+    countryCode: countryCodeParam,
+    latitude: Number.isFinite(latitude) ? latitude : undefined,
+    longitude: Number.isFinite(longitude) ? longitude : undefined,
   };
-
-  const production = isProduction();
 
   if (production) {
     const key = (process.env.LITEAPI_API_KEY ?? "").trim();
@@ -126,7 +136,7 @@ export async function GET(request: Request) {
 
     const count = results?.length ?? 0;
     const status = errors?.length ? "error" : "success";
-    const debug = (meta as { debug?: { rawCount?: number; parsedCount?: number; statusCode?: number } })?.debug;
+    const debug = (meta as { debug?: { rawCount?: number; parsedCount?: number; statusCode?: number; endpoint?: string; bodyParams?: object; responseKeys?: string[] } })?.debug;
     const rawCount = debug?.rawCount ?? count;
     const parsedCount = debug?.parsedCount ?? count;
     console.log(JSON.stringify({
@@ -142,6 +152,18 @@ export async function GET(request: Request) {
       parsedCount,
       testLiteapi,
     }));
+    if (testLiteapi) {
+      console.log(JSON.stringify({
+        event: "stays_search_test_liteapi",
+        endpoint: debug?.endpoint ?? "see liteapi_request log",
+        bodyParams: debug?.bodyParams,
+        statusCode: debug?.statusCode,
+        responseKeys: debug?.responseKeys,
+        rawCount,
+        parsedCount,
+        note: rawCount > 0 && parsedCount === 0 ? "rawCount>0 but parsedCount=0 — check extractDataArray/normalize" : undefined,
+      }));
+    }
 
     if (production) {
       if (errors && errors.length > 0) {

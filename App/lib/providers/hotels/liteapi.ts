@@ -98,7 +98,8 @@ async function liteApiFetchWithLog<T>(
     throw new Error(`LiteAPI 200 error: ${msg}`);
   }
 
-  return { data: parsed as T, statusCode, rawCount };
+  const bodyParams = body ? { cityName: (body as any).cityName, countryCode: (body as any).countryCode, checkin: (body as any).checkin, checkout: (body as any).checkout, occupancies: (body as any).occupancies, currency: (body as any).currency } : undefined;
+  return { data: parsed as T, statusCode, rawCount, endpoint: url, bodyParams, responseKeys: topLevelKeys };
 }
 
 function liteApiFetch<T>(path: string, init: { method: string; body?: object; headers?: Record<string, string> }): Promise<T> {
@@ -387,12 +388,13 @@ export async function rateDetails(offerId: string): Promise<PrebookResponse> {
   return liteApiFetch<PrebookResponse>("/rates/prebook", { method: "POST", body });
 }
 
-// --- StaysProvider implementation with fallback chain: cityName -> geo (Sydney/Melbourne) -> 2-step (data/hotels + rates)
+// --- StaysProvider implementation with fallback chain: geo (if lat/lng) -> cityName -> CBD geo -> 2-step (data/hotels + rates)
 export class LiteApiStaysProvider implements StaysProvider {
   async search(params: StaySearchParams): Promise<{ results: NormalizedStay[]; debug: any }> {
     const checkOutStr = getCheckOutStr(params);
-    const countryCode = inferCountryCode(params.city);
+    const countryCode = params.countryCode ?? inferCountryCode(params.city);
     const cityName = params.city?.trim() || "Melbourne";
+    const hasGeo = params.latitude != null && params.longitude != null;
 
     const run = async (
       mode: "cityName" | "geo" | "hotelIds",
@@ -404,14 +406,58 @@ export class LiteApiStaysProvider implements StaysProvider {
     let lastData: any = null;
     let lastStatusCode = 0;
     let lastRawCount = 0;
+    let lastEndpoint: string | undefined;
+    let lastBodyParams: object | undefined;
+    let lastResponseKeys: string[] | undefined;
     let results: NormalizedStay[] = [];
 
+    const setLast = (res: { data: any; statusCode: number; rawCount: number; endpoint?: string; bodyParams?: object; responseKeys?: string[] }) => {
+      lastData = res.data;
+      lastStatusCode = res.statusCode;
+      lastRawCount = res.rawCount;
+      lastEndpoint = res.endpoint;
+      lastBodyParams = res.bodyParams;
+      lastResponseKeys = res.responseKeys;
+    };
+
     try {
-      const { data, statusCode, rawCount } = await run("cityName");
-      lastData = data;
-      lastStatusCode = statusCode;
-      lastRawCount = rawCount;
-      results = normalizeResults(data, params);
+      // If user selected a place with lat/lng, try geo first
+      if (hasGeo) {
+        const resGeo = await run("geo", {
+          latitude: params.latitude!,
+          longitude: params.longitude!,
+          radius: 5000,
+          cityName: undefined,
+          countryCode,
+        });
+        setLast(resGeo);
+        results = normalizeResults(resGeo.data, params);
+        if (results.length > 0) {
+          console.log(JSON.stringify({
+            event: "stays_search",
+            provider: "liteapi",
+            city: params.city,
+            checkIn: params.checkIn,
+            checkOut: checkOutStr,
+            adults: params.adults,
+            statusCode: lastStatusCode,
+            rawCount: lastRawCount,
+            parsedCount: results.length,
+            mode: "geo",
+          }));
+          return {
+            results,
+            debug: { provider: "liteapi", count: results.length, status: "success", city: params.city, rawCount: lastRawCount, parsedCount: results.length, statusCode: lastStatusCode, mode: "geo", endpoint: lastEndpoint, bodyParams: lastBodyParams, responseKeys: lastResponseKeys },
+          };
+        }
+      }
+
+      const resCity = await run("cityName", {
+        cityName,
+        countryCode,
+      });
+      setLast(resCity);
+      results = normalizeResults(resCity.data, params);
 
       if (results.length > 0) {
         console.log(JSON.stringify({
@@ -428,7 +474,7 @@ export class LiteApiStaysProvider implements StaysProvider {
         }));
         return {
           results,
-          debug: { provider: "liteapi", count: results.length, status: "success", city: params.city, rawCount: lastRawCount, parsedCount: results.length, statusCode: lastStatusCode, mode: "cityName" },
+          debug: { provider: "liteapi", count: results.length, status: "success", city: params.city, rawCount: lastRawCount, parsedCount: results.length, statusCode: lastStatusCode, mode: "cityName", endpoint: lastEndpoint, bodyParams: lastBodyParams, responseKeys: lastResponseKeys },
         };
       }
 
@@ -441,9 +487,7 @@ export class LiteApiStaysProvider implements StaysProvider {
           cityName: undefined,
           countryCode,
         });
-        lastData = res2.data;
-        lastStatusCode = res2.statusCode;
-        lastRawCount = res2.rawCount;
+        setLast(res2);
         results = normalizeResults(res2.data, params);
         if (results.length > 0) {
           console.log(JSON.stringify({
@@ -460,7 +504,7 @@ export class LiteApiStaysProvider implements StaysProvider {
           }));
           return {
             results,
-            debug: { provider: "liteapi", count: results.length, status: "success", city: params.city, rawCount: lastRawCount, parsedCount: results.length, statusCode: lastStatusCode, mode: "geo" },
+            debug: { provider: "liteapi", count: results.length, status: "success", city: params.city, rawCount: lastRawCount, parsedCount: results.length, statusCode: lastStatusCode, mode: "geo", endpoint: lastEndpoint, bodyParams: lastBodyParams, responseKeys: lastResponseKeys },
           };
         }
       }
@@ -472,9 +516,7 @@ export class LiteApiStaysProvider implements StaysProvider {
           cityName: undefined,
           countryCode: undefined,
         });
-        lastData = res3.data;
-        lastStatusCode = res3.statusCode;
-        lastRawCount = res3.rawCount;
+        setLast(res3);
         results = normalizeResults(res3.data, params);
         if (results.length > 0) {
           console.log(JSON.stringify({
@@ -491,7 +533,7 @@ export class LiteApiStaysProvider implements StaysProvider {
           }));
           return {
             results,
-            debug: { provider: "liteapi", count: results.length, status: "success", city: params.city, rawCount: lastRawCount, parsedCount: results.length, statusCode: lastStatusCode, mode: "hotelIds" },
+            debug: { provider: "liteapi", count: results.length, status: "success", city: params.city, rawCount: lastRawCount, parsedCount: results.length, statusCode: lastStatusCode, mode: "hotelIds", endpoint: lastEndpoint, bodyParams: lastBodyParams, responseKeys: lastResponseKeys },
           };
         }
       }
@@ -519,6 +561,9 @@ export class LiteApiStaysProvider implements StaysProvider {
           rawCount: lastRawCount,
           parsedCount,
           statusCode: lastStatusCode,
+          endpoint: lastEndpoint,
+          bodyParams: lastBodyParams,
+          responseKeys: lastResponseKeys,
         },
       };
     } catch (e) {
@@ -538,7 +583,7 @@ export class LiteApiStaysProvider implements StaysProvider {
       }));
       return {
         results: [],
-        debug: { provider: "liteapi", error: message, count: 0, status: "error", rawCount: 0, parsedCount: 0, statusCode: null },
+        debug: { provider: "liteapi", error: message, count: 0, status: "error", rawCount: 0, parsedCount: 0, statusCode: null, endpoint: lastEndpoint, bodyParams: lastBodyParams, responseKeys: lastResponseKeys },
       };
     }
   }

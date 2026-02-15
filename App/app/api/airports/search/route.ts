@@ -4,16 +4,23 @@ import { isProduction } from "@/lib/core/env";
 const DUFFEL_BASE = "https://api.duffel.com";
 const DUFFEL_VERSION = "v2";
 
+/** Ensure response is exactly { results: T[] } with no extra output. */
+function jsonResults<T>(arr: T[]): NextResponse {
+  const results = Array.isArray(arr) ? arr : [];
+  return NextResponse.json({ results });
+}
+
 /**
  * Airport search API - DUFFEL ONLY (production).
  * Uses Duffel Places Suggestions. No Amadeus. No fallback in production.
+ * Returns exactly one JSON object: { results: [...] }.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const query = (searchParams.get("q") ?? "").trim();
+  const query = (searchParams.get("q") ?? searchParams.get("query") ?? "").trim();
 
   if (!query || query.length < 2) {
-    return NextResponse.json({ results: [] });
+    return jsonResults([]);
   }
 
   const production = isProduction();
@@ -32,7 +39,8 @@ export async function GET(request: NextRequest) {
   try {
     const token = (process.env.DUFFEL_ACCESS_TOKEN ?? "").trim();
     if (!token) {
-      return NextResponse.json({ results: [] });
+      console.log(JSON.stringify({ event: "airports_search", query, count: 0, statusCode: 200, provider: "duffel", note: "no_token" }));
+      return jsonResults([]);
     }
 
     const url = `${DUFFEL_BASE}/places/suggestions?${new URLSearchParams({ query })}`;
@@ -48,13 +56,14 @@ export async function GET(request: NextRequest) {
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
       console.error("[airports/search] Duffel API error", { status: res.status, body: errText.slice(0, 200) });
+      console.log(JSON.stringify({ event: "airports_search", query, count: 0, statusCode: res.status, provider: "duffel" }));
       if (production) {
         return NextResponse.json(
           { error: "Airport search failed." },
           { status: 502 }
         );
       }
-      return NextResponse.json({ results: [] });
+      return jsonResults([]);
     }
 
     const data = (await res.json()) as { data?: Array<{ type?: string; iata_code?: string; name?: string; iata_country_code?: string; city_name?: string; city?: { name?: string } }> };
@@ -94,18 +103,21 @@ export async function GET(request: NextRequest) {
           fullDisplay: `${name} - ${city} - ${iataCode}`,
         };
       });
-      return NextResponse.json({ results: fallback });
+      console.log(JSON.stringify({ event: "airports_search", query, count: fallback.length, statusCode: res.status, provider: "duffel" }));
+      return jsonResults(fallback);
     }
 
-    return NextResponse.json({ results });
+    console.log(JSON.stringify({ event: "airports_search", query, count: results.length, statusCode: res.status, provider: "duffel" }));
+    return jsonResults(results);
   } catch (error) {
     console.error("[airports/search] Error", error);
+    console.log(JSON.stringify({ event: "airports_search", query, count: 0, statusCode: 500, provider: "duffel" }));
     if (production) {
       return NextResponse.json(
         { error: "Airport search failed." },
         { status: 500 }
       );
     }
-    return NextResponse.json({ results: [] });
+    return jsonResults([]);
   }
 }

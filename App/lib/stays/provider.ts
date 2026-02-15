@@ -1,4 +1,19 @@
-export type StaySearchParams = { city: string; checkIn: string; nights: number; adults: number; children?: number; rooms?: number; currency?: string; budgetPerNight?: string; roomType?: string; classType?: string };
+export type StaySearchParams = {
+  city: string;
+  checkIn: string;
+  nights: number;
+  adults: number;
+  children?: number;
+  rooms?: number;
+  currency?: string;
+  budgetPerNight?: string;
+  roomType?: string;
+  classType?: string;
+  /** From global place autocomplete */
+  countryCode?: string;
+  latitude?: number;
+  longitude?: number;
+};
 
 export type NormalizedStay = {
   id: string;

@@ -1,45 +1,39 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Plane } from "lucide-react";
+import { MapPin } from "lucide-react";
 
-interface Airport {
-  iataCode: string;
-  name: string;
-  city: string;
-  country: string;
+interface CityResult {
+  cityName: string;
+  countryCode: string;
   displayName: string;
-  fullDisplay: string;
 }
 
-interface AirportInputProps {
+interface CityInputProps {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (cityName: string, countryCode?: string) => void;
   placeholder?: string;
   label?: string;
-  /** When ?debug=1, parent can pass this to capture last request info */
   onDebugInfo?: (info: { url: string; status: number; count: number; error?: string }) => void;
 }
 
 const DEBOUNCE_MS = 300;
 
-export function AirportInput({ value, onChange, placeholder = "MEL", label, onDebugInfo }: AirportInputProps) {
+export function CityInput({ value, onChange, placeholder = "Melbourne", label, onDebugInfo }: CityInputProps) {
   const [query, setQuery] = useState(value || "");
-  const [results, setResults] = useState<Airport[]>([]);
+  const [results, setResults] = useState<CityResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const lastSelectedIataRef = useRef<string | null>(null);
+  const lastSelectedRef = useRef<string | null>(null);
 
-  const syncFromParent = useCallback(() => {
-    if (value !== lastSelectedIataRef.current) {
+  useEffect(() => {
+    if (value !== lastSelectedRef.current) {
       setQuery(value || "");
-      lastSelectedIataRef.current = null;
+      lastSelectedRef.current = null;
     }
   }, [value]);
-
-  useEffect(syncFromParent, [syncFromParent]);
 
   useEffect(() => {
     if (query.length < 1) {
@@ -48,53 +42,33 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
       return;
     }
 
-    const abortController = new AbortController();
     const timeoutId = setTimeout(async () => {
-      const input = query.trim();
-      const url = `/api/airports/search?q=${encodeURIComponent(input)}`;
       setLoading(true);
+      const url = `/api/cities/search?q=${encodeURIComponent(query.trim())}`;
       try {
-        const res = await fetch(url, { cache: "no-store", signal: abortController.signal });
-        const text = await res.text();
-        let data: { results?: unknown };
-        try {
-          data = text ? JSON.parse(text) : {};
-        } catch (parseErr) {
-          if (onDebugInfo && typeof console.debug === "function") {
-            console.debug("airport_autocomplete", { q: input, url, status: res.status, parseError: String(parseErr), responsePreview: text.slice(0, 200) });
-          }
-          setResults([]);
-          setIsOpen(false);
-          onDebugInfo?.({ url, status: res.status, count: 0, error: "Invalid JSON" });
-          setLoading(false);
-          return;
-        }
-        const list = Array.isArray(data.results) ? data.results as Airport[] : [];
-        if (abortController.signal.aborted) return;
+        const res = await fetch(url);
+        const data = await res.json();
+        const list = Array.isArray(data.results) ? data.results : [];
         setResults(list);
         setIsOpen(list.length > 0);
-        if (onDebugInfo && typeof console.debug === "function") {
-          console.debug("airport_autocomplete", { q: input, url, status: res.status, count: list.length, first: list[0] ?? null });
+        if (typeof console.debug === "function") {
+          console.debug("city_autocomplete_request", { query: query.trim(), responseCount: list.length });
         }
         onDebugInfo?.({ url, status: res.status, count: list.length });
       } catch (error) {
-        if ((error as Error).name === "AbortError") return;
         const msg = error instanceof Error ? error.message : String(error);
         setResults([]);
         setIsOpen(false);
         onDebugInfo?.({ url, status: 0, count: 0, error: msg });
-        if (onDebugInfo && typeof console.debug === "function") {
-          console.debug("airport_autocomplete", { q: input, url, status: 0, error: msg });
+        if (typeof console.debug === "function") {
+          console.debug("city_autocomplete_request", { query: query.trim(), error: msg });
         }
       } finally {
-        if (!abortController.signal.aborted) setLoading(false);
+        setLoading(false);
       }
     }, DEBOUNCE_MS);
 
-    return () => {
-      clearTimeout(timeoutId);
-      abortController.abort();
-    };
+    return () => clearTimeout(timeoutId);
   }, [query, onDebugInfo]);
 
   useEffect(() => {
@@ -107,29 +81,23 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelect = (airport: Airport) => {
-    lastSelectedIataRef.current = airport.iataCode;
-    setQuery(airport.displayName);
-    onChange(airport.iataCode);
+  const handleSelect = (city: CityResult) => {
+    lastSelectedRef.current = city.cityName;
+    setQuery(city.displayName);
+    onChange(city.cityName, city.countryCode);
     setIsOpen(false);
     setResults([]);
     inputRef.current?.blur();
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    setQuery(raw);
-    lastSelectedIataRef.current = null;
-    const trimmed = raw.trim();
-    if (trimmed.length === 3 && /^[A-Za-z]{3}$/.test(trimmed)) {
-      onChange(trimmed.toUpperCase());
-    } else if (trimmed.length === 0) {
-      onChange("");
-    }
+    setQuery(e.target.value);
+    lastSelectedRef.current = null;
+    if (!e.target.value.trim()) onChange("");
   };
 
   return (
-    <div ref={containerRef} className="relative overflow-visible">
+    <div ref={containerRef} className="relative">
       {label && (
         <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
           {label}
@@ -137,7 +105,7 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
       )}
       <div className="relative">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ec-muted pointer-events-none">
-          <Plane size={18} />
+          <MapPin size={18} />
         </div>
         <input
           ref={inputRef}
@@ -167,18 +135,15 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
           role="listbox"
         >
           <div className="max-h-64 overflow-y-auto p-2">
-            {results.map((airport, index) => (
+            {results.map((city, index) => (
               <button
-                key={`${airport.iataCode}-${index}`}
+                key={`${city.cityName}-${city.countryCode}-${index}`}
                 type="button"
                 role="option"
-                onClick={() => handleSelect(airport)}
-                className="w-full text-left px-4 py-3 rounded-lg bg-[rgba(28,140,130,0.08)] hover:bg-[rgba(28,140,130,0.2)] border border-transparent hover:border-[rgba(28,140,130,0.3)] text-ec-text transition-all flex flex-col gap-0.5"
+                onClick={() => handleSelect(city)}
+                className="w-full text-left px-4 py-3 rounded-lg bg-[rgba(28,140,130,0.08)] hover:bg-[rgba(28,140,130,0.2)] border border-transparent hover:border-[rgba(28,140,130,0.3)] text-ec-text transition-all"
               >
-                <span className="font-semibold text-sm">{airport.displayName}</span>
-                <span className="text-ec-muted text-xs">
-                  {[airport.city, airport.country].filter(Boolean).join(", ")}
-                </span>
+                <span className="font-semibold text-sm">{city.displayName}</span>
               </button>
             ))}
           </div>

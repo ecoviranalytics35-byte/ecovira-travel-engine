@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { StayResult } from "@/lib/core/types";
 import { useEvent } from "@/lib/hooks/useEvent";
 import { EcoviraButton } from "../../components/Button";
 import { Input } from "../../components/Input";
+import { PlacesInput } from "../../components/search/PlacesInput";
+import { DebugAutocompletePanel, type AutocompleteDebugInfo } from "../../components/search/DebugAutocompletePanel";
 import { EcoviraCard } from "../../components/EcoviraCard";
 import { DatePicker } from "../../components/DatePicker";
 import { CurrencySelector } from "../../components/CurrencySelector";
@@ -43,7 +45,13 @@ function getDefaultCheckIn(): string {
 
 export default function Stays() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const debugMode = searchParams.get("debug") === "1";
   const [city, setCity] = useState("Melbourne");
+  const [countryCode, setCountryCode] = useState("AU");
+  const [placeLat, setPlaceLat] = useState<number | undefined>(undefined);
+  const [placeLng, setPlaceLng] = useState<number | undefined>(undefined);
+  const [lastAutocompleteDebug, setLastAutocompleteDebug] = useState<AutocompleteDebugInfo | null>(null);
   const [checkIn, setCheckIn] = useState("");
   const [nights, setNights] = useState(2);
   const [checkOut, setCheckOut] = useState<string>("");
@@ -102,6 +110,9 @@ export default function Stays() {
         roomType,
         classType,
       });
+      if (countryCode) params.set("countryCode", countryCode);
+      if (placeLat != null && Number.isFinite(placeLat)) params.set("lat", String(placeLat));
+      if (placeLng != null && Number.isFinite(placeLng)) params.set("lng", String(placeLng));
       const url = `/api/stays/search?${params.toString()}`;
       if (process.env.NODE_ENV === 'development') {
         console.log("[handleSearch] Fetching API", { url });
@@ -133,7 +144,7 @@ export default function Stays() {
         console.log("[handleSearch] EXIT");
       }
     }
-  }, [city, checkIn, nights, adults, children, roomType, classType]);
+  }, [city, countryCode, placeLat, placeLng, checkIn, nights, adults, children, roomType, classType]);
 
   // Use stable event handler for dynamic import compatibility
   const onSearch = useEvent(handleSearch);
@@ -190,13 +201,17 @@ export default function Stays() {
         {/* Row 1: City | Check-in | Check-out */}
         <div className="ec-grid-3 mb-6">
           <div>
-            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
-              City
-            </label>
-            <Input 
-              value={city} 
-              onChange={e => setCity(e.target.value)} 
-              placeholder="Melbourne" 
+            <PlacesInput
+              value={city}
+              onChange={(cityName, code, lat, lng) => {
+                setCity(cityName);
+                setCountryCode(code || "AU");
+                setPlaceLat(lat);
+                setPlaceLng(lng);
+              }}
+              placeholder="Melbourne"
+              label="City"
+              onDebugInfo={debugMode ? setLastAutocompleteDebug : undefined}
             />
           </div>
           <DatePicker
@@ -213,6 +228,11 @@ export default function Stays() {
             minDate={effectiveCheckInForDisplay || undefined}
           />
         </div>
+        {debugMode && (
+          <div className="mb-6">
+            <DebugAutocompletePanel info={lastAutocompleteDebug} label="City autocomplete" />
+          </div>
+        )}
 
         {/* Row 2: Nights | Adults | Children */}
         <div className="ec-grid-3 mb-6">

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { FlightResult } from "@/lib/core/types";
 import { EcoviraButton } from '../components/Button';
 import { Input } from '../components/Input';
+import { AirportInput } from '../components/search/AirportInput';
 import { EcoviraCard } from '../components/EcoviraCard';
 import { FlightResultCard } from '../components/FlightResultCard';
 import { DatePicker } from '../components/DatePicker';
@@ -129,26 +130,18 @@ export default function Home() {
 
         {/* Row 1: From | To */}
         <div className="ec-grid-2 mb-6">
-          <div>
-            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
-              From
-            </label>
-            <Input 
-              value={from} 
-              onChange={e => setFrom(e.target.value)} 
-              placeholder="MEL" 
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-ec-muted uppercase tracking-[0.12em] mb-3">
-              To
-            </label>
-            <Input 
-              value={to} 
-              onChange={e => setTo(e.target.value)} 
-              placeholder="SYD" 
-            />
-          </div>
+          <AirportInput
+            value={from}
+            onChange={setFrom}
+            placeholder="MEL"
+            label="From"
+          />
+          <AirportInput
+            value={to}
+            onChange={setTo}
+            placeholder="SYD"
+            label="To"
+          />
         </div>
 
         {/* Row 2: Departure | Return */}

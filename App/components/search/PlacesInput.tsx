@@ -1,45 +1,41 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Plane } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { MapPin } from "lucide-react";
 
-interface Airport {
-  iataCode: string;
-  name: string;
+export interface PlaceResult {
+  label: string;
   city: string;
-  country: string;
-  displayName: string;
-  fullDisplay: string;
+  countryCode: string;
+  lat: number;
+  lng: number;
 }
 
-interface AirportInputProps {
+interface PlacesInputProps {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (city: string, countryCode: string, lat?: number, lng?: number) => void;
   placeholder?: string;
   label?: string;
-  /** When ?debug=1, parent can pass this to capture last request info */
   onDebugInfo?: (info: { url: string; status: number; count: number; error?: string }) => void;
 }
 
 const DEBOUNCE_MS = 300;
 
-export function AirportInput({ value, onChange, placeholder = "MEL", label, onDebugInfo }: AirportInputProps) {
+export function PlacesInput({ value, onChange, placeholder = "Melbourne", label, onDebugInfo }: PlacesInputProps) {
   const [query, setQuery] = useState(value || "");
-  const [results, setResults] = useState<Airport[]>([]);
+  const [results, setResults] = useState<PlaceResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const lastSelectedIataRef = useRef<string | null>(null);
+  const lastSelectedRef = useRef<string | null>(null);
 
-  const syncFromParent = useCallback(() => {
-    if (value !== lastSelectedIataRef.current) {
+  useEffect(() => {
+    if (value !== lastSelectedRef.current) {
       setQuery(value || "");
-      lastSelectedIataRef.current = null;
+      lastSelectedRef.current = null;
     }
   }, [value]);
-
-  useEffect(syncFromParent, [syncFromParent]);
 
   useEffect(() => {
     if (query.length < 1) {
@@ -48,53 +44,33 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
       return;
     }
 
-    const abortController = new AbortController();
     const timeoutId = setTimeout(async () => {
-      const input = query.trim();
-      const url = `/api/airports/search?q=${encodeURIComponent(input)}`;
       setLoading(true);
+      const url = `/api/places/search?q=${encodeURIComponent(query.trim())}`;
       try {
-        const res = await fetch(url, { cache: "no-store", signal: abortController.signal });
-        const text = await res.text();
-        let data: { results?: unknown };
-        try {
-          data = text ? JSON.parse(text) : {};
-        } catch (parseErr) {
-          if (onDebugInfo && typeof console.debug === "function") {
-            console.debug("airport_autocomplete", { q: input, url, status: res.status, parseError: String(parseErr), responsePreview: text.slice(0, 200) });
-          }
-          setResults([]);
-          setIsOpen(false);
-          onDebugInfo?.({ url, status: res.status, count: 0, error: "Invalid JSON" });
-          setLoading(false);
-          return;
-        }
-        const list = Array.isArray(data.results) ? data.results as Airport[] : [];
-        if (abortController.signal.aborted) return;
+        const res = await fetch(url);
+        const data = await res.json();
+        const list = Array.isArray(data.results) ? data.results : [];
         setResults(list);
         setIsOpen(list.length > 0);
         if (onDebugInfo && typeof console.debug === "function") {
-          console.debug("airport_autocomplete", { q: input, url, status: res.status, count: list.length, first: list[0] ?? null });
+          console.debug("places_autocomplete", { q: query.trim(), count: list.length });
         }
         onDebugInfo?.({ url, status: res.status, count: list.length });
       } catch (error) {
-        if ((error as Error).name === "AbortError") return;
         const msg = error instanceof Error ? error.message : String(error);
         setResults([]);
         setIsOpen(false);
         onDebugInfo?.({ url, status: 0, count: 0, error: msg });
         if (onDebugInfo && typeof console.debug === "function") {
-          console.debug("airport_autocomplete", { q: input, url, status: 0, error: msg });
+          console.debug("places_autocomplete", { q: query.trim(), error: msg });
         }
       } finally {
-        if (!abortController.signal.aborted) setLoading(false);
+        setLoading(false);
       }
     }, DEBOUNCE_MS);
 
-    return () => {
-      clearTimeout(timeoutId);
-      abortController.abort();
-    };
+    return () => clearTimeout(timeoutId);
   }, [query, onDebugInfo]);
 
   useEffect(() => {
@@ -107,25 +83,19 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelect = (airport: Airport) => {
-    lastSelectedIataRef.current = airport.iataCode;
-    setQuery(airport.displayName);
-    onChange(airport.iataCode);
+  const handleSelect = (place: PlaceResult) => {
+    lastSelectedRef.current = place.label;
+    setQuery(place.label);
+    onChange(place.city, place.countryCode, place.lat || undefined, place.lng || undefined);
     setIsOpen(false);
     setResults([]);
     inputRef.current?.blur();
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    setQuery(raw);
-    lastSelectedIataRef.current = null;
-    const trimmed = raw.trim();
-    if (trimmed.length === 3 && /^[A-Za-z]{3}$/.test(trimmed)) {
-      onChange(trimmed.toUpperCase());
-    } else if (trimmed.length === 0) {
-      onChange("");
-    }
+    setQuery(e.target.value);
+    lastSelectedRef.current = null;
+    if (!e.target.value.trim()) onChange("", "");
   };
 
   return (
@@ -137,7 +107,7 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
       )}
       <div className="relative">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ec-muted pointer-events-none">
-          <Plane size={18} />
+          <MapPin size={18} />
         </div>
         <input
           ref={inputRef}
@@ -163,22 +133,19 @@ export function AirportInput({ value, onChange, placeholder = "MEL", label, onDe
 
       {isOpen && results.length > 0 && (
         <div
-          className="absolute z-[9999] w-full mt-2 bg-[rgba(15,17,20,0.98)] backdrop-blur-xl border border-[rgba(28,140,130,0.3)] rounded-ec-md shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden"
+          className="absolute z-[9999] w-full mt-2 bg-[rgba(15,17,20,0.98)] backdrop-blur-xl border border-[rgba(28,140,130,0.3)] rounded-ec-md shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-visible"
           role="listbox"
         >
           <div className="max-h-64 overflow-y-auto p-2">
-            {results.map((airport, index) => (
+            {results.map((place, index) => (
               <button
-                key={`${airport.iataCode}-${index}`}
+                key={`${place.city}-${place.countryCode}-${index}`}
                 type="button"
                 role="option"
-                onClick={() => handleSelect(airport)}
-                className="w-full text-left px-4 py-3 rounded-lg bg-[rgba(28,140,130,0.08)] hover:bg-[rgba(28,140,130,0.2)] border border-transparent hover:border-[rgba(28,140,130,0.3)] text-ec-text transition-all flex flex-col gap-0.5"
+                onClick={() => handleSelect(place)}
+                className="w-full text-left px-4 py-3 rounded-lg bg-[rgba(28,140,130,0.08)] hover:bg-[rgba(28,140,130,0.2)] border border-transparent hover:border-[rgba(28,140,130,0.3)] text-ec-text transition-all"
               >
-                <span className="font-semibold text-sm">{airport.displayName}</span>
-                <span className="text-ec-muted text-xs">
-                  {[airport.city, airport.country].filter(Boolean).join(", ")}
-                </span>
+                <span className="font-semibold text-sm">{place.label}</span>
               </button>
             ))}
           </div>
