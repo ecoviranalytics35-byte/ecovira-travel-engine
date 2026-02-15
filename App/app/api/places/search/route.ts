@@ -11,7 +11,11 @@ const DUFFEL_VERSION = "v2";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") ?? searchParams.get("query") ?? "").trim();
-
+  // #region agent log
+  const _logEntry = { location: 'places/search/route.ts:entry', message: 'places_api_entry', data: { q, qLen: q.length }, hypothesisId: 'H1,H2' };
+  console.log('[DEBUG]', _logEntry);
+  await fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._logEntry,timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   if (!q) {
     return NextResponse.json({ results: [] });
   }
@@ -41,7 +45,13 @@ export async function GET(request: NextRequest) {
   }
   if (!token) {
     console.log(JSON.stringify({ event: "places_search", query: q, count: 0, statusCode: 200, provider: "duffel", note: "no_token" }));
-    if (!production) return NextResponse.json({ results: q.length >= 1 ? staticMatch() : [] });
+    const staticResults = !production && q.length >= 1 ? staticMatch() : [];
+    // #region agent log
+    const _logNoToken = { location: 'places/search/route.ts:no_token', message: 'places_api_no_token', data: { q, resultsLength: staticResults.length }, hypothesisId: 'H2' };
+    console.log('[DEBUG]', _logNoToken);
+    await fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._logNoToken,timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    if (!production) return NextResponse.json({ results: staticResults });
     return NextResponse.json({ results: [] });
   }
 
@@ -109,7 +119,13 @@ export async function GET(request: NextRequest) {
     });
 
     console.log(JSON.stringify({ event: "places_search", query: q, count: deduped.length, statusCode: res.status, provider: "duffel" }));
-    if (deduped.length === 0 && !production) return NextResponse.json({ results: staticMatch() });
+    const finalResults = deduped.length === 0 && !production ? staticMatch() : deduped;
+    // #region agent log
+    const _logReturn = { location: 'places/search/route.ts:return', message: 'places_api_return', data: { q, resultsLength: finalResults.length }, hypothesisId: 'H2,H3' };
+    console.log('[DEBUG]', _logReturn);
+    await fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._logReturn,timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    if (deduped.length === 0 && !production) return NextResponse.json({ results: finalResults });
     return NextResponse.json({ results: deduped });
   } catch (error) {
     console.error("[places/search] Error", error);

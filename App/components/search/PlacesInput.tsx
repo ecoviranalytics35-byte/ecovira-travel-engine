@@ -50,6 +50,11 @@ export function PlacesInput({ value, onChange, placeholder = "Melbourne", label,
     const timeoutId = setTimeout(async () => {
       setLoading(true);
       const url = `/api/places/search?q=${encodeURIComponent(query.trim())}`;
+      // #region agent log
+      const _log1 = { location: 'PlacesInput.tsx:effect', message: 'places_effect_start', data: { query: query.trim(), url }, hypothesisId: 'H1' };
+      console.log('[DEBUG]', _log1);
+      fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._log1,timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       try {
         const res = await fetch(url, { cache: "no-store" });
         const text = await res.text();
@@ -64,6 +69,12 @@ export function PlacesInput({ value, onChange, placeholder = "Melbourne", label,
           return;
         }
         const list = Array.isArray(data.results) ? data.results as PlaceResult[] : [];
+        const hasContainerRef = !!containerRef.current;
+        // #region agent log
+        const _log2 = { location: 'PlacesInput.tsx:after_parse', message: 'places_after_fetch', data: { status: res.status, textLen: text.length, listLength: list.length, hasContainerRef }, hypothesisId: 'H2,H3,H4' };
+        console.log('[DEBUG]', _log2);
+        fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._log2,timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         setResults(list);
         setIsOpen(list.length > 0);
         if (list.length > 0 && containerRef.current) {
@@ -78,8 +89,14 @@ export function PlacesInput({ value, onChange, placeholder = "Melbourne", label,
         onDebugInfo?.({ url, status: res.status, count: list.length });
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
+        // #region agent log
+        const _logC = { location: 'PlacesInput.tsx:catch', message: 'places_fetch_error', data: { error: msg }, hypothesisId: 'H1,H2' };
+        console.log('[DEBUG]', _logC);
+        fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._logC,timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         setResults([]);
         setIsOpen(false);
+        setDropdownRect(null);
         onDebugInfo?.({ url, status: 0, count: 0, error: msg });
         if (onDebugInfo && typeof console.debug === "function") {
           console.debug("places_autocomplete", { q: query.trim(), error: msg });
@@ -152,9 +169,15 @@ export function PlacesInput({ value, onChange, placeholder = "Melbourne", label,
       </div>
 
       {typeof document !== "undefined" &&
-        isOpen &&
-        results.length > 0 &&
-        dropdownRect &&
+        (() => {
+          const showPortal = isOpen && results.length > 0 && dropdownRect != null;
+          // #region agent log
+          const _logR = { location: 'PlacesInput.tsx:render', message: 'places_render_condition', data: { isOpen, resultsLength: results.length, hasDropdownRect: dropdownRect != null, showPortal }, hypothesisId: 'H4,H5' };
+          console.log('[DEBUG]', _logR);
+          fetch('http://127.0.0.1:7243/ingest/a3f3cc4d-6349-48a5-b343-1b11936ca0b1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._logR,timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
+          return showPortal;
+        })() &&
         createPortal(
           <div
             id="places-dropdown-portal"
