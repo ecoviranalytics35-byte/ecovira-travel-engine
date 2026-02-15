@@ -36,8 +36,8 @@ export async function GET(request: Request) {
   const currency = searchParams.get("currency") || "USD";
 
   // Known-good test: MEL->SYD, 2–6 weeks out, 1 adult (server-only)
-  const from = testDuffel ? "MEL" : (toIATA(fromRaw) ?? fromRaw?.trim().toUpperCase().slice(0, 3) || null);
-  const to = testDuffel ? "SYD" : (toIATA(toRaw) ?? toRaw?.trim().toUpperCase().slice(0, 3) || null);
+  const from = testDuffel ? "MEL" : (toIATA(fromRaw) ? fromRaw!.trim().toUpperCase().slice(0, 3) : null);
+  const to = testDuffel ? "SYD" : (toIATA(toRaw) ? toRaw!.trim().toUpperCase().slice(0, 3) : null);
   const departDate = testDuffel ? getTestDepartDate() : (departDateRaw?.trim() || null);
 
   // Guard: origin/destination must be valid IATA (3 letters)

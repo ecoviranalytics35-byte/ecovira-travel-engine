@@ -261,13 +261,14 @@ async function searchRates(
   const checkIn = params.checkIn;
   const checkoutStr = getCheckOutStr(params);
   const countryCode = overrides?.countryCode ?? inferCountryCode(params.city);
+  const cityName = overrides?.cityName ?? params.city?.trim() ?? "Melbourne";
   const body: LiteApiRatesRequest = {
     checkin: checkIn,
     checkout: checkoutStr,
     currency: params.currency || "AUD",
     guestNationality: "AU",
     occupancies: buildRatesOccupancies(params),
-    cityName: overrides?.cityName ?? params.city?.trim() || "Melbourne",
+    cityName,
     countryCode,
     hotelIds: overrides?.hotelIds,
     latitude: overrides?.latitude,
