@@ -24,10 +24,13 @@ export async function POST(request: NextRequest) {
         case 'flight':
           const flight = item.item as any;
           response = await searchFlights({
-            origin: flight.from,
-            destination: flight.to,
-            departureDate: flight.departDate,
-            adults: 1, // assume
+            from: flight.from,
+            to: flight.to,
+            departDate: flight.departDate,
+            adults: flight.adults ?? 1,
+            returnDate: flight.returnDate,
+            tripType: flight.tripType || 'oneway',
+            currency: 'USD',
           });
           results = response.results;
           break;

@@ -34,9 +34,18 @@ SUPPORT_EMAIL=support@ecovira.air
 
 # Application Configuration
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Provider selection (no hardcoding — use these for staging/production)
+PRIMARY_FLIGHT_PROVIDER=duffel
+PRIMARY_HOTEL_PROVIDER=liteapi
+
+# Flights (Duffel) — server-side only, never exposed to client
 DUFFEL_ACCESS_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxx
 
-# Amadeus Configuration
+# Hotels (LiteAPI) — sandbox or production; server-side only
+LITEAPI_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxx
+
+# Amadeus Configuration (optional fallback / secondary)
 AMADEUS_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxx
 AMADEUS_API_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
 

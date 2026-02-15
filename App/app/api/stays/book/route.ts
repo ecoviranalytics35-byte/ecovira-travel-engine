@@ -1,5 +1,4 @@
-import { amadeusStaysProvider } from "@/lib/stays/amadeus-provider";
-import { mockStaysProvider } from "@/lib/stays/provider";
+import { getHotelProvider } from "@/lib/providers/hotels";
 
 export async function POST(request: Request) {
   try {
@@ -27,10 +26,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Use Amadeus provider if API keys are available, otherwise fall back to mock
-    const hasAmadeusKeys = !!process.env.AMADEUS_API_KEY && !!process.env.AMADEUS_API_SECRET;
-    const provider = hasAmadeusKeys ? amadeusStaysProvider : mockStaysProvider;
-
+    const provider = getHotelProvider();
     const { booking, debug } = await provider.book(offerId, paymentIntentId, guestInfo);
 
     return Response.json({ ok: true, booking, debug });
