@@ -7,6 +7,19 @@ import { EcoviraCard } from './EcoviraCard';
 import { Calendar } from 'lucide-react';
 import 'react-day-picker/dist/style.css';
 
+/** YYYY-MM-DD for today (client local). */
+function todayISO(): string {
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
+}
+
+/** YYYY-MM-DD for date + N days. */
+function addDaysISO(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 interface DatePickerProps {
   value: string;
   onChange: (date: string) => void;
@@ -14,18 +27,28 @@ interface DatePickerProps {
   disabled?: boolean;
   className?: string;
   label?: string;
+  /** Min selectable date YYYY-MM-DD (default: today). */
+  minDate?: string;
+  /** Max selectable date YYYY-MM-DD (default: 365 days from today). */
+  maxDate?: string;
 }
 
-export function DatePicker({ 
-  value, 
-  onChange, 
+export function DatePicker({
+  value,
+  onChange,
   placeholder = "Select date",
   disabled = false,
   className,
-  label
+  label,
+  minDate,
+  maxDate,
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const todayStr = todayISO();
+  const minStr = minDate ?? todayStr;
+  const maxStr = maxDate ?? addDaysISO(todayStr, 365);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -34,13 +57,14 @@ export function DatePicker({
       }
     }
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isOpen]);
 
-  const selectedDate = value ? new Date(value) : undefined;
-  const today = new Date();
+  const selectedDate = value ? new Date(value + "T12:00:00") : undefined;
+  const minDateObj = new Date(minStr + "T00:00:00");
+  const maxDateObj = new Date(maxStr + "T23:59:59");
 
   const formatDisplay = (dateStr: string): string => {
     if (!dateStr) return '';
@@ -53,7 +77,10 @@ export function DatePicker({
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      onChange(date.toISOString().split('T')[0]);
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      onChange(`${y}-${m}-${d}`);
       setIsOpen(false);
     }
   };
@@ -151,7 +178,13 @@ export function DatePicker({
               mode="single"
               selected={selectedDate}
               onSelect={handleDateSelect}
-              disabled={(date) => date < today}
+              disabled={(date) => {
+                const d = new Date(date);
+                d.setHours(0, 0, 0, 0);
+                return d < minDateObj || d > maxDateObj;
+              }}
+              fromDate={minDateObj}
+              toDate={maxDateObj}
               className="text-ec-text"
             />
             <p className="mt-4 text-xs text-ec-muted text-center">

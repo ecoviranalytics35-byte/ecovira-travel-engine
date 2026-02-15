@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { FlightResult } from "@/lib/core/types";
@@ -40,13 +40,25 @@ function SkeletonLoader() {
   );
 }
 
+function getDefaultDepartDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  return d.toISOString().slice(0, 10);
+}
+
+function getDefaultReturnDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 14);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function Flights() {
   const router = useRouter();
   const setSelectedOffer = useBookingStore((state) => state.setSelectedOffer);
   const [tripType, setTripType] = useState("roundtrip");
   const [from, setFrom] = useState("MEL");
   const [to, setTo] = useState("SYD");
-  const [departDate, setDepartDate] = useState("2026-01-15");
+  const [departDate, setDepartDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [adults, setAdults] = useState(1);
   const [cabinClass, setCabinClass] = useState("economy");
@@ -55,6 +67,13 @@ export default function Flights() {
   const [error, setError] = useState("");
   const [results, setResults] = useState<FlightResult[]>([]);
   const [selectedFlight, setSelectedFlight] = useState<FlightResult | null>(null);
+
+  useEffect(() => {
+    if (!departDate) setDepartDate(getDefaultDepartDate());
+  }, []);
+  useEffect(() => {
+    if (tripType === "roundtrip" && !returnDate) setReturnDate(getDefaultReturnDate());
+  }, [tripType, returnDate]);
 
   const handleSearch = useCallback(async () => {
     const DEBUG_INGEST = process.env.NEXT_PUBLIC_DEBUG_INGEST_URL;
@@ -74,7 +93,9 @@ export default function Flights() {
       setError("");
       setResults([]);
       
-      const url = `/api/flights/search?from=${from}&to=${to}&departDate=${departDate}&adults=${adults}&cabinClass=${cabinClass}&currency=${currency}&tripType=${tripType}${tripType === "roundtrip" && returnDate ? `&returnDate=${returnDate}` : ''}`;
+      const dep = departDate || getDefaultDepartDate();
+      const ret = tripType === "roundtrip" ? (returnDate || getDefaultReturnDate()) : "";
+      const url = `/api/flights/search?from=${from}&to=${to}&departDate=${dep}&adults=${adults}&cabinClass=${cabinClass}&currency=${currency}&tripType=${tripType}${ret ? `&returnDate=${ret}` : ""}`;
       console.log("[handleSearch] Fetching API", { url });
       // #region agent log
       if (DEBUG_INGEST) {
@@ -89,7 +110,7 @@ export default function Flights() {
       
       const res = await fetch(url);
       const data = await res.json();
-      
+
       console.log("[handleSearch] API response", { status: res.status, ok: res.ok, hasErrors: !!data.errors, resultsCount: data.results?.length || 0 });
       // #region agent log
       if (DEBUG_INGEST) {
@@ -101,9 +122,11 @@ export default function Flights() {
         }).catch(() => {});
       }
       // #endregion
-      
-      if (data.errors && data.errors.length > 0) {
-        setError(data.errors[0]);
+
+      // Concierge Notice only on HTTP error (5xx / 4xx). Empty results = "No flights found".
+      if (!res.ok) {
+        const msg = data?.error || (data?.errors && data.errors[0]) || `Request failed (${res.status})`;
+        setError(msg);
         setResults([]);
       } else {
         // Normalize results - ensure every result has a valid ID
@@ -280,6 +303,7 @@ export default function Flights() {
               onChange={setReturnDate}
               placeholder="Select return date"
               label="Return"
+              minDate={departDate || getDefaultDepartDate()}
             />
           )}
         </div>

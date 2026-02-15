@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { FlightResult } from "@/lib/core/types";
@@ -37,12 +37,24 @@ function SkeletonLoader() {
   );
 }
 
+function getDefaultDepartDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  return d.toISOString().slice(0, 10);
+}
+
+function getDefaultReturnDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 14);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function Home() {
   const router = useRouter();
   const [tripType, setTripType] = useState("roundtrip");
   const [from, setFrom] = useState("MEL");
   const [to, setTo] = useState("SYD");
-  const [departDate, setDepartDate] = useState("2026-01-15");
+  const [departDate, setDepartDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [adults, setAdults] = useState(1);
   const [cabinClass, setCabinClass] = useState("economy");
@@ -52,19 +64,27 @@ export default function Home() {
   const [results, setResults] = useState<FlightResult[]>([]);
   const [selectedFlight, setSelectedFlight] = useState<FlightResult | null>(null);
 
+  useEffect(() => {
+    if (!departDate) setDepartDate(getDefaultDepartDate());
+    if (tripType === "roundtrip" && !returnDate) setReturnDate(getDefaultReturnDate());
+  }, [tripType]);
+
   const handleSearch = async () => {
     setLoading(true);
     setError("");
     setResults([]);
     try {
-      const url = `/api/flights/search?from=${from}&to=${to}&departDate=${departDate}&adults=${adults}&cabinClass=${cabinClass}&currency=${currency}&tripType=${tripType}${tripType === "roundtrip" && returnDate ? `&returnDate=${returnDate}` : ''}`;
+      const dep = departDate || getDefaultDepartDate();
+      const ret = tripType === "roundtrip" ? (returnDate || getDefaultReturnDate()) : "";
+      const url = `/api/flights/search?from=${from}&to=${to}&departDate=${dep}&adults=${adults}&cabinClass=${cabinClass}&currency=${currency}&tripType=${tripType}${ret ? `&returnDate=${ret}` : ""}`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.errors && data.errors.length > 0) {
-        setError(data.errors[0]);
+      if (!res.ok) {
+        const msg = data?.error || (data?.errors && data.errors[0]) || `Request failed (${res.status})`;
+        setError(msg);
         setResults([]);
       } else {
-        setResults(data.results);
+        setResults(data.results || []);
         setError("");
       }
     } catch (err) {
@@ -145,6 +165,7 @@ export default function Home() {
               onChange={setReturnDate}
               placeholder="Select return date"
               label="Return"
+              minDate={departDate || getDefaultDepartDate()}
             />
           )}
         </div>

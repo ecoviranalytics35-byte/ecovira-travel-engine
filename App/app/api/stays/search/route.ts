@@ -7,7 +7,12 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
   const city = searchParams.get("city") || "Melbourne";
-  const checkIn = searchParams.get("checkIn") || "2025-12-28";
+  const defaultCheckIn = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    return d.toISOString().slice(0, 10);
+  })();
+  const checkIn = searchParams.get("checkIn") || defaultCheckIn;
   const nights = parseInt(searchParams.get("nights") || "1", 10);
   const adults = parseInt(searchParams.get("adults") || "1", 10);
   const children = parseInt(searchParams.get("children") || "0", 10);

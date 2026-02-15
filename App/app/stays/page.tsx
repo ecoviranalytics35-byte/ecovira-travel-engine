@@ -35,10 +35,16 @@ function SkeletonLoader() {
   );
 }
 
+function getDefaultCheckIn(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 3);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function Stays() {
   const router = useRouter();
   const [city, setCity] = useState("Melbourne");
-  const [checkIn, setCheckIn] = useState("2025-12-28");
+  const [checkIn, setCheckIn] = useState("");
   const [nights, setNights] = useState(2);
   const [checkOut, setCheckOut] = useState<string>("");
   const [adults, setAdults] = useState(2);
@@ -50,6 +56,10 @@ export default function Stays() {
   const [error, setError] = useState("");
   const [results, setResults] = useState<StayResult[]>([]);
   const [selectedStay, setSelectedStay] = useState<StayResult | null>(null);
+
+  useEffect(() => {
+    if (!checkIn) setCheckIn(getDefaultCheckIn());
+  }, []);
 
   // Helper function to add days to an ISO date string (client-side safe)
   const addDays = useCallback((iso: string, days: number): string => {
@@ -74,17 +84,18 @@ export default function Stays() {
   }, [checkIn, nights, addDays]);
 
   const handleSearch = useCallback(async () => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log("[handleSearch] ENTER", { ts: Date.now(), city, checkIn, nights, adults, children, roomType, classType });
+    const effectiveCheckIn = checkIn || getDefaultCheckIn();
+    if (process.env.NODE_ENV === "development") {
+      console.log("[handleSearch] ENTER", { ts: Date.now(), city, checkIn: effectiveCheckIn, nights, adults, children, roomType, classType });
     }
     try {
       setLoading(true);
       setError("");
       setResults([]);
-      
+
       const params = new URLSearchParams({
         city,
-        checkIn,
+        checkIn: effectiveCheckIn,
         nights: nights.toString(),
         adults: adults.toString(),
         children: children.toString(),
@@ -98,13 +109,15 @@ export default function Stays() {
       
       const res = await fetch(url);
       const data = await res.json();
-      
-      if (process.env.NODE_ENV === 'development') {
+
+      if (process.env.NODE_ENV === "development") {
         console.log("[handleSearch] API response", { status: res.status, ok: res.ok, hasErrors: !!data.errors, resultsCount: data.results?.length || 0 });
       }
-      
-      if (data.errors && data.errors.length > 0) {
-        setError(data.errors[0]);
+
+      // Concierge Notice only on HTTP error (5xx / 4xx). Empty results = "No stays found".
+      if (!res.ok) {
+        const msg = data?.error || (data?.errors && data.errors[0]) || `Request failed (${res.status})`;
+        setError(msg);
         setResults([]);
       } else {
         setResults(data.results || []);
@@ -127,8 +140,8 @@ export default function Stays() {
 
   // Handle stay selection - navigate to guest information page
   const handleSelectStay = useCallback((s: StayResult) => {
-    // Always compute checkOut from checkIn + nights if not already set
-    const computedCheckOut = checkOut || (checkIn && nights > 0 ? addDays(checkIn, nights) : "");
+    const effectiveCheckIn = checkIn || getDefaultCheckIn();
+    const computedCheckOut = checkOut || (effectiveCheckIn && nights > 0 ? addDays(effectiveCheckIn, nights) : "");
     
     console.log("[onSelectStay] ENTER", { stayId: s.id, checkIn, checkOut: computedCheckOut, nights, adults, currency, ts: Date.now() });
     
@@ -136,7 +149,7 @@ export default function Stays() {
       setSelectedStay(s);
       const params = new URLSearchParams({
         stayId: s.id,
-        ...(checkIn && { checkIn }),
+        ...(effectiveCheckIn && { checkIn: effectiveCheckIn }),
         ...(computedCheckOut && { checkOut: computedCheckOut }),
         ...(adults && { adults: adults.toString() }),
         ...(nights && { nights: nights.toString() }),
@@ -151,6 +164,8 @@ export default function Stays() {
       throw err;
     }
   }, [router, checkIn, checkOut, nights, adults, currency, addDays]);
+
+  const effectiveCheckInForDisplay = checkIn || getDefaultCheckIn();
   
   const onSelectStay = useEvent(handleSelectStay);
 
@@ -195,6 +210,7 @@ export default function Stays() {
             onChange={setCheckOut}
             placeholder="Select check-out date"
             label="Check-out"
+            minDate={effectiveCheckInForDisplay || undefined}
           />
         </div>
 
@@ -360,7 +376,7 @@ export default function Stays() {
                   key={i} 
                   stay={stay}
                   searchParams={{
-                    checkIn,
+                    checkIn: effectiveCheckInForDisplay,
                     nights,
                     adults,
                     children,
