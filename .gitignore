@@ -8,3 +8,8 @@ node_modules
 .cursor/
 .cursor/.env*
 .cursor/.env.local
+.env
+.env.*
+.env.local
+.cursor/.env*
+.cursor/.env.local
