@@ -139,6 +139,16 @@ export const duffelFlightProvider: FlightProvider = {
       };
 
       structuredLog("info", {
+        event: "duffel_request_body",
+        requestId,
+        slices,
+        passengersCount: passengers.length,
+        cabin_class: body.data.cabin_class,
+        departure_date,
+        return_date: isRoundtrip ? params.returnDate : null,
+      });
+
+      structuredLog("info", {
         event: "duffel_offer_request_payload",
         requestId,
         origin,
@@ -150,27 +160,42 @@ export const duffelFlightProvider: FlightProvider = {
       });
 
       const res = await duffelFetch<{
-        data?: { id?: string; offers?: Array<{ id?: string; total_amount?: string; total_currency?: string; base_amount?: string; base_currency?: string }> };
-        offers?: Array<{ id?: string; total_amount?: string; total_currency?: string; base_amount?: string; base_currency?: string }>;
+        data?: { id?: string; offers?: unknown[]; data?: { offers?: unknown[] } };
+        offers?: unknown[];
+        errors?: unknown;
       }>("/air/offer_requests?return_offers=true", {
         method: "POST",
         body: JSON.stringify(body),
       });
 
-      const data = res.data as any;
-      const dataOffers = Array.isArray(data?.data?.offers) ? data.data.offers : [];
-      const topLevelOffers = Array.isArray(data?.offers) ? data.offers : [];
-      const offers = dataOffers.length > 0 ? dataOffers : topLevelOffers;
+      const json = res.data as Record<string, unknown>;
+      const d = json?.data;
+      let offers: unknown[] = [];
+      if (d != null && typeof d === "object" && !Array.isArray(d)) {
+        const obj = d as Record<string, unknown>;
+        if (Array.isArray(obj.offers)) offers = obj.offers;
+        else if (obj.data != null && typeof obj.data === "object" && Array.isArray((obj.data as Record<string, unknown>).offers))
+          offers = (obj.data as Record<string, unknown>).offers as unknown[];
+      }
+      if (offers.length === 0 && Array.isArray(d)) offers = d;
+
+      const topLevelKeys = json ? Object.keys(json) : [];
+      const hasData = json?.data !== undefined && json?.data !== null;
+      const dataType = json?.data !== undefined ? typeof json.data : "undefined";
+      const dataKeys = json?.data && typeof json.data === "object" ? Object.keys(json.data as object) : [];
+      const offersCount = offers.length;
+      const errors = json?.errors ?? null;
 
       structuredLog("info", {
         event: "duffel_response_structure",
         requestId,
         statusCode: res.statusCode,
-        responseTopLevelKeys: data ? Object.keys(data) : [],
-        dataDataKeys: data?.data ? Object.keys(data.data) : [],
-        dataDataOffersLength: dataOffers.length,
-        dataOffersLength: topLevelOffers.length,
-        offersUsed: offers.length,
+        topLevelKeys,
+        hasData,
+        dataType,
+        dataKeys,
+        offersCount,
+        errors,
       });
 
       const results: FlightResult[] = offers.slice(0, 10).map((offer: any, index: number) => {

@@ -260,8 +260,11 @@ async function searchRates(
 ): Promise<{ data: LiteApiRatesResponse; statusCode: number; rawCount: number }> {
   const checkIn = params.checkIn;
   const checkoutStr = getCheckOutStr(params);
-  const countryCode = overrides?.countryCode ?? inferCountryCode(params.city);
-  const cityName = overrides?.cityName ?? params.city?.trim() ?? "Melbourne";
+  const countryCode = overrides?.countryCode != null ? overrides.countryCode : inferCountryCode(params.city);
+  const cityName =
+    (overrides && typeof overrides.cityName === "string" && overrides.cityName.trim())
+    || (typeof params.city === "string" && params.city.trim())
+    || "Melbourne";
   const body: LiteApiRatesRequest = {
     checkin: checkIn,
     checkout: checkoutStr,
@@ -273,7 +276,7 @@ async function searchRates(
     hotelIds: overrides?.hotelIds,
     latitude: overrides?.latitude,
     longitude: overrides?.longitude,
-    radius: overrides?.radius ?? 5000,
+    radius: overrides?.radius != null ? overrides.radius : 5000,
   };
   if (overrides?.hotelIds?.length) {
     body.cityName = undefined;

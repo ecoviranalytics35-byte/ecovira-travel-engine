@@ -6,10 +6,10 @@ export const runtime = "nodejs";
 
 const YYYY_MM_DD = /^\d{4}-\d{2}-\d{2}$/;
 
-function toIATA(code: string | null): string | null {
-  if (code == null) return null;
-  const s = code.trim().toUpperCase();
-  return s.length === 3 ? s : null;
+function normalizeIata(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const s = v.trim().toUpperCase().slice(0, 3);
+  return /^[A-Z]{3}$/.test(s) ? s : null;
 }
 
 /** Server-only: known-good test date 2–6 weeks from today. */
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   const adults = parseInt(searchParams.get("adults") || "1");
   const cabinClass = searchParams.get("cabinClass") || "economy";
   const tripType = searchParams.get("tripType") || "oneway";
-  const returnDate = searchParams.get("returnDate") ?? undefined;
+  const returnDate = searchParams.get("returnDate") || undefined;
   const children = parseInt(searchParams.get("children") || "0");
   const infants = parseInt(searchParams.get("infants") || "0");
   const demo = searchParams.get("demo");
@@ -36,9 +36,9 @@ export async function GET(request: Request) {
   const currency = searchParams.get("currency") || "USD";
 
   // Known-good test: MEL->SYD, 2–6 weeks out, 1 adult (server-only)
-  const from = testDuffel ? "MEL" : (toIATA(fromRaw) ? fromRaw!.trim().toUpperCase().slice(0, 3) : null);
-  const to = testDuffel ? "SYD" : (toIATA(toRaw) ? toRaw!.trim().toUpperCase().slice(0, 3) : null);
-  const departDate = testDuffel ? getTestDepartDate() : (departDateRaw?.trim() || null);
+  const from = testDuffel ? "MEL" : normalizeIata(fromRaw);
+  const to = testDuffel ? "SYD" : normalizeIata(toRaw);
+  const departDate = testDuffel ? getTestDepartDate() : (typeof departDateRaw === "string" ? departDateRaw.trim() : null);
 
   // Guard: origin/destination must be valid IATA (3 letters)
   if (!from || from.length !== 3) {
@@ -84,7 +84,7 @@ export async function GET(request: Request) {
     origin: params.from,
     destination: params.to,
     departure_date: params.departDate,
-    return_date: params.returnDate ?? null,
+    return_date: params.returnDate != null ? params.returnDate : null,
     passengers: [
       ...Array(params.adults).fill("adult"),
       ...Array(params.children).fill("child"),
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
   const production = isProduction();
 
   if (production) {
-    const token = (process.env.DUFFEL_ACCESS_TOKEN ?? "").trim();
+    const token = (process.env.DUFFEL_ACCESS_TOKEN || "").trim();
     if (!token) {
       return Response.json(
         { error: "Flights search unavailable: DUFFEL_ACCESS_TOKEN is required in production.", results: [], meta: {}, errors: ["DUFFEL_ACCESS_TOKEN missing"] },
@@ -118,8 +118,22 @@ export async function GET(request: Request) {
 
   const { results, meta, errors } = await searchFlights(params);
 
+  if (testDuffel) {
+    const offersCount = results != null && results.length != null ? results.length : 0;
+    const sampleOffer = results != null && results[0] != null ? results[0] : null;
+    return Response.json({
+      ok: true,
+      provider: "duffel",
+      offersCount,
+      sampleOffer,
+      results: Array.isArray(results) ? results : [],
+      meta: meta != null ? meta : {},
+      errors: Array.isArray(errors) ? errors : [],
+    });
+  }
+
   if (production) {
-    return Response.json({ results: results ?? [], meta: meta ?? {}, errors: errors ?? [] });
+    return Response.json({ results: Array.isArray(results) ? results : [], meta: meta != null ? meta : {}, errors: Array.isArray(errors) ? errors : [] });
   }
 
   if ((!results || results.length === 0) || (errors && errors.length > 0)) {
