@@ -15,8 +15,8 @@ The dev server should start from `App/` (project root), not `App/app/` (Next.js 
 
 Copy `App/.env.local.example` to `App/.env.local` and fill in real values. **Never commit `.env.local`.**
 
-Required for Duffel + LiteAPI + Supabase:
-- `DUFFEL_ACCESS_TOKEN` — Flights (server-side only)
+Required for Duffel + LiteAPI + Supabase (use placeholders in .env.local only; never commit real keys):
+- `DUFFEL_ACCESS_TOKEN=YOUR_DUFFEL_TOKEN` — Flights (server-side only)
 - `LITEAPI_API_KEY` — Hotels (server-side only)
 - `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL only
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Public anon key (client-safe)
@@ -24,7 +24,7 @@ Required for Duffel + LiteAPI + Supabase:
 - `PRIMARY_FLIGHT_PROVIDER=duffel`
 - `PRIMARY_HOTEL_PROVIDER=liteapi`
 
-Add Stripe, NOWPayments, Amadeus, etc. as needed. See `.env.local.example` for the full list of variable names (no values committed).
+Add Stripe, NOWPayments, Amadeus, etc. as needed. Use placeholders only, e.g. `STRIPE_SECRET_KEY=YOUR_STRIPE_SECRET_KEY`. See `.env.local.example` for variable names (no real values).
 
 **CRITICAL:**
 - All API keys and secrets must come from environment variables only; no hardcoded tokens in the repo.
