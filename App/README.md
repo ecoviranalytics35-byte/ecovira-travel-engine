@@ -13,56 +13,22 @@ The dev server should start from `App/` (project root), not `App/app/` (Next.js 
 ## Env Setup
 **IMPORTANT: .env.local must be in the project root (same folder as package.json), NOT in app/.env.local**
 
-Create `.env.local` in repo root (same folder as package.json):
-```
-# Stripe Configuration
-STRIPE_SECRET_KEY=YOUR_STRIPE_SECRET_KEY_<set-in-env>
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=YOUR_STRIPE_PUBLISHABLE_KEY_<set-in-env>
-STRIPE_WEBHOOK_SECRET=YOUR_STRIPE_WEBHOOK_SECRET_<set-in-env>
+Copy `App/.env.local.example` to `App/.env.local` and fill in real values. **Never commit `.env.local`.**
 
-# NOWPayments Configuration
-NOWPAYMENTS_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxx
-NOWPAYMENTS_IPN_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
-NOWPAYMENTS_MODE=live
-# NOWPAYMENTS_MODE can be "live" (default when API key exists) or "mock" (for testing)
+Required for Duffel + LiteAPI + Supabase:
+- `DUFFEL_ACCESS_TOKEN` — Flights (server-side only)
+- `LITEAPI_API_KEY` — Hotels (server-side only)
+- `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL only
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Public anon key (client-safe)
+- `SUPABASE_SERVICE_ROLE_KEY` — Server-only; never use `NEXT_PUBLIC_` for this
+- `PRIMARY_FLIGHT_PROVIDER=duffel`
+- `PRIMARY_HOTEL_PROVIDER=liteapi`
 
-# Admin/Debug Configuration (optional)
-ADMIN_ISSUE_KEY=your-admin-key-here
-# Used for debug endpoints like /api/debug/issue-ticket (requires X-ADMIN-KEY header)
-SUPPORT_EMAIL=support@ecovira.air
-# Support email address for tickets and customer service
-
-# Application Configuration
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-
-# Provider selection (no hardcoding — use these for staging/production)
-PRIMARY_FLIGHT_PROVIDER=duffel
-PRIMARY_HOTEL_PROVIDER=liteapi
-
-# Flights (Duffel) — server-side only, never exposed to client
-DUFFEL_ACCESS_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxx
-
-# Hotels (LiteAPI) — sandbox or production; server-side only
-LITEAPI_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxx
-
-# Amadeus Configuration (optional fallback / secondary)
-AMADEUS_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxx
-AMADEUS_API_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
-
-# Supabase Configuration (if using)
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-```
+Add Stripe, NOWPayments, Amadeus, etc. as needed. See `.env.local.example` for the full list of variable names (no values committed).
 
 **CRITICAL:**
-- NO quotes around values (or use quotes consistently)
-- NO trailing spaces
-- NO placeholder values like "sk_..." - use REAL full keys
-- **Stripe Secret Key** (`STRIPE_SECRET_KEY`) must start with `YOUR_STRIPE_SECRET_KEY_` or `sk_test_` and be >30 characters
-- **Stripe Publishable Key** (`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`) must start with `YOUR_STRIPE_PUBLISHABLE_KEY_` or `pk_test_` and be >30 characters
-- The `NEXT_PUBLIC_` prefix is required for client-side environment variables
-- Restart dev server after ANY changes: `npm run dev` (env vars only load on boot)
+- All API keys and secrets must come from environment variables only; no hardcoded tokens in the repo.
+- Restart dev server after any env changes: `npm run dev`
 
 **If your .env.local is in app/.env.local, move it to the root:**
 ```powershell

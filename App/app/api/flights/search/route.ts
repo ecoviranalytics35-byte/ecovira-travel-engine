@@ -1,6 +1,8 @@
 import { searchFlights } from '@/lib/search/orchestrator';
 import { generateDemoFlights } from '@/lib/demo/data-generators';
 
+export const runtime = "nodejs";
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const from = searchParams.get('from');

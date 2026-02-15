@@ -1,6 +1,8 @@
 import { getHotelProvider } from "@/lib/providers/hotels";
 import type { StaySearchParams } from "@/lib/stays/provider";
 
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();

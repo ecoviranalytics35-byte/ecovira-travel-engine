@@ -305,21 +305,43 @@ export class LiteApiStaysProvider implements StaysProvider {
 
 export const liteApiStaysProvider = new LiteApiStaysProvider();
 
+function newRequestId(): string {
+  return `lite_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function structuredLog(level: "info" | "warn" | "error", payload: Record<string, unknown>): void {
+  const log = { level, ...payload, timestamp: new Date().toISOString() };
+  if (level === "error") {
+    console.error(JSON.stringify(log));
+  } else if (level === "warn") {
+    console.warn(JSON.stringify(log));
+  } else {
+    console.log(JSON.stringify(log));
+  }
+}
+
 /** Minimal health check for LiteAPI (sandbox test request). */
 export async function liteApiHealthCheck(): Promise<{
   ok: boolean;
   message?: string;
   statusCode?: number;
+  requestId?: string;
+  errorBody?: string;
 }> {
+  const requestId = newRequestId();
   if (!process.env.LITEAPI_API_KEY) {
-    return { ok: false, message: "LITEAPI_API_KEY not set" };
+    structuredLog("error", {
+      event: "liteapi_health",
+      requestId,
+      message: "LITEAPI_API_KEY not set",
+    });
+    return { ok: false, message: "LITEAPI_API_KEY not set", requestId };
   }
   try {
-    // Lightweight request: search rates with minimal params (sandbox accepts this)
     const res = await fetch(`${LITEAPI_BASE}/hotels/rates`, {
       method: "POST",
       headers: {
-        "X-API-Key": process.env.LITEAPI_API_KEY,
+        "X-API-Key": getApiKey(),
         "Content-Type": "application/json",
         Accept: "application/json",
       },
@@ -335,12 +357,28 @@ export async function liteApiHealthCheck(): Promise<{
     });
     const statusCode = res.status;
     if (res.ok) {
-      return { ok: true, statusCode };
+      structuredLog("info", {
+        event: "liteapi_health",
+        requestId,
+        statusCode,
+      });
+      return { ok: true, statusCode, requestId };
     }
-    const text = await res.text();
-    return { ok: false, message: text.slice(0, 200), statusCode };
+    const errorBody = await res.text();
+    structuredLog("error", {
+      event: "liteapi_health",
+      requestId,
+      statusCode,
+      errorBody: errorBody.slice(0, 300),
+    });
+    return { ok: false, message: errorBody.slice(0, 200), statusCode, requestId, errorBody: errorBody.slice(0, 300) };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    return { ok: false, message };
+    structuredLog("error", {
+      event: "liteapi_health",
+      requestId,
+      errorBody: message,
+    });
+    return { ok: false, message, requestId, errorBody: message };
   }
 }
