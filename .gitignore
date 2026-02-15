@@ -1,7 +1,10 @@
 .env
 .env.*
+.env.local
 !.env.local.example
 node_modules
 .next
 .DS_Store
 .cursor/
+.cursor/.env*
+.cursor/.env.local
